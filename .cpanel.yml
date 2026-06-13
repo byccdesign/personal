@@ -2,6 +2,7 @@
 deployment:
   tasks:
     - export DEPLOYPATH=/home/chrimmrd/public_html/
+    - /bin/cp .htaccess $DEPLOYPATH
     - /bin/cp -R *.html $DEPLOYPATH
     - /bin/cp -R *.css $DEPLOYPATH
     - /bin/cp -R *.js $DEPLOYPATH
