@@ -1,0 +1,14 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home/chrimmrd/public_html/
+    - /bin/cp -R *.html $DEPLOYPATH
+    - /bin/cp -R *.css $DEPLOYPATH
+    - /bin/cp -R *.js $DEPLOYPATH
+    - /bin/cp -R *.ico $DEPLOYPATH
+    - /bin/cp -R *.svg $DEPLOYPATH
+    - /bin/cp -R *.png $DEPLOYPATH
+    - /bin/cp -R *.webmanifest $DEPLOYPATH
+    - /bin/cp -R img $DEPLOYPATH
+    - /bin/cp -R vid $DEPLOYPATH
+    - /bin/cp -R public $DEPLOYPATH
