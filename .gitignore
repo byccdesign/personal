@@ -1,0 +1,5 @@
+.DS_Store
+
+# Oversized local video sources exceed GitHub's 100 MB file limit.
+img/nescafe/nescafe-thumb-original.mp4
+img/nescafe/nescafe-thumb.mp4
