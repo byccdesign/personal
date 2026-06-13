@@ -633,6 +633,12 @@ a[href^="mailto:"] {
         letter-spacing: -0.04em;
       }
 
+      body.nav-open .nav-links a,
+      body.nav-open .nav-links a[aria-current="page"] {
+        font-size: 24px;
+        line-height: 1.2;
+      }
+
       .navbar.scrolled .nav-links a {
         color: var(--text);
       }
