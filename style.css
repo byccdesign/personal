@@ -626,17 +626,11 @@ a[href^="mailto:"] {
       }
 
       .nav-links a {
-        font-size: clamp(1.5rem, 12vw, 4rem);
-        line-height: 0.95;
+        font-size: 24px;
+        line-height: 1.2;
         display: inline-flex;
         align-items: center;
         letter-spacing: -0.04em;
-      }
-
-      body.nav-open .nav-links a,
-      body.nav-open .nav-links a[aria-current="page"] {
-        font-size: 24px;
-        line-height: 1.2;
       }
 
       .navbar.scrolled .nav-links a {
@@ -668,7 +662,7 @@ a[href^="mailto:"] {
       }
 
       .nav-links a {
-        font-size: clamp(1.5rem, 13vw, 3.5rem);
+        font-size: 24px;
       }
     }
 

@@ -56,6 +56,16 @@
   body.brand-page.nav-open .nav-toggle span {
     color: #111111;
   }
+
+  body.brand-page.nav-open .navbar:not(.scrolled) .nav-toggle,
+  body.brand-page.nav-open .navbar:not(.scrolled) .nav-toggle span {
+    color: #111111;
+  }
+
+  body.brand-page.nav-open .nav-toggle span,
+  body.brand-page.nav-open .navbar:not(.scrolled) .nav-toggle span {
+    background: #111111;
+  }
 }
 
 .brand-hero {
