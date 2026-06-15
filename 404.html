@@ -4,28 +4,38 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="author" content="Christine Uy" />
-  <meta name="description" content="Christine Uy crafts intuitive brand narratives and digital experiences across every channel where art direction meets product thinking. Available for work, based in Canada" />
-  <meta name="Copyright" content="Christine Uy" />
+  <meta name="description" content="Building brand experiences through strategy, creativity, and culture." />
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
-  <meta name="theme-color" content="#FFF9F0">
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@videojs/html/cdn/video.js"></script>
+  <meta name="theme-color" content="#000000">
+  <meta property="og:image" content="img/meta-Index.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />  
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair:ital,opsz,wght@0,5..1200,300..900;1,5..1200,300..900&amp;family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&amp;family=Roboto:wght@600;700&amp;display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/brand.css">
   <title>Christine Uy | 404 Not Found</title>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-TLHF72YDD8"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-TLHF72YDD8');
+  </script>
 </head>
 
-<body class="not-found-page">
+<body class="brand-page not-found-page">
 <div class="cursor"></div>
 
 <header class="navbar" id="navbar">
 
   <div class="nav-logo" alt="Christine Uy - This is the homepage">
-    Christine Uy
+    <a href="https://christine-uy.com/">Christine Uy</a>
   </div>
 
   <button class="nav-toggle" type="button" aria-controls="primary-navigation" aria-expanded="false" aria-label="Open menu">
@@ -34,27 +44,75 @@
   </button>
 
  <nav class="nav-links" id="primary-navigation">
-    <a href="#work">Product</a>
-    <a href="#imc">IMC</a>
+    <a href="/">Product Experience</a>
+    <a href="/brand">Brand Experience</a>
+    <a href="/notes/">Notes</a>
     <a href="/about">About</a>
-    <a href="#contact">Contact</a>
+    <a href="/contact">Contact</a>
   </nav>
 
 </header>
 
-<main class="error-page" aria-labelledby="error-title">
-  <img class="error-image" src="/img/404-meme.gif" alt="Confused woman with math formulas" width="200" height="128">
+<main class="error-page brand-hero" aria-labelledby="error-title">
+  <div class="brand-hero__inner">
+    <div class="brand-hero__copy fade-in-up">
+      <h1 class="error-title" id="error-title">Oops, you went to a wrong place.</h1>
+    </div>
+    <p class="error-subtitle">Find the work you came for instead.</p>
 
-  <h1 class="error-title" id="error-title">
-    <span>Oops, you went to</span>
-    <span>a wrong place.</span>
-  </h1>
+    <div class="not-found-card-grid">
+      <a class="not-found-card fade-in-up" href="/" aria-label="View product design and UX work">
+        <span class="not-found-card__eyebrow">Product Design</span>
+        <h3 class="not-found-card__title">UX, strategy, systems</h3>
+        <p class="not-found-card__desc">Browse product experience case studies and product-design-led work.</p>
+      </a>
 
-  <a class="error-button" href="/">Take me home</a>
-
-  <a class="error-email" href="mailto:hi@christine-uy.com">hi@christine-uy.com</a>
+      <a class="not-found-card fade-in-up" href="/brand" aria-label="View brand projects">
+        <span class="not-found-card__eyebrow">Brand</span>
+        <h3 class="not-found-card__title">Identity, campaigns, visuals</h3>
+        <p class="not-found-card__desc">Explore brand work that balances storytelling and visual systems.</p>
+      </a>
+    </div>
+  </div>
 </main>
- 
+
+  <!-- Footer -->
+  <footer class="site-footer fade-in-up" id="contact">
+    <div class="footer-inner">
+      <div class="footer-heading" aria-label="Availability">
+        
+        <p data-text="Available for work."><span class="footer-amp"> & </span>Available for work</p>
+    
+    
+      </div>
+
+      <div class="footer-rule" aria-hidden="true"></div>
+
+      <div class="footer-meta">
+        <div class="footer-made">
+          <p class="footer-label">Made by</p>
+          <p class="footer-value">Christine Uy</p>
+        </div>
+
+        <address class="footer-links">
+          <div class="footer-link-group">
+            <p class="footer-label">Email</p>
+            <a class="footer-value" href="mailto:hi@christine-uy.com">hi@christine-uy.com</a>
+          </div>
+
+          <div class="footer-link-group">
+            <p class="footer-label">Instagram</p>
+            <a class="footer-value" href="https://www.instagram.com/creatvetin" target="_blank" rel="noreferrer">creatvetin</a>
+          </div>
+
+          <div class="footer-link-group">
+            <p class="footer-label">LinkedIn</p>
+            <a class="footer-value" href="https://www.linkedin.com/in/christine-uy" target="_blank" rel="noreferrer">christine-uy</a>
+          </div>
+        </address>
+      </div>
+    </div>
+  </footer> 
  <script src="/cursor.js" defer></script>
 
 </body>

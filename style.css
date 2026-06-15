@@ -680,6 +680,21 @@ a[href^="mailto:"] {
       flex-direction: column;
       align-items: center;
       justify-content: center;
+      text-align: center;
+    }
+
+    .error-page .brand-hero__inner {
+      display: grid;
+      justify-items: center;
+      gap: 18px;
+      width: min(100%, 980px);
+      margin: 0 auto;
+    }
+
+    .error-page .brand-hero__copy {
+      justify-content: center;
+      width: 100%;
+      text-align: center;
     }
 
     .not-found-page .nav-links {
@@ -694,6 +709,14 @@ a[href^="mailto:"] {
       object-fit: cover;
       margin: 0 0 36px;
       pointer-events: none;
+    }
+
+    .error-copy {
+      display: grid;
+      gap: 18px;
+      text-align: center;
+      max-width: 760px;
+      margin: 0 auto;
     }
 
     .error-title {
@@ -711,12 +734,109 @@ a[href^="mailto:"] {
       font-variation-settings: "opsz" 12, "wdth" 100;
     }
 
+    .error-subtitle {
+      display: block;
+      color: var(--dark-content);
+      font-size: 22px;
+      line-height: 1.6;
+      max-width: 700px;
+      margin: 0 auto;
+      text-align: center;
+    }
+
+    .brand-hero .error-title {
+      font-family: "Plus Jakarta Sans", sans-serif;
+      font-size: clamp(58px, 5.903vw, 80px);
+      font-weight: 400;
+      line-height: 1.18;
+      letter-spacing: -0.06em;
+      color: #fff8e5;
+      margin: 0;
+      max-width: min(900px, 100%);
+      text-align: center;
+      text-wrap: balance;
+      overflow-wrap: anywhere;
+    }
+
+    .not-found-card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 24px;
+      width: min(100%, 820px);
+      margin: 48px auto 0;
+    }
+
+    .not-found-card {
+      display: grid;
+      min-height: 270px;
+      gap: 18px;
+      align-content: center;
+      justify-items: center;
+      padding: 34px 36px 38px;
+      border: none;
+      border-radius: 24px;
+      background: #000000;
+      color: #fff8e5;
+      text-align: center;
+      text-decoration: none;
+      transition:
+        background 0.25s ease,
+        transform 0.25s ease,
+        box-shadow 0.25s ease;
+    }
+
+    .not-found-card:hover,
+    .not-found-card:focus-visible {
+      background: #141414;
+      transform: translateY(-4px);
+      box-shadow: 0 32px 64px rgba(0, 0, 0, 0.18);
+    }
+
+    .not-found-card__eyebrow {
+      color: var(--brand-imc-accent);
+      font-family: "Plus Jakarta Sans", sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.2;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+    }
+
+    .not-found-card__title {
+      max-width: 11ch;
+      margin: 0;
+      background: linear-gradient(168deg, #ffad30 38.66%, #ff852a 70.8%, #ff5c23 102.94%);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      font-family: "Plus Jakarta Sans", sans-serif;
+      font-size: clamp(32px, 2.5vw, 40px);
+      font-weight: 400;
+      line-height: 1.08;
+      letter-spacing: -0.04em;
+      text-wrap: balance;
+    }
+
+    .not-found-card__desc {
+      max-width: 31ch;
+      margin: 0;
+      color: var(--dark-heading);
+      font-size: 18px;
+      line-height: 1.75;
+    }
+
+    .error-footer {
+      display: grid;
+      gap: 18px;
+      justify-items: center;
+      margin-top: 42px;
+    }
+
     .error-button {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       min-height: 56px;
-      margin-top: 50px;
       padding: 14px 32px 16px;
       border: 1px solid #000000;
       border-radius: 999px;
@@ -739,7 +859,6 @@ a[href^="mailto:"] {
     }
 
     .error-email {
-      margin-top: 28px;
       border-bottom: 0;
       color: #000000;
       font-size: 24px;
@@ -757,27 +876,63 @@ a[href^="mailto:"] {
       }
 
       .error-title {
-        font-size: clamp(54px, 17vw, 88px);
-        line-height: 0.78;
-        letter-spacing: -0.055em;
+        font-size: clamp(38px, 10.5vw, 48px);
+        line-height: 1.08;
+        letter-spacing: -0.05em;
+      }
+
+      .error-subtitle {
+        font-size: 18px;
+        max-width: 26ch;
+        text-align: center;
+      }
+
+      .not-found-card-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        width: min(100%, 520px);
+        margin-top: 36px;
+      }
+
+      .not-found-card {
+        min-height: 230px;
+        padding: 30px 28px 34px;
+        border-radius: 20px;
       }
 
       .error-button {
         min-height: 48px;
-        margin-top: 42px;
+        margin-top: 0;
         padding: 12px 24px;
         font-size: 18px;
       }
 
       .error-email {
-        margin-top: 24px;
         font-size: 18px;
       }
     }
 
     @media (max-width: 480px) {
       .error-title {
-        font-size: clamp(44px, 18vw, 68px);
+        font-size: clamp(34px, 10vw, 42px);
+      }
+
+      .not-found-card-grid {
+        gap: 14px;
+      }
+
+      .not-found-card {
+        min-height: 220px;
+        padding: 20px;
+      }
+
+      .not-found-card__title {
+        font-size: clamp(28px, 9vw, 34px);
+      }
+
+      .not-found-card__desc {
+        font-size: 16px;
+        line-height: 1.65;
       }
     }
 
@@ -5699,6 +5854,72 @@ a[href^="mailto:"] {
       background: #2f2f2f;
     }
 
+    .footer-card-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 24px;
+      width: 100%;
+      margin: 48px auto 0;
+    }
+
+    .footer-card {
+      display: grid;
+      min-height: 270px;
+      gap: 18px;
+      align-content: center;
+      justify-items: center;
+      padding: 34px 36px 38px;
+      border: 0;
+      border-radius: 24px;
+      background: #191919;
+      color: #fff8e5;
+      text-align: center;
+      text-decoration: none;
+      transition:
+        background 0.25s ease,
+        transform 0.25s ease,
+        box-shadow 0.25s ease;
+    }
+
+    .footer-card:hover,
+    .footer-card:focus-visible {
+      background: #141414;
+      transform: translateY(-4px);
+      box-shadow: 0 32px 64px rgba(0, 0, 0, 0.18);
+    }
+
+    .footer-card__eyebrow {
+      color: var(--dark-content);
+      font-family: "Plus Jakarta Sans", sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.2;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+    }
+
+    .footer-card__title {
+      margin: 0;
+      background: linear-gradient(168deg, #ffad30 38.66%, #ff852a 70.8%, #ff5c23 102.94%);
+      background-clip: text;
+      -webkit-background-clip: text;
+      color: transparent;
+      font-family: "Plus Jakarta Sans", sans-serif;
+      font-size: clamp(32px, 2.5vw, 40px);
+      font-weight: 400;
+      line-height: 1.8;
+      letter-spacing: -0.04em;
+      text-wrap: balance;
+    }
+
+    .footer-card__desc {
+      max-width: 31ch;
+      margin: 0;
+      color: var(--dark-heading);
+      font-size: 18px;
+      line-height: 1.75;
+    }
+
     .footer-meta {
       display: grid;
       grid-template-columns: 1fr auto;
@@ -5766,6 +5987,18 @@ a[href^="mailto:"] {
         margin-top: 48px;
       }
 
+      .footer-card-grid {
+        grid-template-columns: 1fr;
+        width: min(100%, 520px);
+        margin-top: 40px;
+      }
+
+      .footer-card {
+        min-height: 230px;
+        padding: 30px 28px 34px;
+        border-radius: 20px;
+      }
+
       .footer-meta {
         grid-template-columns: 1fr;
         gap: 36px;
@@ -5800,6 +6033,24 @@ a[href^="mailto:"] {
       .footer-links {
         grid-template-columns: 1fr;
         gap: 22px;
+      }
+
+      .footer-card-grid {
+        gap: 14px;
+      }
+
+      .footer-card {
+        min-height: 220px;
+        padding: 20px;
+      }
+
+      .footer-card__title {
+        font-size: clamp(28px, 9vw, 34px);
+      }
+
+      .footer-card__desc {
+        font-size: 16px;
+        line-height: 1.65;
       }
 
       .footer-label {
