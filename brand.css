@@ -1208,6 +1208,12 @@ body.brand-modal-open {
     min-height: 420px;
   }
 
+  .brand-project-modal__media video {
+    height: auto;
+    min-height: 0;
+    object-fit: contain;
+  }
+
   .brand-project-modal__gallery-item img {
     min-height: 360px;
   }
