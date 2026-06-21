@@ -1567,7 +1567,7 @@ a[href^="mailto:"] {
       width: 100%;
       padding: 200px var(--site-gutter) 200px;
       border-bottom: none;
-      background: #000000;
+      background: #161616;
       color: #eaeaea;
       overflow: hidden;
     }
