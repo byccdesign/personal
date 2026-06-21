@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Full width dummy image two</title>
+  <desc id="desc">A placeholder image for the final full width modal slot.</desc>
+  <defs>
+    <linearGradient id="bg" x1="1" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#111c24"/>
+      <stop offset="1" stop-color="#34314a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect x="80" y="80" width="1440" height="740" rx="36" fill="none" stroke="#7ea7ff" stroke-width="6" stroke-dasharray="24 22"/>
+  <text x="800" y="430" fill="#ffffff" font-family="Arial, sans-serif" font-size="76" font-weight="700" text-anchor="middle">FULL WIDTH IMAGE</text>
+  <text x="800" y="520" fill="#c8d5ff" font-family="Arial, sans-serif" font-size="32" text-anchor="middle">Dummy modal gallery slot 4</text>
+</svg>

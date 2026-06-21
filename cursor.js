@@ -224,8 +224,9 @@
       const modalDescription = brandProjectModal.querySelector('.brand-project-modal__description');
       const modalMeta = brandProjectModal.querySelector('.brand-project-modal__meta');
       const modalMedia = brandProjectModal.querySelector('.brand-project-modal__media');
-      const modalVideo = brandProjectModal.querySelector('video');
-      const modalImage = brandProjectModal.querySelector('img');
+      const modalVideo = modalMedia.querySelector('video');
+      const modalImage = modalMedia.querySelector('img');
+      const modalGallery = brandProjectModal.querySelector('.brand-project-modal__gallery');
       let activeProjectTrigger = null;
 
       function setModalContent(trigger) {
@@ -250,6 +251,31 @@
           modalVideo.src = video;
           modalVideo.load();
         }
+
+        modalGallery.innerHTML = '';
+
+        let galleryItems = [];
+
+        try {
+          galleryItems = JSON.parse(trigger.dataset.projectGallery || '[]');
+        } catch (error) {
+          galleryItems = [];
+        }
+
+        galleryItems.forEach((item) => {
+          if (!item.src) return;
+
+          const galleryFigure = document.createElement('figure');
+          galleryFigure.className = `brand-project-modal__gallery-item is-${item.layout || 'full'}`;
+
+          const galleryImage = document.createElement('img');
+          galleryImage.src = item.src;
+          galleryImage.alt = item.alt || '';
+          galleryImage.loading = 'lazy';
+
+          galleryFigure.appendChild(galleryImage);
+          modalGallery.appendChild(galleryFigure);
+        });
       }
 
       function openBrandProjectModal(trigger) {

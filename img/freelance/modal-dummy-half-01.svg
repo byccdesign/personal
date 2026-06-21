@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 900" role="img" aria-labelledby="title desc">
+  <title id="title">Half width dummy image one</title>
+  <desc id="desc">A placeholder image for the first half width modal slot.</desc>
+  <rect width="900" height="900" fill="#20242c"/>
+  <rect x="60" y="60" width="780" height="780" rx="32" fill="none" stroke="#65d6ad" stroke-width="6" stroke-dasharray="20 18"/>
+  <text x="450" y="420" fill="#ffffff" font-family="Arial, sans-serif" font-size="58" font-weight="700" text-anchor="middle">HALF IMAGE</text>
+  <text x="450" y="500" fill="#c7d4d0" font-family="Arial, sans-serif" font-size="30" text-anchor="middle">Dummy slot 2</text>
+</svg>
