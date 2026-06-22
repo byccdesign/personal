@@ -875,7 +875,7 @@
 .brand-other-card__copy {
   display: grid;
   gap: 4px;
-  width: min(100%, 280px);
+  width: min(100%, 400px);
   margin-top: 24px;
 }
 
@@ -995,7 +995,7 @@
 .brand-project-modal__header {
   display: grid;
   gap: 22px;
-  width: min(100%, 980px);
+  width: min(100%, 1440px);
 }
 
 .brand-project-modal__category,
@@ -1022,7 +1022,7 @@
 }
 
 .brand-project-modal__description {
-  width: min(100%, 760px);
+  width: min(100%, 1024px);
   margin: 0;
   color: #dedede;
   font-size: clamp(18px, 1.667vw, 24px);
