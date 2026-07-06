@@ -939,7 +939,7 @@ a[href^="mailto:"] {
     /* ABOUT HERO */
     .about-hero {
       position: relative;
-      padding: 160px 0 120px;
+      padding: 160px 0 200px;
       border-bottom: 1px solid #dedede;
       background: linear-gradient(180deg, #fffcf5 0%, #ffffff 37.4%);
       color: #000000;
@@ -1442,7 +1442,7 @@ a[href^="mailto:"] {
     .work-experience {
       position: relative;
       width: 100%;
-      padding: 120px var(--site-gutter) 120px;
+      padding: 200px var(--site-gutter) 200px;
       border-bottom: 1px solid #eaeaea;
       background: var(--bg);
       color: var(--text);
@@ -1591,14 +1591,13 @@ a[href^="mailto:"] {
       min-height: 24px;
       margin: 0 0 22px;
       padding: 4px 8px;
-      border: 1px solid #ffad30;
-      border-radius: 999px;
-      background: #404040;
-      color: #fec320;
-      font-size: 12px;
-      font-weight: 600;
-      line-height: 1;
-      letter-spacing: -0.02em;
+      border: none;
+      background: transparent;
+      color: #838383;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 16px;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
     }
 
@@ -1812,8 +1811,9 @@ a[href^="mailto:"] {
       position: relative;
       min-height: 820px;
       padding: 150px 0 0;
+      border-top: 1px solid #492113;
       border-bottom: 1px solid #303030;
-      background: linear-gradient(180deg, #470000 0%, #111 100%);
+      background: linear-gradient(180deg, #2b1616 0%, #111 100%);
       color: #fff1f1;
       overflow: hidden;
     }
@@ -2061,7 +2061,7 @@ a[href^="mailto:"] {
       padding: 4px 8px;
       border: 1px solid #ffad30;
       border-radius: 999px;
-      background: #404040;
+      background: transparent;
       color: #fec320;
       font-size: 12px;
       font-weight: 500;
@@ -3697,7 +3697,7 @@ a[href^="mailto:"] {
       color: #ffffff;
       font-size: 36px;
       font-weight: 400;
-      line-height: 35px;
+      line-height: 44px;
     }
 
     .ewa-highlight p:last-child {
@@ -3779,6 +3779,7 @@ a[href^="mailto:"] {
       max-width: 429px;
       margin-top: 24px;
       margin-bottom: 18px;
+      line-height: 44px;
     }
 
     .ewa-highlight-card--impact .ewa-highlight__copy p:last-child {
