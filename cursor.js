@@ -97,10 +97,62 @@
       }, interval);
     });
 
-    const featuredWork = document.querySelector('.featured-work[data-case-study-url]');
+    /* =========================
+    METRIC COUNT-UP
+    ========================= */
+
+    const metricValues = document.querySelectorAll('.project-metric__value');
+
+    function animateMetricValue(metric) {
+      const textNode = Array.from(metric.childNodes).find((node) => (
+        node.nodeType === Node.TEXT_NODE && /\d/.test(node.textContent || '')
+      ));
+
+      if (!textNode) return;
+
+      const originalText = textNode.textContent || '';
+      const numberMatch = originalText.match(/(\d+(?:\.\d+)?)/);
+      if (!numberMatch) return;
+
+      const targetValue = Number(numberMatch[1]);
+      if (!Number.isFinite(targetValue)) return;
+
+      const prefix = originalText.slice(0, numberMatch.index);
+      const suffix = originalText.slice((numberMatch.index || 0) + numberMatch[1].length);
+      const decimals = numberMatch[1].includes('.') ? numberMatch[1].split('.')[1].length : 0;
+      const duration = Number(metric.dataset.countDuration) || 1200;
+      const startTime = performance.now();
+
+      function render(now) {
+        const progress = Math.min((now - startTime) / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        const currentValue = targetValue * eased;
+        const displayValue = decimals
+          ? currentValue.toFixed(decimals)
+          : String(Math.round(currentValue));
+
+        textNode.textContent = `${prefix}${displayValue}${suffix}`;
+
+        if (progress < 1) {
+          requestAnimationFrame(render);
+        } else {
+          textNode.textContent = originalText;
+        }
+      }
+
+      requestAnimationFrame(render);
+    }
+
+    if (!prefersReducedMotion.matches) {
+      window.setTimeout(() => {
+        metricValues.forEach(animateMetricValue);
+      }, 220);
+    }
+
+    const featuredWorks = document.querySelectorAll('.featured-work[data-case-study-url]');
     const floatingCaseTooltip = document.querySelector('.floating-case-tooltip');
 
-    if (featuredWork) {
+    featuredWorks.forEach((featuredWork) => {
       let pointerStartX = 0;
       let pointerStartY = 0;
       let pointerMoved = false;
@@ -163,7 +215,7 @@
         event.preventDefault();
         window.location.href = featuredWork.dataset.caseStudyUrl;
       });
-    }
+    });
 
     const emailLinks = document.querySelectorAll('a[href^="mailto:"]');
     let copiedTimer;
