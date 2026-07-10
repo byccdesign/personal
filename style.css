@@ -4887,6 +4887,14 @@ a[href^="mailto:"] {
       margin-top: 28px;
     }
 
+    .project-showcase__copy > img {
+      width: min(100%, 910px);
+      max-width: 100%;
+      height: auto;
+      object-fit: contain;
+      justify-self: stretch;
+    }
+
     /* Reusable before-and-after connected nodes */
     .project-node-comparison {
       display: grid;
@@ -5543,6 +5551,14 @@ a[href^="mailto:"] {
         margin-left: 0;
       }
 
+      .project-showcase__copy {
+        width: 100%;
+      }
+
+      .project-showcase__copy > img {
+        width: 100%;
+      }
+
       .project-node-comparison {
         grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr);
         width: 100%;
@@ -5903,6 +5919,7 @@ a[href^="mailto:"] {
 
       .ewa-bento-card--split {
         min-height: 0;
+        padding: 24px;
       }
 
       .ewa-bento-copy {
