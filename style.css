@@ -5683,6 +5683,13 @@ a[href^="mailto:"] {
         font-size: 30px;
       }
 
+      .ewa-section p,
+      .ewa-feature-copy p,
+      .ewa-learnings p,
+      .ewa-industry p {
+        font-size: 14px;
+      }
+
       .ewa-highlight h2,
       .ewa-feature-copy h2 {
         font-size: 30px;

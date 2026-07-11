@@ -1461,7 +1461,7 @@ body.case-study-page.nav-open .navbar.scrolled .nav-toggle span {
   color: #ffffff;
   font-size: 18px;
   line-height: 30px;
-  letter-spacing: 0;
+  letter-spacing:-0.36px;
 }
 
 .case-study-copy-block p + p {
