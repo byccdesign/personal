@@ -34,6 +34,19 @@ button {
   cursor: inherit;
 }
 
+/* =========================
+HEADINGS
+========================= */
+h3 {
+  letter-spacing: -1.0px;
+  font-weight: 600;
+}
+
+/* =========================
+SPACER
+========================= */
+
+
 .space-200px {
   height: 200px;
 }
@@ -3128,8 +3141,8 @@ a[href^="mailto:"] {
       }
 
       .featured-work__copy p {
-        font-size: 14px;
-        line-height: 22px;
+        font-size: 16px;
+        line-height: 26px;
       }
 
       .project-tags {
@@ -5686,8 +5699,10 @@ a[href^="mailto:"] {
       .ewa-section p,
       .ewa-feature-copy p,
       .ewa-learnings p,
-      .ewa-industry p {
-        font-size: 14px;
+      .ewa-industry p,
+      .ewa-discovery p {
+        font-size: 16px;
+        line-height: 30px;
       }
 
       .ewa-highlight h2,
@@ -5832,8 +5847,8 @@ a[href^="mailto:"] {
       }
 
       .ewa-feature-intro__copy p {
-        font-size: 14px;
-        line-height: 22px;
+        font-size: 16px;
+        line-height: 30px;
       }
 
       .ewa-metric-grid article {
@@ -5877,8 +5892,8 @@ a[href^="mailto:"] {
       }
 
       .project-showcase__copy p {
-        font-size: 14px;
-        line-height: 22px;
+        font-size: 16px;
+        line-height: 30px;
       }
 
       .project-node-comparison {
@@ -5939,8 +5954,9 @@ a[href^="mailto:"] {
       }
 
       .ewa-bento-copy p {
-        font-size: 14px;
-        line-height: 22px;
+        font-size: 16px;
+        line-height: 30px;
+        margin-bottom: 24px;
       }
 
       .ewa-bento-card--split .ewa-bento-visual {
