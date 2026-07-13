@@ -6117,6 +6117,7 @@ a[href^="mailto:"] {
       margin: 0;
       color: var(--dark-heading);
       font-size: 18px;
+      letter-spacing: -0.03em;
       line-height: 1.75;
     }
 
