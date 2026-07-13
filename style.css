@@ -3452,7 +3452,6 @@ a[href^="mailto:"] {
 
     .ewa-case-study section img {
       max-width: 100%;
-      height: auto;
     }
 
     .ewa-section > img,
@@ -4893,14 +4892,16 @@ a[href^="mailto:"] {
       letter-spacing: -0.04em;
     }
 
-    .project-showcase img {
+    .project-showcase img,
+    .project-showcase video {
       display: block;
       width: 100%;
       height: auto;
       margin-top: 28px;
     }
 
-    .project-showcase__copy > img {
+    .project-showcase__copy > img,
+    .project-showcase__copy > video {
       width: min(100%, 910px);
       max-width: 100%;
       height: auto;
@@ -5878,9 +5879,14 @@ a[href^="mailto:"] {
       }
 
       .ewa-full-bleed-visual {
-        height: 72vh;
-        min-height: 380px;
-        margin-top: 72px;
+        height: auto;
+        min-height: 0;
+      }
+
+      .ewa-full-bleed-visual img,
+      .ewa-full-bleed-visual video {
+        height: auto;
+        object-fit: contain;
       }
 
       .project-showcase {
@@ -5918,6 +5924,11 @@ a[href^="mailto:"] {
 
       .ewa-bento-card--hero {
         height: 360px;
+      }
+
+      .ewa-bento-card img,
+      .ewa-bento-card video {
+        object-fit: revert-rule;
       }
 
       .ewa-bento-card--login,
@@ -6240,6 +6251,7 @@ a[href^="mailto:"] {
       .footer-card__desc {
         font-size: 16px;
         line-height: 1.65;
+        letter-spacing: -0.02em;
       }
 
       .footer-label {
