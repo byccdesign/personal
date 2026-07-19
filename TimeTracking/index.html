@@ -1,0 +1,2789 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Time Tracker</title>
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
+<link rel="stylesheet" href="./style.css">
+</helmet>
+<div class="tt-app">
+
+  <div class="{{ sidebarClass }}">
+
+    <div class="tt-rule-001">
+      <div class="tt-rule-002">
+        <span class="tt-rule-003"><span class="material-icon tt-rule-006">alarm</span></span>
+        <span class="tt-sidebar-title">Time Tracker</span>
+      </div>
+      <button class="tt-sidebar-toggle tt-action-tooltip tt-hover-01" aria-label="{{ sidebarToggleLabel }}" data-tooltip="{{ sidebarToggleLabel }}" title="{{ sidebarToggleLabel }}" onClick="{{ toggleSidebar }}">
+        <span class="material-icon tt-rule-006">{{ sidebarToggleIcon }}</span>
+      </button>
+    </div>
+
+    <div class="tt-sidebar-hero">
+      <div class="tt-rule-008">{{ clockTime }}</div>
+      <div class="tt-rule-009">{{ clockDate }} · Toronto, ON (ET)</div>
+    </div>
+
+    <div class="tt-sidebar-nav">
+      <button class="{{ navTrackerClass }} tt-action-tooltip tt-hover-02" aria-label="Time Sessions" aria-keyshortcuts="T" data-tooltip="Time Sessions · T" title="Time Sessions · T" onClick="{{ goTracker }}">
+        <span class="material-icon tt-rule-006">alarm</span>
+        <span>Time Sessions</span>
+      </button>
+      <button class="{{ navReportsClass }} tt-action-tooltip tt-hover-02" aria-label="Reports" aria-keyshortcuts="R" data-tooltip="Reports · R" title="Reports · R" onClick="{{ goReports }}">
+        <span class="material-icon tt-rule-006">note</span>
+        <span>Reports</span>
+      </button>
+      <button class="{{ navContactsClass }} tt-action-tooltip tt-hover-02" aria-label="Contacts" aria-keyshortcuts="C" data-tooltip="Contacts · C" title="Contacts · C" onClick="{{ goContacts }}">
+        <span class="material-icon tt-rule-006">contacts</span>
+        <span>Contacts</span>
+      </button>
+      <button class="{{ navInvoiceClass }} tt-action-tooltip tt-hover-02" aria-label="Invoice" aria-keyshortcuts="I" data-tooltip="Invoice · I" title="Invoice · I" onClick="{{ goInvoice }}">
+        <span class="material-icon tt-rule-006">receipt</span>
+        <span>Invoice</span>
+      </button>
+    </div>
+
+    <div class="tt-sidebar-projects-section">
+      <div class="tt-projects-header">
+        <span class="tt-rule-013">Projects</span>
+        <button class="tt-projects-add tt-action-tooltip tt-hover-03" aria-label="New project" data-tooltip="New project" title="New project" onClick="{{ openAddProject }}">
+          <span class="material-icon tt-rule-014">add</span>
+        </button>
+      </div>
+
+      <sc-if value="{{ noProjects }}" hint-placeholder-val="{{ true }}">
+        <div class="tt-rule-015">
+          <div class="tt-rule-016">No projects yet. Create a folder to start tracking.</div>
+          <button class="tt-rule-017 tt-hover-03" onClick="{{ openAddProject }}">+ New project</button>
+        </div>
+      </sc-if>
+
+      <div class="tt-projects-list">
+        <sc-for list="{{ projectsView }}" as="project" hint-placeholder-count="2">
+          <div class="tt-project-group">
+            <div class="{{ project.rowClass }}" role="button" tabindex="0" aria-label="{{ project.ariaLabel }}" data-tooltip="{{ project.tooltipLabel }}" title="{{ project.tooltipLabel }}" onClick="{{ project.onSelect }}" onKeyDown="{{ project.onKeyDown }}">
+              <span class="material-icon tt-rule-020">
+                <sc-if value="{{ project.expanded }}" hint-placeholder-val="{{ true }}">expand_more</sc-if>
+                <sc-if value="{{ project.collapsedFlag }}" hint-placeholder-val="{{ false }}">chevron_right</sc-if>
+              </span>
+              <span class="tt-project-avatar" style="--item-color:{{ project.color }}; --item-contrast:{{ project.iconColor }};">
+                <span class="material-icon tt-project-avatar-icon">{{ project.icon }}</span>
+                <sc-if value="{{ project.hasActiveTimer }}" hint-placeholder-val="{{ false }}"><span class="tt-sidebar-timer-indicator"></span></sc-if>
+              </span>
+              <div class="tt-rule-021">
+                <div class="tt-rule-022">{{ project.name }}</div>
+                <div class="tt-rule-023">{{ project.taskCountLabel }}</div>
+              </div>
+              <button class="tt-row-edit tt-action-tooltip tt-rule-024 tt-hover-01" aria-label="Edit project" data-tooltip="Edit project" onClick="{{ project.onEdit }}">
+                <span class="material-icon tt-rule-006">edit</span>
+              </button>
+            </div>
+
+            <sc-if value="{{ project.expanded }}" hint-placeholder-val="{{ true }}">
+              <div class="tt-task-list">
+                <sc-for list="{{ project.tasks }}" as="task" hint-placeholder-count="2">
+                  <div class="{{ task.rowClass }}" role="button" tabindex="0" aria-label="Show Time Sessions for {{ task.name }}" onClick="{{ task.onSelect }}" onKeyDown="{{ task.onKeyDown }}">
+                    <span class="tt-project-dot" style="--item-color:{{ project.color }};"></span>
+                    <div class="tt-rule-021">
+                      <div class="tt-rule-027">{{ task.name }}</div>
+                      <div class="tt-rule-028">{{ task.rateLabel }}</div>
+                    </div>
+                    <div class="tt-task-actions">
+                      <button class="{{ task.timerActionClass }}" aria-label="{{ task.timerActionAriaLabel }}" data-tooltip="{{ task.timerActionLabel }}" onClick="{{ task.onTimerAction }}">
+                        <span class="material-icon tt-rule-006">{{ task.timerActionIcon }}</span>
+                      </button>
+                      <button class="tt-row-edit tt-action-tooltip tt-rule-029 tt-hover-01" aria-label="Edit task" data-tooltip="Edit task" onClick="{{ task.onEdit }}">
+                        <span class="material-icon tt-rule-006">edit</span>
+                      </button>
+                    </div>
+                  </div>
+                </sc-for>
+                <button class="tt-new-task tt-hover-05" onClick="{{ project.onAddTask }}">
+                  <span class="material-icon tt-rule-031">add</span> New task
+                </button>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div class="tt-sidebar-footer">
+      <button class="tt-rule-033 tt-hover-04" onClick="{{ exportData }}">Export</button>
+      <button class="tt-rule-033 tt-hover-04" onClick="{{ importData }}">Import</button>
+      <button class="tt-rule-033 tt-shortcuts-toggle tt-hover-04" aria-pressed="{{ keyboardShortcutsEnabled }}" title="Enable or disable single-key navigation shortcuts" onClick="{{ toggleKeyboardShortcuts }}">
+        <span class="material-icon">keyboard</span>
+        {{ keyboardShortcutsLabel }}
+      </button>
+    </div>
+  </div>
+
+  <button class="tt-sidebar-scrim" aria-label="Close sidebar" onClick="{{ collapseSidebar }}"></button>
+  <button class="tt-mobile-sidebar-open tt-action-tooltip" aria-label="Open sidebar" data-tooltip="Open sidebar" onClick="{{ toggleSidebar }}">
+    <span class="material-icon">menu</span>
+  </button>
+
+  <div class="tt-main">
+
+    <sc-if value="{{ isTrackerView }}" hint-placeholder-val="{{ true }}">
+      <div>
+        <div class="tt-page-header">
+          <h1 class="tt-page-title">Time Sessions</h1>
+          <div class="tt-page-actions">
+            <sc-if value="{{ showTimeLogRange }}" hint-placeholder-val="{{ true }}">
+              <div class="tt-date-range-wrap">
+                <div class="tt-range-switcher tt-time-log-range" role="group" aria-label="Time Sessions date range">
+                  <button class="{{ timeLogRangeWeekClass }}" onClick="{{ setTimeLogRangeWeek }}">This week</button>
+                  <button class="{{ timeLogRangeMonthClass }}" onClick="{{ setTimeLogRangeMonth }}">This month</button>
+                  <button class="{{ timeLogRangeAllClass }}" onClick="{{ setTimeLogRangeAll }}">All time</button>
+                  <button class="{{ timeLogRangeCustomClass }}" onClick="{{ setTimeLogRangeCustom }}">Custom</button>
+                </div>
+                <sc-if value="{{ showCustomTimeLogRange }}" hint-placeholder-val="{{ false }}">
+                  <div class="tt-custom-range-popover" role="group" aria-label="Custom Time Sessions date range">
+                    <label class="tt-custom-range-field">
+                      <span>From</span>
+                      <input type="date" value="{{ timeLogCustomFrom }}" onChange="{{ setTimeLogCustomFrom }}"/>
+                    </label>
+                    <label class="tt-custom-range-field">
+                      <span>To</span>
+                      <input type="date" value="{{ timeLogCustomTo }}" onChange="{{ setTimeLogCustomTo }}"/>
+                    </label>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-if>
+            <div class="tt-project-filter">
+              <span class="material-icon tt-project-filter-icon">filter_alt</span>
+              <select class="tt-project-filter-select" aria-label="Filter time sessions by project" value="{{ projectFilterId }}" onChange="{{ setProjectFilter }}">
+                <option value="all">All projects</option>
+                <sc-for list="{{ projectFilterOptions }}" as="option" hint-placeholder-count="2">
+                  <option value="{{ option.id }}">{{ option.name }}</option>
+                </sc-for>
+              </select>
+              <span class="material-icon tt-project-filter-arrow">expand_more</span>
+            </div>
+            <div class="tt-view-switcher" role="group" aria-label="Time Sessions view">
+              <button class="{{ weekViewClass }}" aria-label="Week calendar view" data-tooltip="Week calendar" onClick="{{ setWeekView }}">
+                <span class="material-icon">calendar_view_week</span>
+              </button>
+              <button class="{{ listViewClass }}" aria-label="List view" data-tooltip="List view" onClick="{{ setListView }}">
+                <span class="material-icon">view_list</span>
+              </button>
+            </div>
+            <sc-if value="{{ headerCanStartTimer }}" hint-placeholder-val="{{ true }}">
+              <button class="tt-btn tt-btn-primary tt-header-timer tt-hover-03" onClick="{{ startLastActivity }}">
+                <span class="material-icon tt-rule-006">play_arrow</span>
+                Start timer
+              </button>
+            </sc-if>
+            <sc-if value="{{ headerTimerRunning }}" hint-placeholder-val="{{ false }}">
+              <button class="tt-btn tt-header-timer tt-header-timer--stop tt-hover-06" onClick="{{ stopHeaderTimer }}">
+                <span class="material-icon tt-rule-006">stop</span>
+                Stop timer
+              </button>
+            </sc-if>
+          </div>
+        </div>
+
+        <sc-if value="{{ activeInfo }}" hint-placeholder-val="{{ false }}">
+          <div class="tt-rule-034">
+            <div class="tt-rule-035">
+              <span class="tt-active-avatar" style="--item-color:{{ activeInfo.color }}; --item-contrast:{{ activeInfo.iconColor }};"><span class="material-icon tt-project-avatar-icon">{{ activeInfo.icon }}</span></span>
+              <div class="tt-rule-036">
+                <div class="tt-rule-037">{{ activeInfo.taskName }}</div>
+                <div class="tt-rule-038">{{ activeInfo.projectName }}</div>
+              </div>
+            </div>
+            <div class="tt-rule-040">
+              <div class="tt-rule-041">{{ activeInfo.elapsedLabel }}</div>
+              <div class="tt-rule-042">{{ activeInfo.billedLabel }} so far</div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ idlePromptVisible }}" hint-placeholder-val="{{ false }}">
+          <div class="tt-rule-044">No active timer — use Start timer to continue your latest activity.</div>
+        </sc-if>
+
+        <sc-if value="{{ showTaskFilter }}" hint-placeholder-val="{{ false }}">
+          <div class="tt-task-filter-banner">
+            <div class="tt-task-filter-summary">
+              <span class="tt-project-avatar" style="--item-color:{{ taskFilterInfo.color }}; --item-contrast:{{ taskFilterInfo.iconColor }};" aria-hidden="true">
+                <span class="material-icon tt-project-avatar-icon">{{ taskFilterInfo.icon }}</span>
+              </span>
+              <div class="tt-task-filter-copy">
+                <span>Showing sessions for</span>
+                <strong>{{ taskFilterInfo.taskName }}</strong>
+                <small>{{ taskFilterInfo.projectName }}</small>
+              </div>
+            </div>
+            <button class="tt-task-filter-reset" onClick="{{ resetTaskSessionsView }}">
+              <span class="material-icon">close</span>
+              Reset view
+            </button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ noProjects }}" hint-placeholder-val="{{ true }}">
+          <div class="tt-rule-045">
+            <div class="tt-rule-046">Add your first project to start tracking time</div>
+            <div class="tt-rule-047">A project is a folder — give it a name, an icon, and a color.</div>
+            <button class="tt-rule-048 tt-hover-03" onClick="{{ openAddProject }}">+ New project</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ noEntriesYet }}" hint-placeholder-val="{{ false }}">
+          <div class="tt-rule-049">{{ timeLogEmptyMessage }}</div>
+        </sc-if>
+        <sc-if value="{{ timeLogListView }}" hint-placeholder-val="{{ true }}">
+          <sc-for list="{{ dayGroups }}" as="day" hint-placeholder-count="2">
+            <div class="tt-rule-050">
+              <button type="button" class="tt-rule-051 tt-day-accordion-trigger" aria-expanded="{{ day.ariaExpanded }}" aria-label="{{ day.toggleLabel }}" onClick="{{ day.toggle }}">
+                <div class="tt-day-accordion-title">
+                  <span class="material-icon tt-day-accordion-chevron">expand_more</span>
+                  <span class="tt-rule-052">{{ day.label }}</span>
+                  <span class="tt-rule-053">{{ day.dateSub }}</span>
+                  <span class="tt-day-task-count">{{ day.taskCountLabel }}</span>
+                </div>
+                <div class="tt-day-accordion-totals">
+                  <span class="tt-rule-054">{{ day.totalTimeLabel }}</span>
+                  <span class="tt-rule-055">{{ day.totalBilledLabel }}</span>
+                </div>
+              </button>
+              <div class="{{ day.entriesClass }}" aria-hidden="{{ day.ariaHidden }}">
+                <div class="tt-day-entries-inner">
+                  <sc-for list="{{ day.entries }}" as="entry" hint-placeholder-count="2">
+                    <div class="tt-rule-056">
+                      <span class="tt-entry-project-icon" style="--item-color:{{ entry.color }}; --item-contrast:{{ entry.iconColor }};" aria-hidden="true">
+                        <span class="material-icon">{{ entry.icon }}</span>
+                      </span>
+                      <div class="tt-rule-021">
+                        <div class="tt-rule-057">{{ entry.taskName }}</div>
+                        <div class="tt-rule-058">{{ entry.projectName }}</div>
+                        <sc-if value="{{ entry.hasNotes }}" hint-placeholder-val="{{ false }}">
+                          <div class="tt-entry-note" title="{{ entry.notes }}">{{ entry.notes }}</div>
+                        </sc-if>
+                      </div>
+                      <span class="tt-time-range-tooltip" data-tooltip="{{ entry.timeRangeLabel }}">{{ entry.durationLabel }}</span>
+                      <span class="tt-rule-060">{{ entry.rateLabel }}</span>
+                      <span class="tt-rule-061">{{ entry.billedLabel }}</span>
+                      <div class="tt-rule-062">
+                        <button class="tt-action-tooltip tt-rule-064 tt-hover-07" aria-label="Resume timer" data-tooltip="Resume timer" onClick="{{ entry.onResume }}">
+                          <span class="material-icon tt-rule-006">play_arrow</span>
+                        </button>
+                        <button class="tt-action-tooltip tt-rule-064 tt-hover-01" aria-label="Edit time entry" data-tooltip="Edit time entry" onClick="{{ entry.onEdit }}">
+                          <span class="material-icon tt-rule-006">edit</span>
+                        </button>
+                        <button class="tt-action-tooltip tt-rule-064 tt-hover-08" aria-label="Delete time entry" data-tooltip="Delete time entry" onClick="{{ entry.onDelete }}">
+                          <span class="material-icon tt-rule-006">delete</span>
+                        </button>
+                      </div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </sc-for>
+        </sc-if>
+
+        <sc-if value="{{ timeLogWeekView }}" hint-placeholder-val="{{ false }}">
+          <div class="tt-week-calendar">
+            <div class="tt-week-toolbar">
+              <div class="tt-week-toolbar-nav">
+                <button class="tt-calendar-nav tt-action-tooltip" aria-label="Previous week" data-tooltip="Previous week" onClick="{{ previousWeek }}">
+                  <span class="material-icon">chevron_left</span>
+                </button>
+                <button class="tt-calendar-today" onClick="{{ currentWeek }}">Today</button>
+                <button class="tt-calendar-nav tt-action-tooltip" aria-label="Next week" data-tooltip="Next week" onClick="{{ nextWeek }}">
+                  <span class="material-icon">chevron_right</span>
+                </button>
+              </div>
+              <div class="tt-week-range">{{ weekRangeLabel }}</div>
+            </div>
+            <div class="tt-week-scroll">
+              <div class="tt-week-grid">
+                <sc-for list="{{ weekDays }}" as="day" hint-placeholder-count="7">
+                  <section class="{{ day.className }}">
+                    <header class="tt-calendar-day-header">
+                      <span class="tt-calendar-weekday">{{ day.weekday }}</span>
+                      <span class="tt-calendar-date">{{ day.dateLabel }}</span>
+                    </header>
+                    <div class="tt-calendar-day-summary">
+                      <span>{{ day.totalTimeLabel }}</span>
+                      <strong>{{ day.totalBilledLabel }}</strong>
+                    </div>
+                    <sc-if value="{{ day.isEmpty }}" hint-placeholder-val="{{ false }}">
+                      <div class="tt-calendar-empty">No time logged</div>
+                    </sc-if>
+                    <div class="tt-calendar-entries">
+                      <sc-for list="{{ day.entries }}" as="entry" hint-placeholder-count="2">
+                        <article class="tt-calendar-entry">
+                          <div class="tt-calendar-entry-heading">
+                            <span class="tt-entry-project-icon tt-entry-project-icon--calendar" style="--item-color:{{ entry.color }}; --item-contrast:{{ entry.iconColor }};" aria-hidden="true">
+                              <span class="material-icon">{{ entry.icon }}</span>
+                            </span>
+                            <div class="tt-calendar-entry-copy">
+                              <div class="tt-calendar-entry-title">{{ entry.taskName }}</div>
+                              <div class="tt-calendar-entry-project">{{ entry.projectName }}</div>
+                              <sc-if value="{{ entry.hasNotes }}" hint-placeholder-val="{{ false }}">
+                                <div class="tt-calendar-entry-note" title="{{ entry.notes }}">{{ entry.notes }}</div>
+                              </sc-if>
+                            </div>
+                          </div>
+                          <div class="tt-calendar-entry-meta">
+                            <span class="tt-time-range-tooltip" data-tooltip="{{ entry.timeRangeLabel }}">{{ entry.durationLabel }}</span>
+                            <strong>{{ entry.billedLabel }}</strong>
+                          </div>
+                          <div class="tt-calendar-entry-actions">
+                            <button class="tt-icon-btn tt-action-tooltip tt-hover-07" aria-label="Resume timer" data-tooltip="Resume timer" onClick="{{ entry.onResume }}">
+                              <span class="material-icon tt-rule-006">play_arrow</span>
+                            </button>
+                            <button class="tt-icon-btn tt-action-tooltip tt-hover-01" aria-label="Edit time entry" data-tooltip="Edit time entry" onClick="{{ entry.onEdit }}">
+                              <span class="material-icon tt-rule-006">edit</span>
+                            </button>
+                            <button class="tt-icon-btn tt-action-tooltip tt-hover-08" aria-label="Delete time entry" data-tooltip="Delete time entry" onClick="{{ entry.onDelete }}">
+                              <span class="material-icon tt-rule-006">delete</span>
+                            </button>
+                          </div>
+                        </article>
+                      </sc-for>
+                    </div>
+                  </section>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isReportsView }}" hint-placeholder-val="{{ false }}">
+      <div>
+        <h1 class="tt-page-title">Reports</h1>
+        <div class="tt-report-controls">
+          <div class="tt-date-range-wrap">
+            <div class="tt-range-switcher" role="group" aria-label="Report date range">
+              <button class="{{ rangeWeekClass }}" onClick="{{ setRangeWeek }}">This week</button>
+              <button class="{{ rangeMonthClass }}" onClick="{{ setRangeMonth }}">This month</button>
+              <button class="{{ rangeAllClass }}" onClick="{{ setRangeAll }}">All time</button>
+              <button class="{{ rangeCustomClass }}" onClick="{{ setRangeCustom }}">Custom</button>
+            </div>
+            <sc-if value="{{ showCustomReportsRange }}" hint-placeholder-val="{{ false }}">
+              <div class="tt-custom-range-popover" role="group" aria-label="Custom report date range">
+                <label class="tt-custom-range-field">
+                  <span>From</span>
+                  <input type="date" value="{{ reportsCustomFrom }}" onChange="{{ setReportsCustomFrom }}"/>
+                </label>
+                <label class="tt-custom-range-field">
+                  <span>To</span>
+                  <input type="date" value="{{ reportsCustomTo }}" onChange="{{ setReportsCustomTo }}"/>
+                </label>
+              </div>
+            </sc-if>
+          </div>
+          <div class="tt-project-filter tt-report-project-filter">
+            <span class="material-icon tt-project-filter-icon">filter_alt</span>
+            <select class="tt-project-filter-select" aria-label="Filter reports by project" value="{{ reportProjectFilterId }}" onChange="{{ setReportProjectFilter }}">
+              <option value="all">All projects</option>
+              <sc-for list="{{ projectFilterOptions }}" as="option" hint-placeholder-count="2">
+                <option value="{{ option.id }}">{{ option.name }}</option>
+              </sc-for>
+            </select>
+            <span class="material-icon tt-project-filter-arrow">expand_more</span>
+          </div>
+        </div>
+
+        <div class="tt-report-summary">
+          <div class="tt-report-stat">
+            <div class="tt-rule-068">{{ reportTotalHours }}</div>
+            <div class="tt-rule-009">Hours tracked</div>
+          </div>
+          <div class="tt-report-stat">
+            <div class="tt-rule-068">{{ reportTotalBilled }}</div>
+            <div class="tt-rule-009">Billed (CAD)</div>
+          </div>
+          <div class="tt-report-stat">
+            <div class="tt-rule-068">{{ reportEntryCount }}</div>
+            <div class="tt-rule-009">Time entries</div>
+          </div>
+        </div>
+
+        <sc-if value="{{ reportsEmpty }}" hint-placeholder-val="{{ false }}">
+          <div class="tt-rule-069">No tracked time in this range yet.</div>
+        </sc-if>
+
+        <sc-if value="{{ reportsHasData }}" hint-placeholder-val="{{ true }}">
+          <div class="tt-report-graphics-card">
+            <div class="tt-rule-070">
+              <div class="tt-rule-071">By project</div>
+              <sc-for list="{{ reportProjects }}" as="rp" hint-placeholder-count="3">
+                <div class="tt-rule-072">
+                  <div class="tt-rule-073">
+                    <span class="material-icon tt-rule-074">{{ rp.icon }}</span>
+                    <span class="tt-rule-027">{{ rp.name }}</span>
+                  </div>
+                  <div class="tt-rule-075">
+                    <div class="tt-report-project-fill" style="--item-color:{{ rp.color }};--item-width:{{ rp.pct }}%;"></div>
+                  </div>
+                  <span class="tt-rule-076">{{ rp.hoursLabel }}</span>
+                  <span class="tt-rule-077">{{ rp.billedLabel }}</span>
+                </div>
+              </sc-for>
+            </div>
+
+            <div class="tt-report-daily">
+              <div class="tt-rule-071">Daily activity</div>
+              <div class="tt-rule-078">
+                <sc-for list="{{ reportDays }}" as="rd" hint-placeholder-count="7">
+                  <div class="tt-rule-079">
+                    <div class="tt-rule-028">{{ rd.hoursLabel }}</div>
+                    <div class="tt-report-day-bar" style="--bar-height:{{ rd.barHeight }}px;" role="img" aria-label="{{ rd.summaryLabel }}">
+                      <sc-for list="{{ rd.projects }}" as="dayProject" hint-placeholder-count="2">
+                        <div class="tt-report-day-segment" style="--segment-color:{{ dayProject.color }};--segment-size:{{ dayProject.seconds }};" title="{{ dayProject.tooltip }}"></div>
+                      </sc-for>
+                    </div>
+                    <div class="tt-rule-080">{{ rd.label }}</div>
+                    <div class="tt-report-day-projects">
+                      <sc-for list="{{ rd.projects }}" as="dayProject" hint-placeholder-count="2">
+                        <div class="tt-report-day-project" title="{{ dayProject.tooltip }}">
+                          <span class="tt-report-day-project-dot" style="--item-color:{{ dayProject.color }};"></span>
+                          <span>{{ dayProject.name }} · {{ dayProject.hoursLabel }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isContactsView }}" hint-placeholder-val="{{ false }}">
+      <div class="tt-contacts-view">
+        <div class="tt-page-header">
+          <h1 class="tt-page-title">Contacts</h1>
+          <button class="tt-btn tt-btn-primary tt-hover-03" onClick="{{ openAddContact }}">
+            <span class="material-icon tt-rule-006">person_add</span>
+            Add contact
+          </button>
+        </div>
+
+        <sc-if value="{{ noContacts }}" hint-placeholder-val="{{ true }}">
+          <div class="tt-card tt-contacts-empty">
+            <span class="material-icon">contacts</span>
+            <div class="tt-contacts-empty-title">No contacts yet</div>
+            <div class="tt-contacts-empty-copy">Add a client, then link them to a project for faster invoice billing.</div>
+            <button class="tt-btn tt-btn-primary tt-hover-03" onClick="{{ openAddContact }}">Add your first contact</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ hasContacts }}" hint-placeholder-val="{{ false }}">
+          <div class="tt-contacts-grid">
+            <sc-for list="{{ contactsView }}" as="contact" hint-placeholder-count="3">
+              <article class="tt-card tt-contact-card" role="button" tabindex="0" aria-label="View details for {{ contact.name }}" onClick="{{ contact.onOpen }}" onKeyDown="{{ contact.onKeyDown }}">
+                <div class="tt-contact-card-header">
+                  <span class="tt-contact-avatar" style="--avatar-bg:{{ contact.avatarBackground }}; --avatar-color:{{ contact.avatarColor }};" aria-hidden="true">{{ contact.initials }}</span>
+                  <div class="tt-contact-card-copy">
+                    <div class="tt-contact-name">{{ contact.name }}</div>
+                    <div class="tt-contact-email">{{ contact.emailLabel }}</div>
+                  </div>
+                  <button class="tt-icon-btn tt-action-tooltip tt-contact-card-edit tt-hover-01" aria-label="Edit contact" data-tooltip="Edit contact" onClick="{{ contact.onEdit }}">
+                    <span class="material-icon tt-rule-006">edit</span>
+                  </button>
+                </div>
+                <div class="tt-contact-address">{{ contact.addressLabel }}</div>
+                <div class="tt-contact-project-count">{{ contact.projectCountLabel }}</div>
+              </article>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ isInvoiceView }}" hint-placeholder-val="{{ false }}">
+      <div class="tt-invoice-view">
+        <div class="tt-page-header no-print">
+          <h1 class="tt-page-title">Invoice generator</h1>
+          <button class="tt-rule-048 tt-hover-03" onClick="{{ printInvoice }}"><span data-dc-tpl="107" class="material-icon tt-rule-006">save</span>Print / Save as PDF</button>
+        </div>
+        <div class="tt-invoice-layout">
+
+          <div class="no-print tt-rule-082">
+            <div class="tt-card tt-invoice-party-card">
+              <div class="tt-invoice-party-heading">
+                <div class="tt-section-label">Your details</div>
+                <sc-if value="{{ inv.fromSummary }}" hint-placeholder-val="{{ true }}">
+                  <button class="tt-icon-btn tt-action-tooltip tt-invoice-party-edit" aria-label="Edit your details" data-tooltip="Edit details" onClick="{{ inv.editFrom }}">
+                    <span class="material-icon tt-rule-006">edit</span>
+                  </button>
+                </sc-if>
+                <sc-if value="{{ inv.fromEditing }}" hint-placeholder-val="{{ false }}">
+                  <button class="tt-invoice-party-done" onClick="{{ inv.finishFrom }}">Done</button>
+                </sc-if>
+              </div>
+              <sc-if value="{{ inv.fromSummary }}" hint-placeholder-val="{{ true }}">
+                <div class="tt-invoice-party-summary">
+                  <span class="tt-contact-avatar" style="--avatar-bg:{{ inv.fromAvatarBackground }}; --avatar-color:{{ inv.fromAvatarColor }};" aria-hidden="true">{{ inv.fromInitials }}</span>
+                  <div class="tt-invoice-party-copy">
+                    <div class="tt-invoice-party-name">{{ inv.fromNameLabel }}</div>
+                    <div class="tt-invoice-party-email">{{ inv.fromEmailLabel }}</div>
+                  </div>
+                </div>
+                <div class="tt-invoice-party-address">{{ inv.fromAddressLabel }}</div>
+              </sc-if>
+              <sc-if value="{{ inv.fromEditing }}" hint-placeholder-val="{{ false }}">
+                <div class="tt-invoice-party-fields">
+                  <input class="tt-field" type="text" placeholder="Your name / business" value="{{ inv.fromName }}" onChange="{{ inv.onFromName }}"/>
+                  <input class="tt-field" type="email" placeholder="you@example.com" value="{{ inv.fromEmail }}" onChange="{{ inv.onFromEmail }}"/>
+                  <textarea class="tt-field" placeholder="Address" value="{{ inv.fromAddress }}" onChange="{{ inv.onFromAddress }}"></textarea>
+                </div>
+              </sc-if>
+            </div>
+
+            <div class="tt-card tt-invoice-party-card">
+              <div class="tt-invoice-party-heading">
+                <div class="tt-section-label">Bill to</div>
+                <sc-if value="{{ inv.toSummary }}" hint-placeholder-val="{{ true }}">
+                  <button class="tt-icon-btn tt-action-tooltip tt-invoice-party-edit" aria-label="Edit billing details" data-tooltip="Edit details" onClick="{{ inv.editTo }}">
+                    <span class="material-icon tt-rule-006">edit</span>
+                  </button>
+                </sc-if>
+                <sc-if value="{{ inv.toEditing }}" hint-placeholder-val="{{ false }}">
+                  <button class="tt-invoice-party-done" onClick="{{ inv.finishTo }}">Done</button>
+                </sc-if>
+              </div>
+              <sc-if value="{{ inv.toSummary }}" hint-placeholder-val="{{ true }}">
+                <div class="tt-invoice-party-summary">
+                  <span class="tt-contact-avatar" style="--avatar-bg:{{ inv.toAvatarBackground }}; --avatar-color:{{ inv.toAvatarColor }};" aria-hidden="true">{{ inv.toInitials }}</span>
+                  <div class="tt-invoice-party-copy">
+                    <div class="tt-invoice-party-name">{{ inv.toNameLabel }}</div>
+                    <div class="tt-invoice-party-email">{{ inv.toEmailLabel }}</div>
+                  </div>
+                </div>
+                <div class="tt-invoice-party-address">{{ inv.toAddressLabel }}</div>
+              </sc-if>
+              <sc-if value="{{ inv.toEditing }}" hint-placeholder-val="{{ false }}">
+                <div class="tt-invoice-party-fields">
+                  <label class="tt-invoice-contact-control">
+                    <span>Contact</span>
+                    <select class="tt-field" value="{{ inv.selectedContactId }}" onChange="{{ inv.onContact }}">
+                      <option value="">Manual billing details</option>
+                      <sc-for list="{{ inv.contactOptions }}" as="contactOption" hint-placeholder-count="3">
+                        <option value="{{ contactOption.id }}">{{ contactOption.name }}</option>
+                      </sc-for>
+                    </select>
+                  </label>
+                  <sc-if value="{{ inv.hasSelectedContact }}" hint-placeholder-val="{{ false }}">
+                    <div class="tt-invoice-contact-hint"><span class="material-icon">link</span>{{ inv.contactLinkedProjectLabel }} will populate the time entries below.</div>
+                  </sc-if>
+                  <input class="tt-field" type="text" placeholder="Client name" value="{{ inv.toName }}" onChange="{{ inv.onToName }}"/>
+                  <input class="tt-field" type="email" placeholder="client@example.com" value="{{ inv.toEmail }}" onChange="{{ inv.onToEmail }}"/>
+                  <textarea class="tt-field" placeholder="Address" value="{{ inv.toAddress }}" onChange="{{ inv.onToAddress }}"></textarea>
+                </div>
+              </sc-if>
+            </div>
+
+            <div class="tt-card tt-form-card">
+              <div class="tt-section-label">Invoice details</div>
+              <div class="tt-rule-083">
+                <label class="tt-rule-042">Invoice number</label>
+                <input class="tt-field tt-rule-084" type="text" value="{{ inv.invoiceNumber }}" onChange="{{ inv.onInvoiceNumber }}"/>
+              </div>
+              <div class="tt-rule-085">
+                <div class="tt-rule-086">
+                  <label class="tt-rule-042">Issue date</label>
+                  <input class="tt-field tt-rule-087" type="date" value="{{ inv.issueDate }}" onChange="{{ inv.onIssueDate }}"/>
+                </div>
+                <div class="tt-rule-086">
+                  <label class="tt-rule-042">Due date</label>
+                  <input class="tt-field tt-rule-087" type="date" value="{{ inv.dueDate }}" onChange="{{ inv.onDueDate }}"/>
+                </div>
+              </div>
+              <div class="tt-rule-083">
+                <label class="tt-rule-042">Tax rate (%)</label>
+                <input class="tt-field tt-rule-088" type="number" min="0" max="30" step="0.5" value="{{ inv.taxPercent }}" onChange="{{ inv.onTaxPercent }}"/>
+              </div>
+            </div>
+
+            <div class="tt-card tt-form-card tt-rule-089">
+              <div class="tt-invoice-time-header">
+                <div class="tt-section-label">Time entries</div>
+                <div class="tt-project-filter tt-invoice-project-filter">
+                  <span class="material-icon tt-project-filter-icon">filter_alt</span>
+                  <select class="tt-project-filter-select" aria-label="Filter invoice entries by project" value="{{ inv.projectFilterId }}" onChange="{{ inv.onProjectFilter }}">
+                    <option value="all">{{ inv.projectFilterAllLabel }}</option>
+                    <sc-for list="{{ inv.projectOptions }}" as="option" hint-placeholder-count="2">
+                      <option value="{{ option.id }}">{{ option.name }}</option>
+                    </sc-for>
+                  </select>
+                  <span class="material-icon tt-project-filter-arrow">expand_more</span>
+                </div>
+              </div>
+              <div class="tt-rule-085">
+                <div class="tt-rule-086">
+                  <label class="tt-rule-042">From</label>
+                  <input class="tt-field tt-rule-087" type="date" value="{{ inv.rangeFrom }}" onChange="{{ inv.onRangeFrom }}"/>
+                </div>
+                <div class="tt-rule-086">
+                  <label class="tt-rule-042">To</label>
+                  <input class="tt-field tt-rule-087" type="date" value="{{ inv.rangeTo }}" onChange="{{ inv.onRangeTo }}"/>
+                </div>
+              </div>
+
+              <sc-if value="{{ inv.hasAutoItems }}" hint-placeholder-val="{{ false }}">
+                <div class="tt-rule-090">
+                  <sc-for list="{{ inv.autoItems }}" as="ai" hint-placeholder-count="2">
+                    <label class="tt-rule-091">
+                      <input type="checkbox" checked="{{ ai.checked }}" onChange="{{ ai.onToggle }}"/>
+                      <span class="tt-invoice-entry-date">{{ ai.dateLabel }}</span>
+                      <span class="tt-rule-092">{{ ai.description }}</span>
+                      <span class="tt-rule-093">{{ ai.hoursLabel }}</span>
+                      <span class="tt-rule-094">{{ ai.amountLabel }}</span>
+                    </label>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ inv.hasCustomItems }}" hint-placeholder-val="{{ false }}">
+                <div class="tt-rule-095">
+                  <sc-for list="{{ inv.customItems }}" as="ci" hint-placeholder-count="1">
+                    <div class="tt-rule-096">
+                      <input class="tt-rule-097" type="text" placeholder="Description" value="{{ ci.description }}" onChange="{{ ci.onDesc }}"/>
+                      <input class="tt-rule-098" type="number" min="0" step="0.25" aria-label="Hours" value="{{ ci.qty }}" onChange="{{ ci.onQty }}"/>
+                      <input class="tt-rule-099" type="number" step="0.01" value="{{ ci.rate }}" onChange="{{ ci.onRate }}"/>
+                      <button class="tt-rule-100 tt-hover-09" onClick="{{ ci.onRemove }}">
+                        <span class="material-icon tt-rule-101">delete</span>
+                      </button>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-if>
+
+              <button class="tt-rule-102 tt-hover-10" onClick="{{ addCustomLineItem }}">+ Add custom line item</button>
+            </div>
+          </div>
+
+          <div class="tt-invoice-preview-column">
+            <div class="tt-invoice-sheet">
+              <div class="tt-rule-105">
+                <span class="tt-rule-106">Invoice</span>
+                <div class="tt-rule-107">
+                  <div>#{{ inv.invoiceNumber }}</div>
+                  <div>Issued {{ inv.issueDateLabel }}</div>
+                  <sc-if value="{{ inv.hasDueDate }}" hint-placeholder-val="{{ false }}"><div>Due {{ inv.dueDateLabel }}</div></sc-if>
+                </div>
+              </div>
+
+              <div class="tt-rule-108">
+                <div>
+                  <div class="tt-rule-109">From</div>
+                  <div class="tt-rule-110">{{ inv.fromName }}</div>
+                  <div class="tt-rule-111">{{ inv.fromEmail }}</div>
+                  <div class="tt-rule-112">{{ inv.fromAddress }}</div>
+                </div>
+                <div>
+                  <div class="tt-rule-109">Bill to</div>
+                  <div class="tt-rule-110">{{ inv.toName }}</div>
+                  <div class="tt-rule-111">{{ inv.toEmail }}</div>
+                  <div class="tt-rule-112">{{ inv.toAddress }}</div>
+                </div>
+              </div>
+
+              <sc-if value="{{ inv.hasLineItems }}" hint-placeholder-val="{{ false }}">
+                <div class="tt-invoice-table">
+                  <div class="tt-rule-114">
+                    <span class="tt-rule-115">Description</span>
+                    <span class="tt-rule-116">Hours</span>
+                    <span class="tt-rule-116">Rate</span>
+                    <span class="tt-rule-116">Amount</span>
+                  </div>
+                  <sc-for list="{{ inv.previewGroups }}" as="group" hint-placeholder-count="3">
+                    <div class="tt-invoice-date-heading">{{ group.dateLabel }}</div>
+                    <sc-for list="{{ group.lineItems }}" as="li" hint-placeholder-count="3">
+                      <div class="tt-rule-117">
+                        <div class="tt-rule-118">
+                          <div>{{ li.description }}</div>
+                          <sc-if value="{{ li.hasNotes }}" hint-placeholder-val="{{ false }}">
+                            <div class="tt-invoice-line-notes">{{ li.notes }}</div>
+                          </sc-if>
+                        </div>
+                        <span class="tt-rule-119">{{ li.qtyLabel }}</span>
+                        <span class="tt-rule-119">{{ li.rateLabel }}</span>
+                        <span class="tt-rule-120">{{ li.amountLabel }}</span>
+                      </div>
+                    </sc-for>
+                  </sc-for>
+                </div>
+              </sc-if>
+              <sc-if value="{{ inv.noLineItems }}" hint-placeholder-val="{{ true }}">
+                <div class="tt-rule-121">No time entries in this range yet — track some time or add a custom line item.</div>
+              </sc-if>
+
+              <div class="tt-rule-122">
+                <div class="tt-rule-123"><span>Subtotal</span><span class="tt-rule-124">{{ inv.subtotalLabel }}</span></div>
+                <sc-if value="{{ inv.hasTax }}" hint-placeholder-val="{{ false }}">
+                  <div class="tt-rule-123"><span>Tax ({{ inv.taxPercent }}%)</span><span class="tt-rule-124">{{ inv.taxLabel }}</span></div>
+                </sc-if>
+                <div class="tt-rule-125"><span>Total (CAD)</span><span class="tt-rule-126">{{ inv.totalLabel }}</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+  </div>
+
+  <sc-if value="{{ projectModalOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="tt-modal-backdrop">
+      <div class="tt-modal">
+        <div class="tt-modal-header">
+          <span class="tt-modal-title">{{ projectModalTitle }}</span>
+        </div>
+        <div class="tt-project-modal-fields">
+          <div class="tt-project-name-field">
+            <label class="tt-project-field-label">Project name</label>
+            <input class="tt-field" type="text" placeholder="Project name" value="{{ projectDraft.name }}" onInput="{{ onProjectDraftName }}" onChange="{{ onProjectDraftName }}"/>
+          </div>
+          <div class="tt-project-name-field">
+            <label class="tt-project-field-label">Billing contact</label>
+            <select class="tt-field tt-project-contact-select" aria-label="Billing contact" value="{{ projectDraft.contactId }}" onChange="{{ onProjectDraftContact }}">
+              <option value="">No linked contact</option>
+              <sc-for list="{{ contactOptions }}" as="contactOption" hint-placeholder-count="3">
+                <option value="{{ contactOption.id }}">{{ contactOption.name }}</option>
+              </sc-for>
+            </select>
+          </div>
+          <div class="tt-project-appearance">
+            <div class="tt-project-option-row">
+              <span>Icon</span>
+              <div class="tt-project-icon-picker">
+                <button class="tt-project-icon-button" type="button" aria-label="Choose project icon" aria-expanded="{{ projectIconPickerOpen }}" style="--item-color:{{ projectDraft.color }}; --item-contrast:{{ projectDraft.iconColor }};" onClick="{{ toggleProjectIconPicker }}"><span class="material-icon">{{ projectDraft.icon }}</span></button>
+                <sc-if value="{{ projectIconPickerOpen }}" hint-placeholder-val="{{ false }}">
+                  <div class="tt-icon-popover">
+                    <label class="tt-icon-search-wrap">
+                      <span class="material-icon">search</span>
+                      <input class="tt-icon-search" type="search" placeholder="Search icons" aria-label="Search project icons" value="{{ projectIconSearch }}" onInput="{{ onProjectIconSearch }}"/>
+                    </label>
+                    <div class="tt-material-icon-grid" role="listbox" aria-label="Project icons">
+                      <sc-for list="{{ projectIconOptions }}" as="iconOption" hint-placeholder-count="18">
+                        <button class="{{ iconOption.className }}" type="button" role="option" aria-label="{{ iconOption.label }}" aria-selected="{{ iconOption.selected }}" title="{{ iconOption.label }}" onClick="{{ iconOption.onSelect }}">
+                          <span class="material-icon">{{ iconOption.icon }}</span>
+                        </button>
+                      </sc-for>
+                    </div>
+                    <sc-if value="{{ noProjectIconResults }}" hint-placeholder-val="{{ false }}">
+                      <div class="tt-icon-empty">No matching icons</div>
+                    </sc-if>
+                  </div>
+                </sc-if>
+              </div>
+            </div>
+            <label class="tt-project-option-row">
+              <span>Color</span>
+              <input class="tt-project-color-input" aria-label="Project color" type="color" value="{{ projectDraft.color }}" onChange="{{ onProjectDraftColor }}"/>
+            </label>
+          </div>
+        </div>
+        <div class="tt-rule-130">
+          <sc-if value="{{ projectModalIsEdit }}" hint-placeholder-val="{{ false }}">
+            <button class="tt-btn tt-btn-danger tt-hover-09" onClick="{{ deleteProject }}">Delete project</button>
+          </sc-if>
+          <sc-if value="{{ projectModalIsCreate }}" hint-placeholder-val="{{ true }}"><span></span></sc-if>
+          <div class="tt-rule-132">
+            <button class="tt-btn tt-btn-secondary tt-hover-10" onClick="{{ closeProjectModal }}">Cancel</button>
+            <button class="tt-btn tt-btn-primary tt-rule-133 tt-hover-03" onClick="{{ saveProject }}">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ contactModalOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="tt-modal-backdrop">
+      <div class="tt-modal" role="dialog" aria-modal="true" aria-labelledby="contact-modal-title">
+        <div class="tt-modal-header">
+          <span class="tt-modal-title" id="contact-modal-title">{{ contactModalTitle }}</span>
+        </div>
+        <div class="tt-contact-modal-fields">
+          <div class="tt-rule-083">
+            <label class="tt-rule-042">Client name</label>
+            <input class="tt-field" type="text" placeholder="Client name" value="{{ contactDraft.name }}" onInput="{{ onContactDraftName }}"/>
+          </div>
+          <div class="tt-rule-083">
+            <label class="tt-rule-042">Email address</label>
+            <input class="tt-field" type="email" placeholder="client@example.com" value="{{ contactDraft.email }}" onInput="{{ onContactDraftEmail }}"/>
+          </div>
+          <div class="tt-rule-083">
+            <label class="tt-rule-042">Address</label>
+            <textarea class="tt-field tt-contact-address-field" placeholder="Client address" value="{{ contactDraft.address }}" onInput="{{ onContactDraftAddress }}"></textarea>
+          </div>
+        </div>
+        <div class="tt-rule-130">
+          <sc-if value="{{ contactModalIsEdit }}" hint-placeholder-val="{{ false }}">
+            <button class="tt-btn tt-btn-danger tt-hover-09" onClick="{{ deleteContact }}">Delete contact</button>
+          </sc-if>
+          <sc-if value="{{ contactModalIsCreate }}" hint-placeholder-val="{{ true }}"><span></span></sc-if>
+          <div class="tt-rule-132">
+            <button class="tt-btn tt-btn-secondary tt-hover-10" onClick="{{ closeContactModal }}">Cancel</button>
+            <button class="tt-btn tt-btn-primary tt-rule-133 tt-hover-03" onClick="{{ saveContact }}">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ contactDetailsOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="tt-modal-backdrop">
+      <div class="tt-modal tt-contact-details-modal" role="dialog" aria-modal="true" aria-labelledby="contact-details-title">
+        <div class="tt-contact-details-profile">
+          <span class="tt-contact-avatar tt-contact-details-avatar" style="--avatar-bg:{{ contactDetails.avatarBackground }}; --avatar-color:{{ contactDetails.avatarColor }};" aria-hidden="true">{{ contactDetails.initials }}</span>
+          <div class="tt-contact-details-copy">
+            <div class="tt-modal-title tt-contact-details-name" id="contact-details-title">{{ contactDetails.name }}</div>
+            <div class="tt-contact-details-email">{{ contactDetails.emailLabel }}</div>
+          </div>
+        </div>
+
+        <div class="tt-contact-details-section">
+          <div class="tt-section-label">Address</div>
+          <div class="tt-contact-details-address">{{ contactDetails.addressLabel }}</div>
+        </div>
+
+        <div class="tt-contact-details-section">
+          <div class="tt-contact-details-section-heading">
+            <div class="tt-section-label">Linked projects</div>
+            <span>{{ contactDetails.projectCountLabel }}</span>
+          </div>
+          <sc-if value="{{ contactDetails.hasProjects }}" hint-placeholder-val="{{ true }}">
+            <div class="tt-contact-details-projects">
+              <sc-for list="{{ contactDetails.projects }}" as="project" hint-placeholder-count="2">
+                <div class="tt-contact-details-project">
+                  <span class="tt-project-avatar" style="--item-color:{{ project.color }}; --item-contrast:{{ project.iconColor }};" aria-hidden="true">
+                    <span class="material-icon tt-project-avatar-icon">{{ project.icon }}</span>
+                  </span>
+                  <div class="tt-contact-details-project-copy">
+                    <div>{{ project.name }}</div>
+                    <span>{{ project.taskCountLabel }}</span>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+          <sc-if value="{{ contactDetails.noProjects }}" hint-placeholder-val="{{ false }}">
+            <div class="tt-contact-details-empty">No projects are linked to this contact.</div>
+          </sc-if>
+        </div>
+
+        <div class="tt-modal-actions tt-contact-details-actions">
+          <button class="tt-btn tt-btn-secondary tt-hover-10" onClick="{{ editContactFromDetails }}">
+            <span class="material-icon tt-rule-006">edit</span>
+            Edit contact
+          </button>
+          <button class="tt-btn tt-btn-primary tt-hover-03" onClick="{{ closeContactDetails }}">Done</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ deleteContactModalOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="tt-modal-backdrop">
+      <div class="tt-modal tt-modal--compact" role="dialog" aria-modal="true" aria-labelledby="delete-contact-title">
+        <div class="tt-modal-header">
+          <span class="tt-modal-title" id="delete-contact-title">Delete contact?</span>
+        </div>
+        <p class="tt-modal-message">Delete this contact? Linked projects will keep their tracked time but will no longer have a billing contact.</p>
+        <div class="tt-rule-142">
+          <button class="tt-btn tt-btn-secondary tt-hover-10" onClick="{{ closeDeleteContactModal }}">Cancel</button>
+          <button class="tt-btn tt-btn-destructive" onClick="{{ confirmDeleteContact }}">Delete</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ taskModalOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="tt-modal-backdrop">
+      <div class="tt-modal">
+        <div class="tt-modal-header">
+          <span class="tt-modal-title">{{ taskModalTitle }}</span>
+        </div>
+        <div class="tt-rule-134">
+          <label class="tt-rule-135">Task name</label>
+          <input class="tt-field" type="text" placeholder="e.g. Homepage redesign" value="{{ taskDraft.name }}" onChange="{{ onTaskDraftName }}"/>
+        </div>
+        <div class="tt-rule-134">
+          <label class="tt-rule-135">Hourly rate (CAD)</label>
+          <div class="tt-rule-136">
+            <span class="tt-rule-137">$</span>
+            <input class="tt-field tt-rule-138" type="number" min="0" step="0.5" value="{{ taskDraft.rate }}" onChange="{{ onTaskDraftRate }}"/>
+          </div>
+        </div>
+        <div class="tt-rule-130">
+          <sc-if value="{{ taskModalIsEdit }}" hint-placeholder-val="{{ false }}">
+            <button class="tt-btn tt-btn-danger tt-hover-09" onClick="{{ deleteTask }}">Delete task</button>
+          </sc-if>
+          <sc-if value="{{ taskModalIsCreate }}" hint-placeholder-val="{{ true }}"><span></span></sc-if>
+          <div class="tt-rule-132">
+            <button class="tt-btn tt-btn-secondary tt-hover-10" onClick="{{ closeTaskModal }}">Cancel</button>
+            <button class="tt-btn tt-btn-primary tt-rule-133 tt-hover-03" onClick="{{ saveTask }}">Save</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ entryModalOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="tt-modal-backdrop">
+      <div class="tt-modal tt-modal--compact">
+        <div class="tt-modal-header">
+          <span class="tt-modal-title">Edit tracked time</span>
+        </div>
+        <div class="tt-rule-139">
+          <div class="tt-rule-083">
+            <label class="tt-rule-042">Task name</label>
+            <input class="tt-field tt-rule-140" type="text" value="{{ entryDraft.taskName }}" onChange="{{ onEntryDraftTaskName }}"/>
+          </div>
+          <div class="tt-rule-083">
+            <label class="tt-rule-042">Date</label>
+            <input class="tt-field tt-rule-140" type="date" value="{{ entryDraft.dateKey }}" onChange="{{ onEntryDraftDateKey }}"/>
+          </div>
+          <div class="tt-rule-085">
+            <div class="tt-rule-086">
+              <label class="tt-rule-042">Hours</label>
+              <input class="tt-field tt-rule-141" type="number" min="0" value="{{ entryDraft.h }}" onChange="{{ onEntryDraftH }}"/>
+            </div>
+            <div class="tt-rule-086">
+              <label class="tt-rule-042">Minutes</label>
+              <input class="tt-field tt-rule-141" type="number" min="0" max="59" value="{{ entryDraft.m }}" onChange="{{ onEntryDraftM }}"/>
+            </div>
+          </div>
+          <div class="tt-rule-083">
+            <label class="tt-rule-042">Notes</label>
+            <textarea class="tt-field tt-entry-notes" placeholder="Add notes about this session" value="{{ entryDraft.notes }}" onInput="{{ onEntryDraftNotes }}"></textarea>
+          </div>
+        </div>
+        <div class="tt-rule-142">
+          <button class="tt-btn tt-btn-secondary tt-hover-10" onClick="{{ closeEntryModal }}">Cancel</button>
+          <button class="tt-btn tt-btn-primary tt-rule-133 tt-hover-03" onClick="{{ saveEntry }}">Save</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ deleteProjectModalOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="tt-modal-backdrop">
+      <div class="tt-modal tt-modal--compact" role="dialog" aria-modal="true" aria-labelledby="delete-project-title">
+        <div class="tt-modal-header">
+          <span class="tt-modal-title" id="delete-project-title">Delete project?</span>
+        </div>
+        <p class="tt-modal-message">Delete this project and all its tasks? This cannot be undone.</p>
+        <div class="tt-rule-142">
+          <button class="tt-btn tt-btn-secondary tt-hover-10" onClick="{{ closeDeleteProjectModal }}">Cancel</button>
+          <button class="tt-btn tt-btn-destructive" onClick="{{ confirmDeleteProject }}">Delete</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ deleteTaskModalOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="tt-modal-backdrop">
+      <div class="tt-modal tt-modal--compact" role="dialog" aria-modal="true" aria-labelledby="delete-task-title">
+        <div class="tt-modal-header">
+          <span class="tt-modal-title" id="delete-task-title">Delete task?</span>
+        </div>
+        <p class="tt-modal-message">Delete this task and its tracked time? This cannot be undone.</p>
+        <div class="tt-rule-142">
+          <button class="tt-btn tt-btn-secondary tt-hover-10" onClick="{{ closeDeleteTaskModal }}">Cancel</button>
+          <button class="tt-btn tt-btn-destructive" onClick="{{ confirmDeleteTask }}">Delete</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ deleteEntryModalOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="tt-modal-backdrop">
+      <div class="tt-modal tt-modal--compact" role="dialog" aria-modal="true" aria-labelledby="delete-entry-title">
+        <div class="tt-modal-header">
+          <span class="tt-modal-title" id="delete-entry-title">Delete time entry?</span>
+        </div>
+        <p class="tt-modal-message">{{ deleteEntryMessage }}</p>
+        <div class="tt-rule-142">
+          <button class="tt-btn tt-btn-secondary tt-hover-10" onClick="{{ closeDeleteEntryModal }}">Cancel</button>
+          <button class="tt-btn tt-btn-destructive" onClick="{{ confirmDeleteEntry }}">Delete</button>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;defaultHourlyRate&quot;: {&quot;editor&quot;: &quot;number&quot;, &quot;default&quot;: 25, &quot;tsType&quot;: &quot;number&quot;, &quot;min&quot;: 0, &quot;max&quot;: 500, &quot;step&quot;: 1, &quot;section&quot;: &quot;Defaults&quot;}, &quot;defaultTaxPercent&quot;: {&quot;editor&quot;: &quot;number&quot;, &quot;default&quot;: 13, &quot;tsType&quot;: &quot;number&quot;, &quot;min&quot;: 0, &quot;max&quot;: 25, &quot;step&quot;: 0.5, &quot;section&quot;: &quot;Defaults&quot;}}">
+class Component extends DCLogic {
+  STORAGE_KEY = 'tt_time_tracker_v1';
+  SIDEBAR_STORAGE_KEY = 'tt_sidebar_collapsed';
+  SHORTCUTS_STORAGE_KEY = 'tt_keyboard_shortcuts_enabled';
+
+  PROJECT_ICONS = [
+    'folder', 'folder_open', 'bookmark_stacks', 'topic', 'home', 'apartment',
+    'business_center', 'work', 'rocket_launch', 'target', 'lightbulb', 'auto_awesome',
+    'palette', 'design_services', 'brush', 'draw', 'photo_camera', 'movie',
+    'computer', 'smartphone', 'web', 'code', 'terminal', 'database',
+    'analytics', 'monitoring', 'campaign', 'receipt_long', 'payments', 'savings',
+    'storefront', 'shopping_bag', 'inventory_2', 'restaurant', 'flight', 'hotel',
+    'calendar_month', 'event', 'school', 'menu_book', 'science', 'psychology',
+    'medical_services', 'health_and_safety', 'fitness_center', 'spa', 'pets', 'eco',
+    'construction', 'engineering', 'architecture', 'handyman', 'build', 'settings',
+    'local_shipping', 'cleaning_services', 'lock', 'shield', 'verified', 'balance',
+    'groups', 'person', 'public', 'language', 'travel_explore', 'location_on',
+    'map', 'mail', 'chat', 'call', 'cloud', 'music_note', 'mic', 'headphones',
+    'sports_esports', 'favorite', 'task_alt', 'edit_note'
+  ];
+
+  state = {
+    now: Date.now(),
+    view: 'tracker',
+    timeLogView: 'list',
+    timeLogRange: 'all',
+    timeLogCustomFrom: '',
+    timeLogCustomTo: '',
+    weekOffset: 0,
+    projectFilterId: 'all',
+    taskFilterProjectId: null,
+    taskFilterTaskId: null,
+    collapsedDayKeys: [],
+    sidebarCollapsed: false,
+    keyboardShortcutsEnabled: true,
+    projects: [],
+    contacts: [],
+    contactModalOpen: false,
+    contactDraft: null,
+    contactDetailsOpen: false,
+    contactDetailsId: null,
+    deleteContactModalOpen: false,
+    deleteContactTargetId: null,
+    activeTimer: null,
+    lastTimerTarget: null,
+    collapsedProjectIds: [],
+    projectModalOpen: false,
+    projectDraft: null,
+    projectIconPickerOpen: false,
+    projectIconAuto: true,
+    projectIconSearch: '',
+    deleteProjectModalOpen: false,
+    deleteProjectTargetId: null,
+    taskModalOpen: false,
+    taskDraft: null,
+    deleteTaskModalOpen: false,
+    deleteTaskTarget: null,
+    entryModalOpen: false,
+    entryDraft: null,
+    deleteEntryModalOpen: false,
+    deleteEntryTarget: null,
+    reportsRange: 'week',
+    reportsCustomFrom: '',
+    reportsCustomTo: '',
+    reportProjectFilterId: 'all',
+    invoiceFromEditing: false,
+    invoiceToEditing: false,
+    invoiceSettings: {
+      fromName: '', fromEmail: '', fromAddress: '',
+      toName: '', toEmail: '', toAddress: '', selectedContactId: '',
+      invoiceNumber: 'INV-0001', issueDate: '', dueDate: '',
+      taxPercent: null,
+      rangeFrom: '', rangeTo: '',
+      projectFilterId: 'all',
+      excludedTaskIds: [], customItems: []
+    }
+  };
+
+  componentDidMount() {
+    this._onKeyDown = (event) => this.handleKeyDown(event);
+    document.addEventListener('keydown', this._onKeyDown);
+    this._onPrimaryButtonPointerDown = (event) => this.handlePrimaryButtonRipple(event);
+    document.addEventListener('pointerdown', this._onPrimaryButtonPointerDown, { passive: true });
+    let loaded = null;
+    let savedSidebarCollapsed = null;
+    let savedKeyboardShortcuts = null;
+    try {
+      const raw = localStorage.getItem(this.STORAGE_KEY);
+      if (raw) loaded = JSON.parse(raw);
+      const sidebarRaw = localStorage.getItem(this.SIDEBAR_STORAGE_KEY);
+      if (sidebarRaw === 'true' || sidebarRaw === 'false') savedSidebarCollapsed = sidebarRaw === 'true';
+      const shortcutsRaw = localStorage.getItem(this.SHORTCUTS_STORAGE_KEY);
+      if (shortcutsRaw === 'true' || shortcutsRaw === 'false') savedKeyboardShortcuts = shortcutsRaw === 'true';
+    } catch (e) {}
+    const now = new Date();
+    const todayKey = this.dateKeyFor(now);
+    const pastKey = this.dateKeyFor(new Date(now.getTime() - 13 * 86400000));
+    this.setState(s => {
+      const inv = { ...s.invoiceSettings, taxPercent: this.props.defaultTaxPercent ?? 13, ...(loaded && loaded.invoiceSettings ? loaded.invoiceSettings : {}) };
+      if (!inv.issueDate) inv.issueDate = todayKey;
+      if (!inv.rangeFrom) inv.rangeFrom = pastKey;
+      if (!inv.rangeTo) inv.rangeTo = todayKey;
+      if (inv.taxPercent === null || inv.taxPercent === undefined) inv.taxPercent = this.props.defaultTaxPercent ?? 13;
+      return {
+        projects: loaded && loaded.projects ? loaded.projects : s.projects,
+        contacts: loaded && Array.isArray(loaded.contacts) ? loaded.contacts : s.contacts,
+        invoiceSettings: inv,
+        keyboardShortcutsEnabled: savedKeyboardShortcuts === null ? true : savedKeyboardShortcuts,
+        sidebarCollapsed: savedSidebarCollapsed === null
+          ? (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 720px)').matches)
+          : savedSidebarCollapsed
+      };
+    }, () => this.loadServerData(loaded));
+    this._interval = setInterval(() => this.setState({ now: Date.now() }), 1000);
+  }
+
+  componentWillUnmount() {
+    document.removeEventListener('keydown', this._onKeyDown);
+    document.removeEventListener('pointerdown', this._onPrimaryButtonPointerDown);
+    clearInterval(this._interval);
+    clearTimeout(this._serverSaveTimer);
+    this.flushServerSave();
+  }
+
+  handlePrimaryButtonRipple(event) {
+    const target = event.target instanceof Element ? event.target : null;
+    const button = target && target.closest([
+      '.tt-btn-primary',
+      '.tt-rule-017',
+      '.tt-rule-048',
+      '.tt-sidebar-nav-btn',
+      '.tt-project-row',
+      '.tt-sidebar .tt-row-edit',
+      '.tt-task-actions button',
+      '.tt-task-row',
+      '.tt-new-task',
+      '.tt-sidebar-toggle',
+      '.tt-projects-add',
+      '.tt-sidebar-footer button'
+    ].join(', '));
+    if (!button || button.disabled) return;
+    const bounds = button.getBoundingClientRect();
+    const x = event.clientX - bounds.left;
+    const y = event.clientY - bounds.top;
+    const radius = Math.hypot(Math.max(x, bounds.width - x), Math.max(y, bounds.height - y));
+    button.style.setProperty('--ripple-x', x + 'px');
+    button.style.setProperty('--ripple-y', y + 'px');
+    button.style.setProperty('--ripple-size', radius * 2 + 'px');
+    button.style.setProperty('--ripple-color', button.closest('.tt-sidebar') ? 'rgba(23, 114, 235, 0.22)' : 'rgba(255, 255, 255, 0.42)');
+    button.classList.add('tt-ripple-target');
+    button.classList.remove('is-rippling');
+    void button.offsetWidth;
+    button.classList.add('is-rippling');
+    clearTimeout(button._ttRippleTimer);
+    button._ttRippleTimer = setTimeout(() => {
+      button.classList.remove('is-rippling');
+      button.classList.remove('tt-ripple-target');
+    }, 520);
+  }
+
+  handleKeyDown(event) {
+    if (event.key === 'Escape') {
+      if (this.state.contactDetailsOpen) {
+        event.preventDefault();
+        this.closeContactDetails();
+        return;
+      }
+      if (this.state.deleteContactModalOpen) {
+        event.preventDefault();
+        this.closeDeleteContactModal();
+        return;
+      }
+      if (this.state.contactModalOpen) {
+        event.preventDefault();
+        this.closeContactModal();
+        return;
+      }
+      if (this.state.deleteTaskModalOpen) {
+        event.preventDefault();
+        this.closeDeleteTaskModal();
+        return;
+      }
+      if (this.state.deleteProjectModalOpen) {
+        event.preventDefault();
+        this.closeDeleteProjectModal();
+        return;
+      }
+      if (this.state.deleteEntryModalOpen) {
+        event.preventDefault();
+        this.closeDeleteEntryModal();
+        return;
+      }
+      if (this.state.entryModalOpen) {
+        event.preventDefault();
+        this.closeEntryModal();
+        return;
+      }
+      if (this.state.taskModalOpen) {
+        event.preventDefault();
+        this.closeTaskModal();
+        return;
+      }
+      if (this.state.projectModalOpen) {
+        event.preventDefault();
+        if (this.state.projectIconPickerOpen) {
+          this.setState({ projectIconPickerOpen: false, projectIconSearch: '' });
+          return;
+        }
+        this.closeProjectModal();
+      }
+      return;
+    }
+
+    const shortcutKey = String(event.key || '').toLowerCase();
+    const shortcutActions = {
+      t: () => this.goTracker(),
+      r: () => this.goReports(),
+      c: () => this.goContacts(),
+      i: () => this.goInvoice()
+    };
+    if (shortcutActions[shortcutKey] && this.state.keyboardShortcutsEnabled) {
+      const target = event.target;
+      const isInteractiveTarget = !!(target && target.closest && target.closest('input, textarea, select, button, a, [role="button"], [contenteditable="true"]'));
+      const modalOpen = !!(
+        this.state.contactDetailsOpen || this.state.deleteContactModalOpen || this.state.contactModalOpen ||
+        this.state.deleteTaskModalOpen || this.state.deleteProjectModalOpen || this.state.deleteEntryModalOpen ||
+        this.state.entryModalOpen || this.state.taskModalOpen || this.state.projectModalOpen
+      );
+      if (!isInteractiveTarget && !modalOpen && !event.isComposing && !event.repeat && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey) {
+        event.preventDefault();
+        shortcutActions[shortcutKey]();
+        return;
+      }
+    }
+
+    if (event.key !== 'Enter' || event.isComposing || event.repeat) return;
+    if (event.target && event.target.tagName === 'TEXTAREA') return;
+    if (this.state.contactDetailsOpen) {
+      event.preventDefault();
+      this.closeContactDetails();
+      return;
+    }
+    if (this.state.deleteContactModalOpen) {
+      event.preventDefault();
+      this.confirmDeleteContact();
+      return;
+    }
+    if (this.state.contactModalOpen) {
+      event.preventDefault();
+      this.saveContact();
+      return;
+    }
+    if (this.state.deleteTaskModalOpen) {
+      event.preventDefault();
+      this.confirmDeleteTask();
+      return;
+    }
+    if (this.state.deleteProjectModalOpen) {
+      event.preventDefault();
+      this.confirmDeleteProject();
+      return;
+    }
+    if (this.state.deleteEntryModalOpen) {
+      event.preventDefault();
+      this.confirmDeleteEntry();
+      return;
+    }
+    if (this.state.entryModalOpen) {
+      event.preventDefault();
+      this.saveEntry();
+      return;
+    }
+    if (this.state.taskModalOpen) {
+      event.preventDefault();
+      this.saveTask();
+      return;
+    }
+    if (this.state.projectModalOpen) {
+      event.preventDefault();
+      this.saveProject();
+    }
+  }
+
+  persist() {
+    const payload = { projects: this.state.projects, contacts: this.state.contacts, invoiceSettings: this.state.invoiceSettings };
+    try {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(payload));
+    } catch (e) {}
+    this._hasUserChanges = true;
+    this.queueServerSave(payload);
+  }
+
+  async loadServerData(localData) {
+    try {
+      const response = await fetch('./api/', {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json' },
+        cache: 'no-store'
+      });
+      if (!response.ok) throw new Error('Server load failed: ' + response.status);
+      const result = await response.json();
+      if (result.data && !this._hasUserChanges) {
+        const data = result.data;
+        this.setState(s => ({
+          projects: Array.isArray(data.projects) ? data.projects : s.projects,
+          contacts: Array.isArray(data.contacts) ? data.contacts : s.contacts,
+          invoiceSettings: data.invoiceSettings ? { ...s.invoiceSettings, ...data.invoiceSettings } : s.invoiceSettings
+        }), () => {
+          try {
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify({ projects: this.state.projects, contacts: this.state.contacts, invoiceSettings: this.state.invoiceSettings }));
+          } catch (e) {}
+        });
+      } else if (!result.data && localData) {
+        this.queueServerSave({ projects: this.state.projects, contacts: this.state.contacts, invoiceSettings: this.state.invoiceSettings }, 0);
+      }
+    } catch (error) {
+      console.warn('Time Tracker is using local browser storage because the server database is unavailable.', error);
+    }
+  }
+
+  queueServerSave(payload, delay = 350) {
+    this._pendingServerPayload = payload;
+    clearTimeout(this._serverSaveTimer);
+    this._serverSaveTimer = setTimeout(() => this.flushServerSave(), delay);
+  }
+
+  async flushServerSave() {
+    if (this._serverSaveInFlight || !this._pendingServerPayload) return;
+    const payload = this._pendingServerPayload;
+    this._pendingServerPayload = null;
+    this._serverSaveInFlight = true;
+    try {
+      const response = await fetch('./api/', {
+        method: 'PUT',
+        credentials: 'same-origin',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        keepalive: true
+      });
+      if (!response.ok) throw new Error('Server save failed: ' + response.status);
+    } catch (error) {
+      console.warn('Time Tracker saved locally but could not sync to the server database.', error);
+      this._pendingServerPayload = payload;
+    } finally {
+      this._serverSaveInFlight = false;
+      if (this._pendingServerPayload) {
+        clearTimeout(this._serverSaveTimer);
+        this._serverSaveTimer = setTimeout(() => this.flushServerSave(), 1500);
+      }
+    }
+  }
+
+  exportData() {
+    const payload = { projects: this.state.projects, contacts: this.state.contacts, invoiceSettings: this.state.invoiceSettings };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'time-tracker-backup-' + this.dateKeyFor(new Date()) + '.json';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  importData() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'application/json,.json';
+    input.onchange = async () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      try {
+        const data = JSON.parse(await file.text());
+        if (!data || !Array.isArray(data.projects) || !data.invoiceSettings || typeof data.invoiceSettings !== 'object') {
+          throw new Error('Invalid backup structure');
+        }
+        if (!window.confirm('Import this backup and replace the current tracker data?')) return;
+        this.setState(s => ({
+          projects: data.projects,
+          contacts: Array.isArray(data.contacts) ? data.contacts : [],
+          activeTimer: null,
+          invoiceSettings: { ...s.invoiceSettings, ...data.invoiceSettings }
+        }), () => this.persist());
+      } catch (error) {
+        window.alert('This file is not a valid Time Tracker backup.');
+      }
+    };
+    input.click();
+  }
+
+  uid() { return 'id-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); }
+  formatDuration(sec) {
+    const totalSeconds = Math.max(0, Math.floor(Number(sec) || 0));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const parts = [];
+    if (hours) parts.push(hours + (hours === 1 ? 'hr' : 'hrs'));
+    if (minutes) parts.push(minutes + (minutes === 1 ? 'min' : 'mins'));
+    if (seconds || parts.length === 0) parts.push(seconds + (seconds === 1 ? 'sec' : 'secs'));
+    return parts.join(' ');
+  }
+  formatInvoiceHours(decimalHours) {
+    const hoursValue = Math.max(0, Number(decimalHours) || 0);
+    const totalMinutes = Math.round(hoursValue * 60);
+    if (hoursValue > 0 && totalMinutes === 0) return '<1min';
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    const parts = [];
+    if (hours) parts.push(hours + (hours === 1 ? 'hr' : 'hrs'));
+    if (minutes) parts.push(minutes + (minutes === 1 ? 'min' : 'mins'));
+    return parts.length ? parts.join(' ') : '0mins';
+  }
+  money(n) { return '$' + (Number(n) || 0).toFixed(2); }
+  dateKeyFor(date) {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', year: 'numeric', month: '2-digit', day: '2-digit' }).format(date);
+  }
+  formatDateKeyNice(k) {
+    const d = new Date(k + 'T12:00:00');
+    return new Intl.DateTimeFormat('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).format(d);
+  }
+  formatDateKeyInvoice(k) {
+    const d = new Date(k + 'T12:00:00');
+    return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(d);
+  }
+  formatDateKeyShort(k) {
+    const d = new Date(k + 'T12:00:00');
+    return new Intl.DateTimeFormat('en-US', { weekday: 'short', day: 'numeric' }).format(d);
+  }
+  formatEntryTimeRange(entry) {
+    const completedAt = Number(entry.createdAt);
+    const seconds = Number(entry.seconds) || 0;
+    if (!Number.isFinite(completedAt) || completedAt <= 0 || seconds <= 0) return '';
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'America/Toronto',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+    const formatTime = date => formatter.format(date).replace(/\s/g, '').toLowerCase();
+    const startedAt = completedAt - seconds * 1000;
+    return formatTime(new Date(startedAt)) + '–' + formatTime(new Date(completedAt));
+  }
+
+  // ---- nav ----
+  closeSidebarAfterMobileNavigation() {
+    if (typeof window === 'undefined' || !window.matchMedia || !window.matchMedia('(max-width: 720px)').matches) return;
+    this.setSidebarCollapsed(true);
+  }
+  goTracker() { this.setState({ view: 'tracker' }, () => this.closeSidebarAfterMobileNavigation()); }
+  goReports() { this.setState({ view: 'reports' }, () => this.closeSidebarAfterMobileNavigation()); }
+  goContacts() { this.setState({ view: 'contacts' }, () => this.closeSidebarAfterMobileNavigation()); }
+  goInvoice() {
+    const projectId = this.state.invoiceSettings.projectFilterId;
+    this.setState({ view: 'invoice' }, () => {
+      if (projectId && projectId !== 'all') this.setInvoiceProjectFilter(projectId);
+      this.closeSidebarAfterMobileNavigation();
+    });
+  }
+  setTimeLogListView() { this.setState({ timeLogView: 'list' }); }
+  setTimeLogWeekView() { this.setState({ timeLogView: 'week' }); }
+  setTimeLogRangeWeek() { this.setState({ timeLogRange: 'week' }); }
+  setTimeLogRangeMonth() { this.setState({ timeLogRange: 'month' }); }
+  setTimeLogRangeAll() { this.setState({ timeLogRange: 'all' }); }
+  setTimeLogRangeCustom() {
+    const monthBounds = this.getRangeBounds('month');
+    this.setState(s => ({
+      timeLogRange: 'custom',
+      timeLogCustomFrom: s.timeLogCustomFrom || monthBounds.fromKey,
+      timeLogCustomTo: s.timeLogCustomTo || monthBounds.toKey
+    }));
+  }
+  setTimeLogCustomFrom(timeLogCustomFrom) {
+    this.setState(s => ({
+      timeLogCustomFrom,
+      timeLogCustomTo: s.timeLogCustomTo && timeLogCustomFrom > s.timeLogCustomTo ? timeLogCustomFrom : s.timeLogCustomTo
+    }));
+  }
+  setTimeLogCustomTo(timeLogCustomTo) {
+    this.setState(s => ({
+      timeLogCustomTo,
+      timeLogCustomFrom: s.timeLogCustomFrom && timeLogCustomTo < s.timeLogCustomFrom ? timeLogCustomTo : s.timeLogCustomFrom
+    }));
+  }
+  setProjectFilter(projectFilterId) {
+    this.setState({ projectFilterId, taskFilterProjectId: null, taskFilterTaskId: null });
+  }
+  selectTaskSessions(projectId, taskId) {
+    this.setState({ view: 'tracker', projectFilterId: projectId, taskFilterProjectId: projectId, taskFilterTaskId: taskId });
+  }
+  resetTaskSessionsView() {
+    this.setState({ projectFilterId: 'all', taskFilterProjectId: null, taskFilterTaskId: null });
+  }
+  toggleDayGroup(dateKey) {
+    this.setState(s => {
+      const collapsed = new Set(s.collapsedDayKeys || []);
+      if (collapsed.has(dateKey)) collapsed.delete(dateKey); else collapsed.add(dateKey);
+      return { collapsedDayKeys: [...collapsed] };
+    });
+  }
+  showPreviousWeek() { this.setState(s => ({ weekOffset: (s.weekOffset || 0) - 1 })); }
+  showNextWeek() { this.setState(s => ({ weekOffset: (s.weekOffset || 0) + 1 })); }
+  showCurrentWeek() { this.setState({ weekOffset: 0 }); }
+  setSidebarCollapsed(sidebarCollapsed) {
+    this.setState({ sidebarCollapsed }, () => {
+      try { localStorage.setItem(this.SIDEBAR_STORAGE_KEY, String(sidebarCollapsed)); } catch (e) {}
+    });
+  }
+  toggleKeyboardShortcuts() {
+    this.setState(s => ({ keyboardShortcutsEnabled: !s.keyboardShortcutsEnabled }), () => {
+      try { localStorage.setItem(this.SHORTCUTS_STORAGE_KEY, String(this.state.keyboardShortcutsEnabled)); } catch (e) {}
+    });
+  }
+  toggleSidebar() { this.setSidebarCollapsed(!this.state.sidebarCollapsed); }
+  collapseSidebar() { this.setSidebarCollapsed(true); }
+  selectSidebarProject(projectId) {
+    if (this.state.sidebarCollapsed) {
+      this.setState(s => ({
+        sidebarCollapsed: false,
+        collapsedProjectIds: (s.collapsedProjectIds || []).filter(id => id !== projectId)
+      }), () => {
+        try { localStorage.setItem(this.SIDEBAR_STORAGE_KEY, 'false'); } catch (e) {}
+      });
+      return;
+    }
+    this.toggleExpand(projectId);
+  }
+  navClass(active) {
+    return 'tt-sidebar-nav-btn' + (active ? ' is-active' : '');
+  }
+
+  // ---- contact CRUD ----
+  openContactDetails(id) { this.setState({ contactDetailsOpen: true, contactDetailsId: id }); }
+  closeContactDetails() { this.setState({ contactDetailsOpen: false, contactDetailsId: null }); }
+  editContactFromDetails() {
+    const contactId = this.state.contactDetailsId;
+    if (!contactId) return;
+    this.setState({ contactDetailsOpen: false, contactDetailsId: null }, () => this.openEditContact(contactId));
+  }
+  openAddContact() {
+    this.setState({ contactModalOpen: true, contactDraft: { id: null, name: '', email: '', address: '' } });
+  }
+  openEditContact(id) {
+    const contact = this.state.contacts.find(item => item.id === id);
+    if (!contact) return;
+    this.setState({ contactModalOpen: true, contactDraft: { id: contact.id, name: contact.name, email: contact.email || '', address: contact.address || '' } });
+  }
+  closeContactModal() { this.setState({ contactModalOpen: false, contactDraft: null }); }
+  setContactDraft(field, value) { this.setState(s => ({ contactDraft: { ...s.contactDraft, [field]: value } })); }
+  saveContact() {
+    const draft = this.state.contactDraft;
+    if (!draft || !draft.name.trim()) return;
+    const contactId = draft.id || this.uid();
+    const savedContact = { id: contactId, name: draft.name.trim(), email: String(draft.email || '').trim(), address: String(draft.address || '').trim() };
+    this.setState(s => {
+      const contacts = draft.id
+        ? s.contacts.map(contact => contact.id === draft.id ? savedContact : contact)
+        : [...s.contacts, savedContact];
+      const selectedProject = s.projects.find(project => project.id === s.invoiceSettings.projectFilterId);
+      const shouldRefreshInvoice = s.invoiceSettings.selectedContactId === contactId || !!(selectedProject && selectedProject.contactId === contactId);
+      return {
+        contacts,
+        contactModalOpen: false,
+        contactDraft: null,
+        invoiceSettings: shouldRefreshInvoice ? {
+          ...s.invoiceSettings,
+          toName: savedContact.name,
+          toEmail: savedContact.email,
+          toAddress: savedContact.address
+        } : s.invoiceSettings
+      };
+    }, () => this.persist());
+  }
+  deleteContact() {
+    const draft = this.state.contactDraft;
+    if (!draft || !draft.id) return;
+    this.setState({ contactModalOpen: false, deleteContactModalOpen: true, deleteContactTargetId: draft.id });
+  }
+  closeDeleteContactModal() {
+    this.setState(s => ({ deleteContactModalOpen: false, deleteContactTargetId: null, contactModalOpen: !!s.contactDraft }));
+  }
+  confirmDeleteContact() {
+    const contactId = this.state.deleteContactTargetId;
+    if (!contactId) return;
+    this.setState(s => {
+      const selectedProject = s.projects.find(project => project.id === s.invoiceSettings.projectFilterId);
+      const clearsInvoice = s.invoiceSettings.selectedContactId === contactId || !!(selectedProject && selectedProject.contactId === contactId);
+      return {
+        contacts: s.contacts.filter(contact => contact.id !== contactId),
+        projects: s.projects.map(project => project.contactId === contactId ? { ...project, contactId: null } : project),
+        invoiceSettings: clearsInvoice ? { ...s.invoiceSettings, selectedContactId: '', projectFilterId: 'all', toName: '', toEmail: '', toAddress: '' } : s.invoiceSettings,
+        contactModalOpen: false,
+        contactDraft: null,
+        deleteContactModalOpen: false,
+        deleteContactTargetId: null
+      };
+    }, () => this.persist());
+  }
+
+  // ---- project CRUD ----
+  toggleExpand(id) {
+    this.setState(s => {
+      const set = new Set(s.collapsedProjectIds);
+      if (set.has(id)) set.delete(id); else set.add(id);
+      return { collapsedProjectIds: [...set] };
+    });
+  }
+  openAddProject() { this.setState({ projectModalOpen: true, projectIconPickerOpen: false, projectIconAuto: true, projectColorAuto: true, projectIconSearch: '', projectDraft: { id: null, name: '', contactId: '', icon: 'folder', color: '#1772eb', iconColor: this.getAccessibleTextColor('#1772eb') } }); }
+  openEditProject(id) {
+    const p = this.state.projects.find(p => p.id === id);
+    const color = p.color || '#1772eb';
+    this.setState({ projectModalOpen: true, projectIconPickerOpen: false, projectIconAuto: true, projectColorAuto: true, projectIconSearch: '', projectDraft: { id: p.id, name: p.name, contactId: p.contactId || '', icon: this.normalizeProjectIcon(p), color, iconColor: p.iconColor || this.getAccessibleTextColor(color) } });
+  }
+  closeProjectModal() { this.setState({ projectModalOpen: false, projectDraft: null, projectIconPickerOpen: false, projectIconAuto: true, projectColorAuto: true, projectIconSearch: '' }); }
+  setProjectDraft(field, val) { this.setState(s => ({ projectDraft: { ...s.projectDraft, [field]: val } })); }
+  normalizeProjectIcon(project) {
+    if (project && project.icon) return project.icon;
+    const legacyIcons = {
+      '📁': 'folder', '🏠': 'home', '💼': 'business_center', '🚀': 'rocket_launch',
+      '🎨': 'palette', '💻': 'computer', '📱': 'smartphone', '🧾': 'receipt_long',
+      '📊': 'monitoring', '🏗️': 'construction', '🎯': 'target', '✨': 'auto_awesome',
+      '🧠': 'psychology', '❤️': 'favorite', '📚': 'menu_book', '🎵': 'music_note',
+      '📷': 'photo_camera', '🌱': 'eco', '⚖️': 'balance', '🛠️': 'handyman',
+      '🏢': 'apartment', '🎮': 'sports_esports', '🐾': 'pets', '✈️': 'flight'
+    };
+    return legacyIcons[project && project.emoji] || 'folder';
+  }
+  suggestProjectIcon(name) {
+    const value = String(name || '').toLowerCase();
+    const rules = [
+      { icon: 'smartphone', keywords: ['mobile', 'phone', 'ios', 'android'] },
+      { icon: 'construction', keywords: ['construction', 'renovation', 'building', 'contractor'] },
+      { icon: 'home', keywords: ['home', 'house', 'property', 'real estate'] },
+      { icon: 'computer', keywords: ['website', 'web', 'software', 'code', 'developer', 'app', 'tech'] },
+      { icon: 'palette', keywords: ['design', 'creative', 'art', 'brand', 'illustration'] },
+      { icon: 'monitoring', keywords: ['analytics', 'report', 'data', 'marketing', 'research'] },
+      { icon: 'receipt_long', keywords: ['invoice', 'billing', 'accounting', 'finance', 'tax'] },
+      { icon: 'photo_camera', keywords: ['photo', 'video', 'media', 'camera'] },
+      { icon: 'music_note', keywords: ['music', 'audio', 'podcast', 'sound'] },
+      { icon: 'school', keywords: ['school', 'education', 'course', 'book', 'learning'] },
+      { icon: 'pets', keywords: ['pet', 'animal', 'veterinary', 'vet'] },
+      { icon: 'health_and_safety', keywords: ['health', 'fitness', 'wellness', 'care'] },
+      { icon: 'restaurant', keywords: ['restaurant', 'food', 'cafe', 'catering', 'kitchen'] },
+      { icon: 'flight', keywords: ['travel', 'flight', 'vacation', 'tourism', 'hotel'] },
+      { icon: 'storefront', keywords: ['shop', 'store', 'retail', 'ecommerce', 'commerce'] },
+      { icon: 'balance', keywords: ['legal', 'law', 'lawyer', 'court'] },
+      { icon: 'medical_services', keywords: ['medical', 'doctor', 'clinic', 'hospital'] },
+      { icon: 'calendar_month', keywords: ['event', 'calendar', 'schedule', 'conference'] },
+      { icon: 'cleaning_services', keywords: ['cleaning', 'cleaner', 'housekeeping'] },
+      { icon: 'lock', keywords: ['security', 'privacy', 'password'] },
+      { icon: 'local_shipping', keywords: ['delivery', 'logistics', 'shipping', 'transport'] },
+      { icon: 'sports_esports', keywords: ['game', 'gaming', 'esports'] },
+      { icon: 'eco', keywords: ['garden', 'nature', 'eco', 'sustainability'] },
+      { icon: 'rocket_launch', keywords: ['launch', 'startup', 'growth'] },
+      { icon: 'target', keywords: ['goal', 'strategy', 'planning'] },
+      { icon: 'psychology', keywords: ['ai', 'idea', 'innovation'] },
+      { icon: 'handyman', keywords: ['repair', 'maintenance', 'tools'] },
+      { icon: 'apartment', keywords: ['office', 'company', 'corporate'] },
+      { icon: 'business_center', keywords: ['business', 'client', 'work'] }
+    ];
+    const matchesKeyword = keyword => keyword.length <= 3
+      ? new RegExp('\\b' + keyword + '\\b').test(value)
+      : value.includes(keyword);
+    const match = rules.find(rule => rule.keywords.some(matchesKeyword));
+    return match ? match.icon : 'folder';
+  }
+  suggestProjectColor(name) {
+    const value = String(name || '').toLowerCase();
+    const rules = [
+      { color: '#2563eb', keywords: ['design', 'brand', 'creative', 'ui', 'ux', 'visual'] },
+      { color: '#0f766e', keywords: ['report', 'data', 'analytics', 'insight'] },
+      { color: '#7c3aed', keywords: ['product', 'launch', 'growth', 'strategy'] },
+      { color: '#dc2626', keywords: ['sales', 'client', 'support', 'service'] },
+      { color: '#db2777', keywords: ['marketing', 'social', 'content', 'media'] },
+      { color: '#ea580c', keywords: ['finance', 'invoice', 'billing', 'budget'] },
+      { color: '#16a34a', keywords: ['health', 'wellness', 'fitness', 'care'] },
+      { color: '#0891b2', keywords: ['travel', 'event', 'calendar', 'schedule'] },
+      { color: '#9333ea', keywords: ['tech', 'software', 'app', 'product'] },
+      { color: '#ca8a04', keywords: ['school', 'education', 'learning', 'course'] }
+    ];
+    const match = rules.find(rule => rule.keywords.some(keyword => value.includes(keyword)));
+    if (match) return match.color;
+    const hash = Array.from(value).reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    const hue = hash % 360;
+    return this.hslToHex(hue / 360, 0.62, 0.5);
+  }
+  contactAvatar(name) {
+    const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    const initials = parts.length > 1
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : parts.length === 1
+        ? parts[0][0].toUpperCase()
+        : '?';
+    const palette = [
+      { background: '#eaf2fd', color: '#185ba8' },
+      { background: '#f0ecfc', color: '#6246a8' },
+      { background: '#fbecef', color: '#a3475d' },
+      { background: '#e8f5ef', color: '#2c745b' },
+      { background: '#fff2dc', color: '#8b5b16' },
+      { background: '#e8f4f7', color: '#2b6d79' },
+      { background: '#fff0e8', color: '#99512d' },
+      { background: '#edf1f5', color: '#4c5c70' }
+    ];
+    const hash = Array.from(String(name || '').toLowerCase()).reduce((value, character) => ((value * 31) + character.charCodeAt(0)) >>> 0, 0);
+    return { initials, ...palette[hash % palette.length] };
+  }
+  hslToHex(h, s, l) {
+    const hue2rgb = (p, q, t) => {
+      let temp = t;
+      if (temp < 0) temp += 1;
+      if (temp > 1) temp -= 1;
+      if (temp < 1 / 6) return p + (q - p) * 6 * temp;
+      if (temp < 1 / 2) return q;
+      if (temp < 2 / 3) return p + (q - p) * (2 / 3 - temp) * 6;
+      return p;
+    };
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    const r = hue2rgb(p, q, h + 1 / 3);
+    const g = hue2rgb(p, q, h);
+    const b = hue2rgb(p, q, h - 1 / 3);
+    const toHex = value => Math.round(value * 255).toString(16).padStart(2, '0');
+    return '#' + toHex(r) + toHex(g) + toHex(b);
+  }
+  getAccessibleTextColor(backgroundColor) {
+    const normalizeColor = value => {
+      const color = String(value || '').trim();
+      if (!color) return [0, 0, 0];
+      const hex = color.startsWith('#') ? color.slice(1) : color;
+      const fullHex = hex.length === 3 ? hex.split('').map(ch => ch + ch).join('') : hex;
+      const int = parseInt(fullHex, 16);
+      return [
+        (int >> 16) & 255,
+        (int >> 8) & 255,
+        int & 255
+      ];
+    };
+    const toLinear = value => {
+      const channel = value / 255;
+      return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    };
+    const getLuminance = color => {
+      const [r, g, b] = normalizeColor(color);
+      return 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+    };
+    const getContrast = (a, b) => {
+      const lumA = getLuminance(a);
+      const lumB = getLuminance(b);
+      const lighter = Math.max(lumA, lumB);
+      const darker = Math.min(lumA, lumB);
+      return (lighter + 0.05) / (darker + 0.05);
+    };
+    const white = '#ffffff';
+    const dark = '#111827';
+    return getContrast(backgroundColor, white) >= getContrast(backgroundColor, dark) ? white : dark;
+  }
+  setProjectName(name) {
+    this.setState(s => {
+      const currentDraft = s.projectDraft || { icon: 'folder', color: '#1772eb', iconColor: this.getAccessibleTextColor('#1772eb') };
+      const nextColor = s.projectColorAuto ? this.suggestProjectColor(name) : (currentDraft.color || '#1772eb');
+      const nextIcon = s.projectIconAuto ? this.suggestProjectIcon(name) : (currentDraft.icon || 'folder');
+      const nextIconColor = this.getAccessibleTextColor(nextColor);
+      return {
+        projectDraft: {
+          ...currentDraft,
+          name,
+          icon: nextIcon,
+          color: nextColor,
+          iconColor: nextIconColor
+        }
+      };
+    });
+  }
+  toggleProjectIconPicker() {
+    this.setState(s => ({ projectIconPickerOpen: !s.projectIconPickerOpen, projectIconSearch: '' }));
+  }
+  setProjectIconSearch(projectIconSearch) { this.setState({ projectIconSearch }); }
+  setProjectDraftColor(color) {
+    this.setState(s => ({
+      projectDraft: {
+        ...s.projectDraft,
+        color,
+        iconColor: this.getAccessibleTextColor(color)
+      },
+      projectColorAuto: false
+    }));
+  }
+  selectProjectIcon(icon) {
+    this.setState(s => ({ projectDraft: { ...s.projectDraft, icon }, projectIconPickerOpen: false, projectIconAuto: false, projectIconSearch: '' }));
+  }
+  saveProject() {
+    const d = this.state.projectDraft;
+    if (!d.name.trim()) return;
+    this.setState(s => {
+      let projects;
+      if (d.id) projects = s.projects.map(p => {
+        if (p.id !== d.id) return p;
+        const { emoji, ...project } = p;
+        return { ...project, name: d.name.trim(), contactId: d.contactId || null, icon: d.icon || 'folder', color: d.color, iconColor: d.iconColor || this.getAccessibleTextColor(d.color) };
+      });
+      else projects = [...s.projects, { id: this.uid(), name: d.name.trim(), contactId: d.contactId || null, icon: d.icon || 'folder', color: d.color, iconColor: d.iconColor || this.getAccessibleTextColor(d.color), tasks: [] }];
+      return { projects, projectModalOpen: false, projectDraft: null };
+    }, () => {
+      if (d.id && this.state.invoiceSettings.projectFilterId === d.id) this.setInvoiceProjectFilter(d.id);
+      else this.persist();
+    });
+  }
+  deleteProject() {
+    const d = this.state.projectDraft;
+    if (!d || !d.id) return;
+    this.setState({
+      projectModalOpen: false,
+      projectIconPickerOpen: false,
+      projectIconSearch: '',
+      deleteProjectModalOpen: true,
+      deleteProjectTargetId: d.id
+    });
+  }
+  closeDeleteProjectModal() {
+    this.setState(s => ({
+      deleteProjectModalOpen: false,
+      deleteProjectTargetId: null,
+      projectModalOpen: !!s.projectDraft
+    }));
+  }
+  confirmDeleteProject() {
+    const projectId = this.state.deleteProjectTargetId;
+    if (!projectId) return;
+    this.setState(s => ({
+      projects: s.projects.filter(p => p.id !== projectId),
+      activeTimer: s.activeTimer && s.activeTimer.projectId === projectId ? null : s.activeTimer,
+      projectModalOpen: false,
+      projectDraft: null,
+      deleteProjectModalOpen: false,
+      deleteProjectTargetId: null
+    }), () => this.persist());
+  }
+
+  // ---- task CRUD ----
+  openAddTask(projectId) {
+    this.setState({ taskModalOpen: true, taskDraft: { id: null, projectId, name: '', rate: this.props.defaultHourlyRate ?? 25 } });
+  }
+  openEditTask(projectId, taskId) {
+    const p = this.state.projects.find(p => p.id === projectId);
+    const t = p.tasks.find(t => t.id === taskId);
+    this.setState({ taskModalOpen: true, taskDraft: { id: t.id, projectId, name: t.name, rate: t.rate } });
+  }
+  closeTaskModal() { this.setState({ taskModalOpen: false, taskDraft: null }); }
+  setTaskDraft(field, val) { this.setState(s => ({ taskDraft: { ...s.taskDraft, [field]: val } })); }
+  saveTask() {
+    const d = this.state.taskDraft;
+    if (!d.name.trim()) return;
+    const rate = Number(d.rate) || 0;
+    const taskId = d.id || this.uid();
+    const shouldAutoStart = !d.id && this.state.projects.some(p => p.id === d.projectId && p.tasks.length === 0);
+    this.setState(s => ({
+      projects: s.projects.map(p => {
+        if (p.id !== d.projectId) return p;
+        if (d.id) return { ...p, tasks: p.tasks.map(t => t.id === d.id ? { ...t, name: d.name.trim(), rate } : t) };
+        return { ...p, tasks: [...p.tasks, { id: taskId, name: d.name.trim(), rate, entries: [] }] };
+      }),
+      taskModalOpen: false,
+      taskDraft: null,
+      lastTimerTarget: d.id ? s.lastTimerTarget : { projectId: d.projectId, taskId },
+      view: shouldAutoStart ? 'tracker' : s.view
+    }), () => {
+      if (shouldAutoStart) this.startTask(d.projectId, taskId);
+      else this.persist();
+    });
+  }
+  deleteTask() {
+    const d = this.state.taskDraft;
+    if (!d || !d.id) return;
+    this.setState({
+      taskModalOpen: false,
+      deleteTaskModalOpen: true,
+      deleteTaskTarget: { projectId: d.projectId, taskId: d.id }
+    });
+  }
+  closeDeleteTaskModal() {
+    this.setState(s => ({
+      deleteTaskModalOpen: false,
+      deleteTaskTarget: null,
+      taskModalOpen: !!s.taskDraft
+    }));
+  }
+  confirmDeleteTask() {
+    const target = this.state.deleteTaskTarget;
+    if (!target) return;
+    this.setState(s => ({
+      projects: s.projects.map(p => p.id === target.projectId ? { ...p, tasks: p.tasks.filter(t => t.id !== target.taskId) } : p),
+      activeTimer: s.activeTimer && s.activeTimer.taskId === target.taskId ? null : s.activeTimer,
+      taskModalOpen: false,
+      taskDraft: null,
+      deleteTaskModalOpen: false,
+      deleteTaskTarget: null
+    }), () => this.persist());
+  }
+
+  // ---- entry (manual time) ----
+  openEditEntry(projectId, taskId, entryId) {
+    const p = this.state.projects.find(p => p.id === projectId);
+    const t = p.tasks.find(t => t.id === taskId);
+    const e = t.entries.find(e => e.id === entryId);
+    const h = Math.floor(e.seconds / 3600), m = Math.floor((e.seconds % 3600) / 60);
+    this.setState({ entryModalOpen: true, entryDraft: { projectId, taskId, id: entryId, taskName: t.name, dateKey: e.dateKey || this.dateKeyFor(new Date()), h, m, notes: e.notes || '' } });
+  }
+  closeEntryModal() { this.setState({ entryModalOpen: false, entryDraft: null }); }
+  setEntryDraft(field, val) { this.setState(s => ({ entryDraft: { ...s.entryDraft, [field]: val } })); }
+  saveEntry() {
+    const d = this.state.entryDraft;
+    const seconds = Math.max(0, Math.round((Number(d.h) || 0) * 3600 + (Number(d.m) || 0) * 60));
+    this.setState(s => ({
+      projects: s.projects.map(p => p.id !== d.projectId ? p : {
+        ...p, tasks: p.tasks.map(t => {
+          if (t.id !== d.taskId) return t;
+          return {
+            ...t,
+            name: d.taskName && d.taskName.trim() ? d.taskName.trim() : t.name,
+            entries: t.entries.map(e => e.id === d.id ? { ...e, dateKey: d.dateKey || e.dateKey, seconds, notes: String(d.notes || '').trim() } : e)
+          };
+        })
+      }),
+      entryModalOpen: false, entryDraft: null
+    }), () => this.persist());
+  }
+  deleteEntry(projectId, taskId, entryId) {
+    const project = this.state.projects.find(p => p.id === projectId);
+    const task = project && project.tasks.find(t => t.id === taskId);
+    const taskIsActive = !!(this.state.activeTimer && this.state.activeTimer.projectId === projectId && this.state.activeTimer.taskId === taskId);
+    const removeOnlyTask = !!(
+      project &&
+      task &&
+      project.tasks.length === 1 &&
+      task.entries.length === 1 &&
+      task.entries[0].id === entryId &&
+      !taskIsActive
+    );
+    const message = removeOnlyTask
+      ? 'This is the task\'s only time entry. Deleting it will also remove the task from the sidebar.'
+      : 'This time entry will be permanently deleted. This action cannot be undone.';
+    this.setState({
+      deleteEntryModalOpen: true,
+      deleteEntryTarget: { projectId, taskId, entryId, removeOnlyTask, message }
+    });
+  }
+  closeDeleteEntryModal() {
+    this.setState({ deleteEntryModalOpen: false, deleteEntryTarget: null });
+  }
+  confirmDeleteEntry() {
+    const target = this.state.deleteEntryTarget;
+    if (!target) return;
+    const { projectId, taskId, entryId, removeOnlyTask } = target;
+    this.setState(s => ({
+      projects: s.projects.map(p => p.id !== projectId ? p : {
+        ...p,
+        tasks: removeOnlyTask
+          ? p.tasks.filter(t => t.id !== taskId)
+          : p.tasks.map(t => t.id !== taskId ? t : { ...t, entries: t.entries.filter(e => e.id !== entryId) })
+      }),
+      deleteEntryModalOpen: false,
+      deleteEntryTarget: null
+    }), () => this.persist());
+  }
+
+  // ---- start / stop ----
+  playTimerSound(name) {
+    try {
+      if (typeof window === 'undefined') return;
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContextClass) return;
+      const context = new AudioContextClass();
+      const notes = name === 'sparkle' ? [659, 880] : [523, 659, 784];
+      notes.forEach((frequency, index) => {
+        const start = context.currentTime + index * 0.08;
+        const oscillator = context.createOscillator();
+        const gain = context.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(frequency, start);
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.045, start + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.start(start);
+        oscillator.stop(start + 0.17);
+      });
+      window.setTimeout(() => context.close().catch(() => {}), 700);
+    } catch (error) {}
+  }
+  startTask(projectId, taskId) {
+    this.setState(s => {
+      let projects = s.projects;
+      if (s.activeTimer) {
+        const elapsed = Math.floor((Date.now() - s.activeTimer.startedAt) / 1000);
+        if (elapsed > 0) {
+          const at = s.activeTimer;
+          projects = projects.map(p => p.id !== at.projectId ? p : {
+            ...p, tasks: p.tasks.map(t => t.id !== at.taskId ? t : { ...t, entries: [...t.entries, { id: this.uid(), dateKey: this.dateKeyFor(new Date()), createdAt: Date.now(), seconds: elapsed }] })
+          });
+        }
+      }
+      return {
+        projects,
+        activeTimer: { projectId, taskId, startedAt: Date.now() },
+        lastTimerTarget: { projectId, taskId },
+        collapsedProjectIds: s.collapsedProjectIds.filter(id => id !== projectId)
+      };
+    }, () => {
+      this.playTimerSound('sparkle');
+      this.persist();
+    });
+  }
+  stopActive() {
+    this.setState(s => {
+      if (!s.activeTimer) return null;
+      const elapsed = Math.floor((Date.now() - s.activeTimer.startedAt) / 1000);
+      let projects = s.projects;
+      if (elapsed > 0) {
+        const at = s.activeTimer;
+        projects = projects.map(p => p.id !== at.projectId ? p : {
+          ...p, tasks: p.tasks.map(t => t.id !== at.taskId ? t : { ...t, entries: [...t.entries, { id: this.uid(), dateKey: this.dateKeyFor(new Date()), createdAt: Date.now(), seconds: elapsed }] })
+        });
+      }
+      return { projects, activeTimer: null };
+    }, () => {
+      this.playTimerSound('success');
+      this.persist();
+    });
+  }
+  findLastActivityTarget() {
+    const preferred = this.state.lastTimerTarget;
+    if (preferred) {
+      const project = this.state.projects.find(p => p.id === preferred.projectId);
+      if (project && project.tasks.some(t => t.id === preferred.taskId)) return preferred;
+    }
+
+    let latest = null;
+    let order = 0;
+    this.state.projects.forEach(p => p.tasks.forEach(t => t.entries.forEach(e => {
+      order += 1;
+      const candidate = {
+        projectId: p.id,
+        taskId: t.id,
+        dateKey: e.dateKey || '',
+        createdAt: Number(e.createdAt) || 0,
+        order
+      };
+      if (
+        !latest ||
+        candidate.dateKey > latest.dateKey ||
+        (candidate.dateKey === latest.dateKey && candidate.createdAt > latest.createdAt) ||
+        (candidate.dateKey === latest.dateKey && candidate.createdAt === latest.createdAt && candidate.order > latest.order)
+      ) latest = candidate;
+    })));
+    if (latest) return { projectId: latest.projectId, taskId: latest.taskId };
+
+    for (let projectIndex = this.state.projects.length - 1; projectIndex >= 0; projectIndex -= 1) {
+      const project = this.state.projects[projectIndex];
+      if (project.tasks.length) {
+        return { projectId: project.id, taskId: project.tasks[project.tasks.length - 1].id };
+      }
+    }
+    return null;
+  }
+  startLastActivity() {
+    const target = this.findLastActivityTarget();
+    if (target) this.startTask(target.projectId, target.taskId);
+  }
+  // ---- reports ----
+  setRangeWeek() { this.setState({ reportsRange: 'week' }); }
+  setRangeMonth() { this.setState({ reportsRange: 'month' }); }
+  setRangeAll() { this.setState({ reportsRange: 'all' }); }
+  setRangeCustom() {
+    const monthBounds = this.getRangeBounds('month');
+    this.setState(s => ({
+      reportsRange: 'custom',
+      reportsCustomFrom: s.reportsCustomFrom || monthBounds.fromKey,
+      reportsCustomTo: s.reportsCustomTo || monthBounds.toKey
+    }));
+  }
+  setReportsCustomFrom(reportsCustomFrom) {
+    this.setState(s => ({
+      reportsCustomFrom,
+      reportsCustomTo: s.reportsCustomTo && reportsCustomFrom > s.reportsCustomTo ? reportsCustomFrom : s.reportsCustomTo
+    }));
+  }
+  setReportsCustomTo(reportsCustomTo) {
+    this.setState(s => ({
+      reportsCustomTo,
+      reportsCustomFrom: s.reportsCustomFrom && reportsCustomTo < s.reportsCustomFrom ? reportsCustomTo : s.reportsCustomFrom
+    }));
+  }
+  setReportProjectFilter(reportProjectFilterId) { this.setState({ reportProjectFilterId }); }
+  getRangeBounds(range, customFrom = '', customTo = '') {
+    const now = new Date(this.state.now);
+    const todayKey = this.dateKeyFor(now);
+    if (range === 'week') return { fromKey: this.dateKeyFor(new Date(this.state.now - 6 * 86400000)), toKey: todayKey };
+    if (range === 'month') {
+      const ym = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Toronto', year: 'numeric', month: '2-digit' }).format(now);
+      return { fromKey: ym + '-01', toKey: todayKey };
+    }
+    if (range === 'custom') {
+      return {
+        fromKey: customFrom || '0000-01-01',
+        toKey: customTo || '9999-12-31'
+      };
+    }
+    return { fromKey: '0000-01-01', toKey: '9999-12-31' };
+  }
+  buildReports(projectFilterId = 'all') {
+    const { fromKey, toKey } = this.getRangeBounds(this.state.reportsRange, this.state.reportsCustomFrom, this.state.reportsCustomTo);
+    let totalSeconds = 0, totalBilled = 0, entryCount = 0;
+    const perProject = {}, perDay = {};
+    this.state.projects.forEach(p => {
+      if (projectFilterId !== 'all' && p.id !== projectFilterId) return;
+      p.tasks.forEach(t => t.entries.forEach(e => {
+        if (e.dateKey < fromKey || e.dateKey > toKey) return;
+        const billed = (e.seconds / 3600) * t.rate;
+        totalSeconds += e.seconds; totalBilled += billed; entryCount++;
+        if (!perProject[p.id]) perProject[p.id] = { name: p.name, icon: this.normalizeProjectIcon(p), color: p.color, seconds: 0, billed: 0 };
+        perProject[p.id].seconds += e.seconds; perProject[p.id].billed += billed;
+        if (!perDay[e.dateKey]) perDay[e.dateKey] = { seconds: 0, projects: {} };
+        perDay[e.dateKey].seconds += e.seconds;
+        if (!perDay[e.dateKey].projects[p.id]) perDay[e.dateKey].projects[p.id] = { name: p.name, color: p.color, seconds: 0 };
+        perDay[e.dateKey].projects[p.id].seconds += e.seconds;
+      }));
+    });
+    const maxProjectBilled = Math.max(1, ...Object.values(perProject).map(p => p.billed), 0);
+    const reportProjects = Object.values(perProject).sort((a, b) => b.billed - a.billed).map(p => ({
+      ...p, pct: Math.max(2, Math.round((p.billed / maxProjectBilled) * 100)),
+      hoursLabel: (p.seconds / 3600).toFixed(1) + 'h', billedLabel: this.money(p.billed)
+    }));
+    const dayKeys = Object.keys(perDay).sort();
+    const maxDaySeconds = Math.max(1, ...dayKeys.map(k => perDay[k].seconds), 0);
+    const reportDays = dayKeys.map(k => {
+      const projects = Object.values(perDay[k].projects).sort((a, b) => b.seconds - a.seconds).map(project => ({
+        ...project,
+        hoursLabel: (project.seconds / 3600).toFixed(1) + 'h',
+        tooltip: project.name + ' · ' + (project.seconds / 3600).toFixed(1) + 'h'
+      }));
+      return {
+        key: k,
+        barHeight: Math.max(4, Math.round((perDay[k].seconds / maxDaySeconds) * 118)),
+        label: this.formatDateKeyShort(k),
+        hoursLabel: (perDay[k].seconds / 3600).toFixed(1) + 'h',
+        projects,
+        summaryLabel: this.formatDateKeyNice(k) + ': ' + projects.map(project => project.tooltip).join(', ')
+      };
+    });
+    return {
+      totalHoursLabel: (totalSeconds / 3600).toFixed(1) + 'h', totalBilledLabel: this.money(totalBilled),
+      entryCountLabel: String(entryCount), reportProjects, reportDays, isEmpty: entryCount === 0
+    };
+  }
+
+  // ---- invoice ----
+  setInvoiceField(field, val) { this.setState(s => ({ invoiceSettings: { ...s.invoiceSettings, [field]: val } }), () => this.persist()); }
+  setInvoicePartyEditing(party, editing) {
+    this.setState(party === 'from' ? { invoiceFromEditing: editing } : { invoiceToEditing: editing });
+  }
+  getInvoiceContactId(invoiceSettings = this.state.invoiceSettings) {
+    if (invoiceSettings.selectedContactId && this.state.contacts.some(contact => contact.id === invoiceSettings.selectedContactId)) {
+      return invoiceSettings.selectedContactId;
+    }
+    const project = this.state.projects.find(item => item.id === invoiceSettings.projectFilterId);
+    if (project && project.contactId && this.state.contacts.some(contact => contact.id === project.contactId)) return project.contactId;
+    const email = String(invoiceSettings.toEmail || '').trim().toLowerCase();
+    const name = String(invoiceSettings.toName || '').trim().toLowerCase();
+    const contact = this.state.contacts.find(item =>
+      (email && String(item.email || '').trim().toLowerCase() === email) ||
+      (!email && name && String(item.name || '').trim().toLowerCase() === name)
+    );
+    return contact ? contact.id : '';
+  }
+  setInvoiceContact(contactId) {
+    this.setState(s => {
+      const contact = s.contacts.find(item => item.id === contactId);
+      return {
+        invoiceSettings: {
+          ...s.invoiceSettings,
+          selectedContactId: contact ? contact.id : '',
+          projectFilterId: 'all',
+          excludedTaskIds: [],
+          toName: contact ? contact.name : '',
+          toEmail: contact ? contact.email : '',
+          toAddress: contact ? contact.address : ''
+        }
+      };
+    }, () => this.persist());
+  }
+  setInvoiceProjectFilter(projectId) {
+    this.setState(s => {
+      const project = s.projects.find(item => item.id === projectId);
+      const contact = project && project.contactId ? s.contacts.find(item => item.id === project.contactId) : null;
+      return {
+        invoiceSettings: {
+          ...s.invoiceSettings,
+          projectFilterId: projectId,
+          ...(projectId !== 'all' ? {
+            selectedContactId: contact ? contact.id : '',
+            toName: contact ? contact.name : '',
+            toEmail: contact ? contact.email : '',
+            toAddress: contact ? contact.address : ''
+          } : {})
+        }
+      };
+    }, () => this.persist());
+  }
+  toggleAutoItem(taskId) {
+    this.setState(s => {
+      const excluded = new Set(s.invoiceSettings.excludedTaskIds || []);
+      if (excluded.has(taskId)) excluded.delete(taskId); else excluded.add(taskId);
+      return { invoiceSettings: { ...s.invoiceSettings, excludedTaskIds: [...excluded] } };
+    }, () => this.persist());
+  }
+  addCustomLineItem() {
+    this.setState(s => ({ invoiceSettings: { ...s.invoiceSettings, customItems: [...s.invoiceSettings.customItems, { id: this.uid(), description: '', qty: 1, rate: 0 }] } }), () => this.persist());
+  }
+  updateCustomItem(id, field, val) {
+    this.setState(s => ({ invoiceSettings: { ...s.invoiceSettings, customItems: s.invoiceSettings.customItems.map(ci => ci.id === id ? { ...ci, [field]: val } : ci) } }), () => this.persist());
+  }
+  removeCustomItem(id) {
+    this.setState(s => ({ invoiceSettings: { ...s.invoiceSettings, customItems: s.invoiceSettings.customItems.filter(ci => ci.id !== id) } }), () => this.persist());
+  }
+  printInvoice() { window.print(); }
+  buildAutoInvoiceItems() {
+    const inv = this.state.invoiceSettings;
+    const excluded = new Set(inv.excludedTaskIds || []);
+    const selectedContactId = this.getInvoiceContactId(inv);
+    const eligibleProjects = selectedContactId
+      ? this.state.projects.filter(project => project.contactId === selectedContactId)
+      : this.state.projects;
+    const projectFilterId = eligibleProjects.some(project => project.id === inv.projectFilterId) ? inv.projectFilterId : 'all';
+    const items = [];
+    this.state.projects.forEach(p => {
+      if (selectedContactId && p.contactId !== selectedContactId) return;
+      if (projectFilterId !== 'all' && p.id !== projectFilterId) return;
+      p.tasks.forEach(t => {
+        const secondsByDate = {};
+        t.entries.forEach(e => {
+          if (e.dateKey >= inv.rangeFrom && e.dateKey <= inv.rangeTo) {
+            if (!secondsByDate[e.dateKey]) secondsByDate[e.dateKey] = { seconds: 0, notes: [] };
+            secondsByDate[e.dateKey].seconds += e.seconds;
+            const note = String(e.notes || '').trim();
+            if (note && !secondsByDate[e.dateKey].notes.includes(note)) secondsByDate[e.dateKey].notes.push(note);
+          }
+        });
+        Object.keys(secondsByDate).forEach(dateKey => {
+          const seconds = secondsByDate[dateKey].seconds;
+          const notes = secondsByDate[dateKey].notes.join(' • ');
+          const hours = seconds / 3600, amount = hours * t.rate;
+          items.push({ dateKey, taskId: t.id, description: t.name + ' — ' + p.name, notes, hasNotes: !!notes, hours, rate: t.rate, amount, checked: !excluded.has(t.id) });
+        });
+      });
+    });
+    return items.sort((a, b) => a.dateKey.localeCompare(b.dateKey) || a.description.localeCompare(b.description));
+  }
+
+  // ---- render ----
+  renderVals() {
+    const s = this.state;
+    const now = new Date(s.now);
+    const clockTime = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Toronto', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true }).format(now);
+    const clockDate = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Toronto', weekday: 'short', month: 'short', day: 'numeric' }).format(now);
+
+    const taskFilterProject = s.projects.find(project => project.id === s.taskFilterProjectId);
+    const taskFilterTask = taskFilterProject && taskFilterProject.tasks.find(task => task.id === s.taskFilterTaskId);
+    const taskFilterActive = !!(taskFilterProject && taskFilterTask);
+    const collapsed = new Set(s.collapsedProjectIds);
+    const projectsView = s.projects.map(p => ({
+      id: p.id, name: p.name, icon: this.normalizeProjectIcon(p), color: p.color, iconColor: p.iconColor || this.getAccessibleTextColor(p.color),
+      expanded: !collapsed.has(p.id), collapsedFlag: collapsed.has(p.id),
+      taskCountLabel: p.tasks.length + (p.tasks.length === 1 ? ' task' : ' tasks'),
+      hasActiveTimer: !!(s.activeTimer && s.activeTimer.projectId === p.id),
+      rowClass: 'tt-project-row tt-action-tooltip tt-hover-04' + (s.activeTimer && s.activeTimer.projectId === p.id ? ' has-active-timer' : ''),
+      tooltipLabel: p.name + (s.activeTimer && s.activeTimer.projectId === p.id ? ' · Timer running' : ''),
+      ariaLabel: s.sidebarCollapsed ? 'Expand sidebar and show tasks for ' + p.name : (collapsed.has(p.id) ? 'Expand ' : 'Collapse ') + p.name,
+      onSelect: () => this.selectSidebarProject(p.id),
+      onKeyDown: (event) => {
+        if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+        event.preventDefault();
+        this.selectSidebarProject(p.id);
+      },
+      onEdit: (event) => {
+        event.stopPropagation();
+        this.openEditProject(p.id);
+      },
+      onAddTask: () => this.openAddTask(p.id),
+      tasks: p.tasks.map(t => ({
+        id: t.id,
+        name: t.name,
+        rateLabel: this.money(t.rate) + '/hr',
+        rowClass: 'tt-task-row tt-hover-04' +
+          (s.activeTimer && s.activeTimer.projectId === p.id && s.activeTimer.taskId === t.id ? ' is-timer-active' : '') +
+          (taskFilterActive && taskFilterProject.id === p.id && taskFilterTask.id === t.id ? ' is-session-filtered' : ''),
+        timerActionIcon: s.activeTimer && s.activeTimer.projectId === p.id && s.activeTimer.taskId === t.id ? 'stop' : 'play_arrow',
+        timerActionLabel: s.activeTimer && s.activeTimer.projectId === p.id && s.activeTimer.taskId === t.id ? 'Stop timer' : 'Start timer',
+        timerActionAriaLabel: (s.activeTimer && s.activeTimer.projectId === p.id && s.activeTimer.taskId === t.id ? 'Stop timer for ' : 'Start timer for ') + t.name,
+        timerActionClass: 'tt-row-edit tt-action-tooltip tt-rule-029 ' + (s.activeTimer && s.activeTimer.projectId === p.id && s.activeTimer.taskId === t.id ? 'tt-task-stop-action' : 'tt-hover-07'),
+        onSelect: () => this.selectTaskSessions(p.id, t.id),
+        onKeyDown: (event) => {
+          if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+          event.preventDefault();
+          this.selectTaskSessions(p.id, t.id);
+        },
+        onTimerAction: (event) => {
+          event.stopPropagation();
+          return s.activeTimer && s.activeTimer.projectId === p.id && s.activeTimer.taskId === t.id ? this.stopActive() : this.startTask(p.id, t.id);
+        },
+        onEdit: (event) => {
+          event.stopPropagation();
+          this.openEditTask(p.id, t.id);
+        }
+      }))
+    }));
+    const projectFilterId = s.projects.some(p => p.id === s.projectFilterId) ? s.projectFilterId : 'all';
+    const reportProjectFilterId = s.projects.some(p => p.id === s.reportProjectFilterId) ? s.reportProjectFilterId : 'all';
+    const projectFilterOptions = s.projects.map(p => ({ id: p.id, name: p.name }));
+    const contactOptions = s.contacts.slice().sort((a, b) => a.name.localeCompare(b.name)).map(contact => ({ id: contact.id, name: contact.name }));
+    const contactsView = s.contacts.slice().sort((a, b) => a.name.localeCompare(b.name)).map(contact => {
+      const projectCount = s.projects.filter(project => project.contactId === contact.id).length;
+      const avatar = this.contactAvatar(contact.name);
+      return {
+        id: contact.id,
+        name: contact.name,
+        initials: avatar.initials,
+        avatarBackground: avatar.background,
+        avatarColor: avatar.color,
+        emailLabel: contact.email || 'No email address',
+        addressLabel: contact.address || 'No address',
+        projectCountLabel: projectCount + (projectCount === 1 ? ' linked project' : ' linked projects'),
+        onOpen: () => this.openContactDetails(contact.id),
+        onKeyDown: (event) => {
+          if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
+          event.preventDefault();
+          this.openContactDetails(contact.id);
+        },
+        onEdit: (event) => {
+          event.stopPropagation();
+          this.openEditContact(contact.id);
+        }
+      };
+    });
+    const selectedContact = s.contacts.find(contact => contact.id === s.contactDetailsId);
+    const selectedContactAvatar = this.contactAvatar(selectedContact ? selectedContact.name : 'Contact');
+    const linkedContactProjects = selectedContact
+      ? s.projects.filter(project => project.contactId === selectedContact.id).map(project => ({
+          id: project.id,
+          name: project.name,
+          icon: this.normalizeProjectIcon(project),
+          color: project.color,
+          iconColor: project.iconColor || this.getAccessibleTextColor(project.color),
+          taskCountLabel: project.tasks.length + (project.tasks.length === 1 ? ' task' : ' tasks')
+        }))
+      : [];
+    const contactDetails = {
+      name: selectedContact ? selectedContact.name : '',
+      emailLabel: selectedContact && selectedContact.email ? selectedContact.email : 'No email address',
+      addressLabel: selectedContact && selectedContact.address ? selectedContact.address : 'No address',
+      initials: selectedContactAvatar.initials,
+      avatarBackground: selectedContactAvatar.background,
+      avatarColor: selectedContactAvatar.color,
+      projects: linkedContactProjects,
+      hasProjects: linkedContactProjects.length > 0,
+      noProjects: linkedContactProjects.length === 0,
+      projectCountLabel: linkedContactProjects.length + (linkedContactProjects.length === 1 ? ' linked project' : ' linked projects')
+    };
+
+    let activeInfo = null;
+    if (s.activeTimer) {
+      const p = s.projects.find(p => p.id === s.activeTimer.projectId);
+      const t = p && p.tasks.find(t => t.id === s.activeTimer.taskId);
+      if (p && t) {
+        const elapsed = Math.floor((s.now - s.activeTimer.startedAt) / 1000);
+        activeInfo = {
+          icon: this.normalizeProjectIcon(p), color: p.color, iconColor: p.iconColor || this.getAccessibleTextColor(p.color), taskName: t.name, projectName: p.name,
+          elapsedLabel: this.formatDuration(elapsed), billedLabel: this.money((elapsed / 3600) * t.rate)
+        };
+      }
+    }
+
+    const taskFilterInfo = taskFilterActive ? {
+      taskName: taskFilterTask.name,
+      projectName: taskFilterProject.name,
+      icon: this.normalizeProjectIcon(taskFilterProject),
+      color: taskFilterProject.color,
+      iconColor: taskFilterProject.iconColor || this.getAccessibleTextColor(taskFilterProject.color)
+    } : {
+      taskName: '', projectName: '', icon: 'folder', color: '#1772eb', iconColor: '#ffffff'
+    };
+
+    // day groups
+    const map = {};
+    s.projects.forEach(p => {
+      if (projectFilterId !== 'all' && p.id !== projectFilterId) return;
+      p.tasks.forEach(t => {
+        if (taskFilterActive && (p.id !== taskFilterProject.id || t.id !== taskFilterTask.id)) return;
+        t.entries.forEach(e => {
+        if (!map[e.dateKey]) map[e.dateKey] = { seconds: 0, billed: 0, entries: [] };
+        const billed = (e.seconds / 3600) * t.rate;
+        map[e.dateKey].seconds += e.seconds; map[e.dateKey].billed += billed;
+        map[e.dateKey].entries.push({
+          id: e.id, taskId: t.id, projectId: p.id, taskName: t.name, projectName: p.name,
+          icon: this.normalizeProjectIcon(p), color: p.color, iconColor: p.iconColor || this.getAccessibleTextColor(p.color),
+          notes: e.notes || '', hasNotes: !!String(e.notes || '').trim(),
+          seconds: e.seconds, rate: t.rate, billed,
+          durationLabel: this.formatDuration(e.seconds), timeRangeLabel: this.formatEntryTimeRange(e),
+          rateLabel: this.money(t.rate) + '/hr', billedLabel: this.money(billed),
+          onResume: () => this.startTask(p.id, t.id),
+          onEdit: () => this.openEditEntry(p.id, t.id, e.id),
+          onDelete: () => this.deleteEntry(p.id, t.id, e.id)
+        });
+        });
+      });
+    });
+    const todayKey = this.dateKeyFor(now);
+    const yesterdayKey = this.dateKeyFor(new Date(s.now - 86400000));
+    const timeLogBounds = this.getRangeBounds(s.timeLogRange || 'all', s.timeLogCustomFrom, s.timeLogCustomTo);
+    const collapsedDayKeys = new Set(s.collapsedDayKeys || []);
+    const dayGroups = Object.keys(map)
+      .filter(dateKey => dateKey >= timeLogBounds.fromKey && dateKey <= timeLogBounds.toKey)
+      .sort((a, b) => b.localeCompare(a)).map(k => {
+        const collapsed = collapsedDayKeys.has(k);
+        const taskCount = new Set(map[k].entries.map(entry => entry.projectId + ':' + entry.taskId)).size;
+        return {
+          dateKey: k,
+          label: k === todayKey ? 'Today' : k === yesterdayKey ? 'Yesterday' : this.formatDateKeyNice(k),
+          dateSub: this.formatDateKeyNice(k),
+          totalTimeLabel: this.formatDuration(map[k].seconds),
+          totalBilledLabel: this.money(map[k].billed),
+          taskCountLabel: taskCount + (taskCount === 1 ? ' task' : ' tasks'),
+          ariaExpanded: collapsed ? 'false' : 'true',
+          ariaHidden: collapsed ? 'true' : 'false',
+          toggleLabel: (collapsed ? 'Expand ' : 'Collapse ') + this.formatDateKeyNice(k),
+          entriesClass: 'tt-day-entries' + (collapsed ? ' is-collapsed' : ''),
+          toggle: () => this.toggleDayGroup(k),
+          entries: map[k].entries
+        };
+      });
+
+    const weekStart = new Date(todayKey + 'T12:00:00');
+    const daysSinceMonday = (weekStart.getDay() + 6) % 7;
+    weekStart.setDate(weekStart.getDate() - daysSinceMonday + (s.weekOffset || 0) * 7);
+    const weekDays = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + index);
+      const dateKey = this.dateKeyFor(date);
+      const data = map[dateKey] || { seconds: 0, billed: 0, entries: [] };
+      return {
+        dateKey,
+        weekday: new Intl.DateTimeFormat('en-US', { weekday: 'short' }).format(date),
+        dateLabel: new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' }).format(date),
+        className: 'tt-calendar-day' + (dateKey === todayKey ? ' is-today' : ''),
+        isEmpty: data.entries.length === 0,
+        totalTimeLabel: this.formatDuration(data.seconds),
+        totalBilledLabel: this.money(data.billed),
+        entries: data.entries
+      };
+    });
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    const weekRangeFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    const weekRangeLabel = weekRangeFormatter.format(weekStart) + ' – ' + weekRangeFormatter.format(weekEnd);
+    const weekHasEntries = weekDays.some(day => !day.isEmpty);
+    const timeLogRangeSuffix = s.timeLogRange === 'week'
+      ? ' this week'
+      : s.timeLogRange === 'month'
+        ? ' this month'
+        : s.timeLogRange === 'custom'
+          ? ' in this date range'
+        : ' yet';
+    const timeLogEmptyMessage = taskFilterActive
+      ? 'No time tracked for ' + taskFilterTask.name + timeLogRangeSuffix + '.'
+      : projectFilterId === 'all'
+        ? 'No time tracked' + timeLogRangeSuffix + (s.timeLogRange === 'all' ? ' — use Start timer above to begin.' : '.')
+        : 'No time tracked for this project' + timeLogRangeSuffix + '.';
+
+    const reports = this.buildReports(reportProjectFilterId);
+    const lastActivityTarget = this.findLastActivityTarget();
+
+    // invoice
+    const inv = s.invoiceSettings;
+    const invoiceFromAvatar = this.contactAvatar(inv.fromName || 'Your details');
+    const invoiceToAvatar = this.contactAvatar(inv.toName || 'Bill to');
+    const selectedInvoiceContactId = this.getInvoiceContactId(inv);
+    const selectedInvoiceContact = s.contacts.find(contact => contact.id === selectedInvoiceContactId);
+    const invoiceEligibleProjects = selectedInvoiceContact
+      ? s.projects.filter(project => project.contactId === selectedInvoiceContact.id)
+      : s.projects;
+    const invoiceProjectFilterId = invoiceEligibleProjects.some(project => project.id === inv.projectFilterId) ? inv.projectFilterId : 'all';
+    const invoiceProjectOptions = invoiceEligibleProjects.map(project => ({ id: project.id, name: project.name }));
+    const invoiceLinkedProjectCount = selectedInvoiceContact ? invoiceEligibleProjects.length : 0;
+    const autoItemsRaw = this.buildAutoInvoiceItems();
+    const autoItems = autoItemsRaw.map(ai => ({
+      taskId: ai.taskId, description: ai.description, checked: ai.checked,
+      dateLabel: this.formatDateKeyNice(ai.dateKey),
+      hoursLabel: this.formatInvoiceHours(ai.hours), amountLabel: this.money(ai.amount),
+      onToggle: () => this.toggleAutoItem(ai.taskId)
+    }));
+    const includedAuto = autoItemsRaw.filter(ai => ai.checked);
+    const customItems = inv.customItems.map(ci => {
+      const amount = (Number(ci.qty) || 0) * (Number(ci.rate) || 0);
+      return {
+        id: ci.id, description: ci.description, qty: ci.qty, rate: ci.rate,
+        onDesc: (e) => this.updateCustomItem(ci.id, 'description', e.target.value),
+        onQty: (e) => this.updateCustomItem(ci.id, 'qty', e.target.value),
+        onRate: (e) => this.updateCustomItem(ci.id, 'rate', e.target.value),
+        onRemove: () => this.removeCustomItem(ci.id),
+        amount
+      };
+    });
+    const previewGroupsByDate = {};
+    includedAuto.forEach(ai => {
+      if (!previewGroupsByDate[ai.dateKey]) previewGroupsByDate[ai.dateKey] = [];
+      previewGroupsByDate[ai.dateKey].push({
+        description: ai.description,
+        notes: ai.notes,
+        hasNotes: ai.hasNotes,
+        qtyLabel: this.formatInvoiceHours(ai.hours),
+        rateLabel: this.money(ai.rate) + '/h',
+        amountLabel: this.money(ai.amount)
+      });
+    });
+    const previewGroups = Object.keys(previewGroupsByDate).sort().map(dateKey => ({
+      dateKey,
+      dateLabel: this.formatDateKeyInvoice(dateKey),
+      lineItems: previewGroupsByDate[dateKey]
+    }));
+    if (customItems.length) {
+      previewGroups.push({
+        dateKey: 'custom',
+        dateLabel: 'Additional items',
+        lineItems: customItems.map(ci => ({ description: ci.description || 'Custom item', notes: '', hasNotes: false, qtyLabel: this.formatInvoiceHours(ci.qty), rateLabel: this.money(ci.rate), amountLabel: this.money(ci.amount) }))
+      });
+    }
+    const previewLineItemCount = previewGroups.reduce((count, group) => count + group.lineItems.length, 0);
+    const subtotal = includedAuto.reduce((sum, i) => sum + i.amount, 0) + customItems.reduce((sum, i) => sum + i.amount, 0);
+    const taxPercent = Number(inv.taxPercent) || 0;
+    const taxAmount = subtotal * (taxPercent / 100);
+    const total = subtotal + taxAmount;
+
+    const projectIconQuery = String(s.projectIconSearch || '').trim().toLowerCase();
+    const selectedProjectIcon = s.projectDraft ? s.projectDraft.icon : 'folder';
+    const projectIconOptions = this.PROJECT_ICONS
+      .filter(icon => !projectIconQuery || icon.includes(projectIconQuery) || icon.replace(/_/g, ' ').includes(projectIconQuery))
+      .map(icon => ({
+        icon,
+        label: icon.replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase()),
+        selected: icon === selectedProjectIcon,
+        className: 'tt-material-icon-option' + (icon === selectedProjectIcon ? ' is-selected' : ''),
+        onSelect: () => this.selectProjectIcon(icon)
+      }));
+
+    return {
+      clockTime, clockDate,
+      isTrackerView: s.view === 'tracker', isReportsView: s.view === 'reports', isContactsView: s.view === 'contacts', isInvoiceView: s.view === 'invoice',
+      goTracker: () => this.goTracker(), goReports: () => this.goReports(), goContacts: () => this.goContacts(), goInvoice: () => this.goInvoice(),
+      toggleSidebar: () => this.toggleSidebar(),
+      collapseSidebar: () => this.collapseSidebar(),
+      toggleKeyboardShortcuts: () => this.toggleKeyboardShortcuts(),
+      keyboardShortcutsEnabled: s.keyboardShortcutsEnabled ? 'true' : 'false',
+      keyboardShortcutsLabel: s.keyboardShortcutsEnabled ? 'Shortcuts on' : 'Shortcuts off',
+      sidebarCollapsed: s.sidebarCollapsed,
+      sidebarClass: 'tt-sidebar no-print' + (s.sidebarCollapsed ? ' tt-sidebar--collapsed' : ''),
+      sidebarToggleLabel: s.sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar',
+      sidebarToggleIcon: s.sidebarCollapsed ? 'chevron_right' : 'chevron_left',
+      navTrackerClass: this.navClass(s.view === 'tracker'), navReportsClass: this.navClass(s.view === 'reports'), navContactsClass: this.navClass(s.view === 'contacts'), navInvoiceClass: this.navClass(s.view === 'invoice'),
+      noProjects: s.projects.length === 0,
+      openAddProject: () => this.openAddProject(),
+      exportData: () => this.exportData(), importData: () => this.importData(),
+      projectsView,
+      activeInfo,
+      showTaskFilter: taskFilterActive,
+      taskFilterInfo,
+      resetTaskSessionsView: () => this.resetTaskSessionsView(),
+      idlePromptVisible: !activeInfo && s.projects.length > 0,
+      noEntriesYet: (s.timeLogView === 'list' ? dayGroups.length === 0 : !weekHasEntries) && s.projects.length > 0,
+      timeLogEmptyMessage,
+      headerCanStartTimer: !s.activeTimer && !!lastActivityTarget,
+      headerTimerRunning: !!s.activeTimer,
+      startLastActivity: () => this.startLastActivity(),
+      stopHeaderTimer: () => this.stopActive(),
+      projectFilterId,
+      projectFilterOptions,
+      setProjectFilter: (e) => this.setProjectFilter(e.target.value),
+      timeLogListView: s.timeLogView === 'list',
+      timeLogWeekView: s.timeLogView === 'week',
+      listViewClass: 'tt-view-toggle tt-action-tooltip' + (s.timeLogView === 'list' ? ' is-active' : ''),
+      weekViewClass: 'tt-view-toggle tt-action-tooltip' + (s.timeLogView === 'week' ? ' is-active' : ''),
+      setListView: () => this.setTimeLogListView(),
+      setWeekView: () => this.setTimeLogWeekView(),
+      previousWeek: () => this.showPreviousWeek(),
+      nextWeek: () => this.showNextWeek(),
+      currentWeek: () => this.showCurrentWeek(),
+      weekRangeLabel,
+      weekDays,
+      dayGroups,
+      showTimeLogRange: s.timeLogView === 'list' && s.projects.length > 0,
+      timeLogRangeWeekClass: 'tt-range-btn' + (s.timeLogRange === 'week' ? ' is-active' : ''),
+      timeLogRangeMonthClass: 'tt-range-btn' + (s.timeLogRange === 'month' ? ' is-active' : ''),
+      timeLogRangeAllClass: 'tt-range-btn' + (s.timeLogRange === 'all' ? ' is-active' : ''),
+      timeLogRangeCustomClass: 'tt-range-btn' + (s.timeLogRange === 'custom' ? ' is-active' : ''),
+      setTimeLogRangeWeek: () => this.setTimeLogRangeWeek(),
+      setTimeLogRangeMonth: () => this.setTimeLogRangeMonth(),
+      setTimeLogRangeAll: () => this.setTimeLogRangeAll(),
+      setTimeLogRangeCustom: () => this.setTimeLogRangeCustom(),
+      showCustomTimeLogRange: s.timeLogRange === 'custom',
+      timeLogCustomFrom: s.timeLogCustomFrom,
+      timeLogCustomTo: s.timeLogCustomTo,
+      setTimeLogCustomFrom: (e) => this.setTimeLogCustomFrom(e.target.value),
+      setTimeLogCustomTo: (e) => this.setTimeLogCustomTo(e.target.value),
+
+      rangeWeekClass: 'tt-range-btn' + (s.reportsRange === 'week' ? ' is-active' : ''),
+      rangeMonthClass: 'tt-range-btn' + (s.reportsRange === 'month' ? ' is-active' : ''),
+      rangeAllClass: 'tt-range-btn' + (s.reportsRange === 'all' ? ' is-active' : ''),
+      rangeCustomClass: 'tt-range-btn' + (s.reportsRange === 'custom' ? ' is-active' : ''),
+      setRangeWeek: () => this.setRangeWeek(), setRangeMonth: () => this.setRangeMonth(), setRangeAll: () => this.setRangeAll(), setRangeCustom: () => this.setRangeCustom(),
+      showCustomReportsRange: s.reportsRange === 'custom',
+      reportsCustomFrom: s.reportsCustomFrom,
+      reportsCustomTo: s.reportsCustomTo,
+      setReportsCustomFrom: (e) => this.setReportsCustomFrom(e.target.value),
+      setReportsCustomTo: (e) => this.setReportsCustomTo(e.target.value),
+      reportProjectFilterId,
+      setReportProjectFilter: (e) => this.setReportProjectFilter(e.target.value),
+      reportTotalHours: reports.totalHoursLabel, reportTotalBilled: reports.totalBilledLabel, reportEntryCount: reports.entryCountLabel,
+      reportsEmpty: reports.isEmpty, reportsHasData: !reports.isEmpty,
+      reportProjects: reports.reportProjects, reportDays: reports.reportDays,
+
+      noContacts: s.contacts.length === 0,
+      hasContacts: s.contacts.length > 0,
+      contactsView,
+      contactDetailsOpen: s.contactDetailsOpen && !!selectedContact,
+      contactDetails,
+      closeContactDetails: () => this.closeContactDetails(),
+      editContactFromDetails: () => this.editContactFromDetails(),
+      contactOptions,
+      openAddContact: () => this.openAddContact(),
+      contactModalOpen: s.contactModalOpen,
+      contactDraft: s.contactDraft || { name: '', email: '', address: '' },
+      contactModalTitle: s.contactDraft && s.contactDraft.id ? 'Edit contact' : 'New contact',
+      contactModalIsEdit: !!(s.contactDraft && s.contactDraft.id),
+      contactModalIsCreate: !(s.contactDraft && s.contactDraft.id),
+      onContactDraftName: (e) => this.setContactDraft('name', e.target.value),
+      onContactDraftEmail: (e) => this.setContactDraft('email', e.target.value),
+      onContactDraftAddress: (e) => this.setContactDraft('address', e.target.value),
+      closeContactModal: () => this.closeContactModal(),
+      saveContact: () => this.saveContact(),
+      deleteContact: () => this.deleteContact(),
+      deleteContactModalOpen: s.deleteContactModalOpen,
+      closeDeleteContactModal: () => this.closeDeleteContactModal(),
+      confirmDeleteContact: () => this.confirmDeleteContact(),
+
+      projectModalOpen: s.projectModalOpen, projectDraft: s.projectDraft || { name: '', contactId: '', icon: 'folder', color: '#1772eb', iconColor: this.getAccessibleTextColor('#1772eb') },
+      projectModalTitle: s.projectDraft && s.projectDraft.id ? 'Edit project' : 'New project',
+      projectModalIsEdit: !!(s.projectDraft && s.projectDraft.id), projectModalIsCreate: !(s.projectDraft && s.projectDraft.id),
+      onProjectDraftName: (e) => this.setProjectName(e.target.value),
+      onProjectDraftContact: (e) => this.setProjectDraft('contactId', e.target.value),
+      onProjectDraftColor: (e) => this.setProjectDraftColor(e.target.value),
+      projectIconPickerOpen: s.projectIconPickerOpen,
+      projectIconSearch: s.projectIconSearch,
+      projectIconOptions,
+      noProjectIconResults: projectIconOptions.length === 0,
+      onProjectIconSearch: (e) => this.setProjectIconSearch(e.target.value),
+      toggleProjectIconPicker: () => this.toggleProjectIconPicker(),
+      closeProjectModal: () => this.closeProjectModal(), saveProject: () => this.saveProject(), deleteProject: () => this.deleteProject(),
+
+      deleteProjectModalOpen: s.deleteProjectModalOpen,
+      closeDeleteProjectModal: () => this.closeDeleteProjectModal(),
+      confirmDeleteProject: () => this.confirmDeleteProject(),
+
+      taskModalOpen: s.taskModalOpen, taskDraft: s.taskDraft || { name: '', rate: 25 },
+      taskModalTitle: s.taskDraft && s.taskDraft.id ? 'Edit task' : 'New task',
+      taskModalIsEdit: !!(s.taskDraft && s.taskDraft.id), taskModalIsCreate: !(s.taskDraft && s.taskDraft.id),
+      onTaskDraftName: (e) => this.setTaskDraft('name', e.target.value),
+      onTaskDraftRate: (e) => this.setTaskDraft('rate', e.target.value),
+      closeTaskModal: () => this.closeTaskModal(), saveTask: () => this.saveTask(), deleteTask: () => this.deleteTask(),
+
+      deleteTaskModalOpen: s.deleteTaskModalOpen,
+      closeDeleteTaskModal: () => this.closeDeleteTaskModal(),
+      confirmDeleteTask: () => this.confirmDeleteTask(),
+
+      entryModalOpen: s.entryModalOpen, entryDraft: s.entryDraft || { h: 0, m: 0, s: 0, notes: '' },
+      onEntryDraftH: (e) => this.setEntryDraft('h', e.target.value),
+      onEntryDraftM: (e) => this.setEntryDraft('m', e.target.value),
+      onEntryDraftTaskName: (e) => this.setEntryDraft('taskName', e.target.value),
+      onEntryDraftDateKey: (e) => this.setEntryDraft('dateKey', e.target.value),
+      onEntryDraftNotes: (e) => this.setEntryDraft('notes', e.target.value),
+      closeEntryModal: () => this.closeEntryModal(), saveEntry: () => this.saveEntry(),
+
+      deleteEntryModalOpen: s.deleteEntryModalOpen,
+      deleteEntryMessage: s.deleteEntryTarget ? s.deleteEntryTarget.message : '',
+      closeDeleteEntryModal: () => this.closeDeleteEntryModal(),
+      confirmDeleteEntry: () => this.confirmDeleteEntry(),
+
+      addCustomLineItem: () => this.addCustomLineItem(), printInvoice: () => this.printInvoice(),
+      inv: {
+        fromName: inv.fromName, fromEmail: inv.fromEmail, fromAddress: inv.fromAddress,
+        toName: inv.toName, toEmail: inv.toEmail, toAddress: inv.toAddress,
+        fromNameLabel: inv.fromName || 'Add your name or business',
+        fromEmailLabel: inv.fromEmail || 'Add an email address',
+        fromAddressLabel: inv.fromAddress || 'Add an address',
+        fromInitials: invoiceFromAvatar.initials,
+        fromAvatarBackground: invoiceFromAvatar.background,
+        fromAvatarColor: invoiceFromAvatar.color,
+        fromEditing: s.invoiceFromEditing,
+        fromSummary: !s.invoiceFromEditing,
+        editFrom: () => this.setInvoicePartyEditing('from', true),
+        finishFrom: () => this.setInvoicePartyEditing('from', false),
+        toNameLabel: inv.toName || 'Add a client name',
+        toEmailLabel: inv.toEmail || 'Add an email address',
+        toAddressLabel: inv.toAddress || 'Add an address',
+        toInitials: invoiceToAvatar.initials,
+        toAvatarBackground: invoiceToAvatar.background,
+        toAvatarColor: invoiceToAvatar.color,
+        selectedContactId: selectedInvoiceContactId,
+        contactOptions,
+        hasSelectedContact: !!selectedInvoiceContact,
+        contactLinkedProjectLabel: invoiceLinkedProjectCount + (invoiceLinkedProjectCount === 1 ? ' linked project' : ' linked projects'),
+        onContact: (e) => this.setInvoiceContact(e.target.value),
+        toEditing: s.invoiceToEditing,
+        toSummary: !s.invoiceToEditing,
+        editTo: () => this.setInvoicePartyEditing('to', true),
+        finishTo: () => this.setInvoicePartyEditing('to', false),
+        invoiceNumber: inv.invoiceNumber, issueDate: inv.issueDate, dueDate: inv.dueDate, taxPercent: inv.taxPercent,
+        rangeFrom: inv.rangeFrom, rangeTo: inv.rangeTo,
+        issueDateLabel: inv.issueDate ? this.formatDateKeyNice(inv.issueDate) : '',
+        dueDateLabel: inv.dueDate ? this.formatDateKeyNice(inv.dueDate) : '', hasDueDate: !!inv.dueDate,
+        onFromName: (e) => this.setInvoiceField('fromName', e.target.value),
+        onFromEmail: (e) => this.setInvoiceField('fromEmail', e.target.value),
+        onFromAddress: (e) => this.setInvoiceField('fromAddress', e.target.value),
+        onToName: (e) => this.setInvoiceField('toName', e.target.value),
+        onToEmail: (e) => this.setInvoiceField('toEmail', e.target.value),
+        onToAddress: (e) => this.setInvoiceField('toAddress', e.target.value),
+        onInvoiceNumber: (e) => this.setInvoiceField('invoiceNumber', e.target.value),
+        onIssueDate: (e) => this.setInvoiceField('issueDate', e.target.value),
+        onDueDate: (e) => this.setInvoiceField('dueDate', e.target.value),
+        onTaxPercent: (e) => this.setInvoiceField('taxPercent', e.target.value),
+        onRangeFrom: (e) => this.setInvoiceField('rangeFrom', e.target.value),
+        onRangeTo: (e) => this.setInvoiceField('rangeTo', e.target.value),
+        projectFilterId: invoiceProjectFilterId,
+        projectFilterAllLabel: selectedInvoiceContact ? 'All linked projects' : 'All projects',
+        projectOptions: invoiceProjectOptions,
+        onProjectFilter: (e) => this.setInvoiceProjectFilter(e.target.value),
+        autoItems, hasAutoItems: autoItems.length > 0,
+        customItems, hasCustomItems: customItems.length > 0,
+        previewGroups, hasLineItems: previewLineItemCount > 0, noLineItems: previewLineItemCount === 0,
+        subtotalLabel: this.money(subtotal), hasTax: taxPercent > 0, taxLabel: this.money(taxAmount), totalLabel: this.money(total)
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

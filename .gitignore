@@ -1,7 +1,7 @@
 .DS_Store
 
 # Local-only time tracking project.
-/TimeTracking/
+/TimeTracking/api
 
 # Oversized local video sources exceed GitHub's 100 MB file limit.
 img/nescafe/nescafe-thumb-original.mp4

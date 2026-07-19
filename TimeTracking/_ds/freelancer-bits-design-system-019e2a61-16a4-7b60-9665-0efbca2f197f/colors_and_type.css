@@ -1,0 +1,299 @@
+/* =================================================================
+   Bits Design System — Colors & Typography
+   Freelancer.com's official design system
+   Source: bits.freelancer.com + freelancer-bits-tokens.json
+   ================================================================= */
+
+/* Roboto — primary typeface for all UI text.
+   Loaded from local variable font files (wdth + wght axes). */
+@font-face {
+  font-family: 'Roboto';
+  font-style: normal;
+  font-weight: 100 900;
+  font-stretch: 75% 100%;
+  font-display: swap;
+  src: url('fonts/Roboto-VariableFont_wdth_wght.ttf') format('truetype-variations'),
+       url('fonts/Roboto-VariableFont_wdth_wght.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'Roboto';
+  font-style: italic;
+  font-weight: 100 900;
+  font-stretch: 75% 100%;
+  font-display: swap;
+  src: url('fonts/Roboto-Italic-VariableFont_wdth_wght.ttf') format('truetype-variations'),
+       url('fonts/Roboto-Italic-VariableFont_wdth_wght.ttf') format('truetype');
+}
+
+:root {
+  /* ─── Global Color Palette ─────────────────────────────────── */
+
+  /* Blue — primary brand. CTAs, links, focus, info */
+  --blue-100: #eaf2fd;
+  --blue-200: #acccf8;
+  --blue-400: #589af0;
+  --blue-600: #1772eb; /* Primary CTA */
+  --blue-700: #115cc0; /* Hover / pressed */
+  --blue-900: #082e60;
+
+  /* Freelancer brand blue (logo) */
+  --brand-freelancer: #29b2fe;
+
+  /* Orange — secondary accent. Highlights, badges, illustrations */
+  --orange-50:  #fffad4;
+  --orange-100: #ffeba8;
+  --orange-200: #ffc24e;
+  --orange-300: #ffa32d;
+  --orange-400: #fc8c14;
+  --orange-500: #f77d0e;
+  --orange-600: #f57207;
+  --orange-700: #e96800;
+  --orange-900: #ad4d00;
+  --orange-preferred: #ff6700; /* Preferred Freelancer badge */
+
+  /* Neutral — text + surfaces. Cool, slightly blue-grey */
+  --neutral-50:  #ffffff;
+  --neutral-100: #fcfcfd;
+  --neutral-200: #eef0f4;
+  --neutral-300: #bcc5d3;
+  --neutral-400: #5c6f8c;
+  --neutral-500: #3d4a5d;
+  --neutral-600: #232a35;
+  --neutral-700: #12151b;
+
+  /* Green — success, online */
+  --green-200: #defee9;
+  --green-300: #9bfbbc;
+  --green-400: #07bc44;
+  --green-500: #058430;
+  --green-600: #023815;
+
+  /* Red — error, destructive */
+  --red-25:  #fff6f5;
+  --red-50:  #ffcdc7;
+  --red-100: #ffb7a3;
+  --red-200: #ff624d;
+  --red-300: #f84438;
+  --red-400: #eb3730;
+  --red-500: #e02a28;
+  --red-600: #d31721;
+  --red-700: #c20014;
+  --red-900: #891b21;
+
+  /* Yellow — warning, stars */
+  --yellow-300: #fff3cb;
+  --yellow-400: #ffd747;
+  --yellow-500: #e1b000;
+
+  /* Purple, Aqua, Pink — accents for illustrations + categorization */
+  --purple-300: #e5d3fd;
+  --purple-400: #7f21f7;
+  --purple-500: #3d0584;
+  --aqua-400:   #1eb5bd;
+  --pink-300:   #ffdaed;
+  --pink-400:   #e60278;
+  --pink-500:   #860146;
+
+  /* Social brand colors */
+  --brand-apple:     #000000;
+  --brand-facebook:  #1877f2;
+  --brand-x:         #000000;
+  --brand-twitter:   #00b6f1;
+  --brand-google:    #df4a32;
+  --brand-youtube:   #ff0000;
+  --brand-instagram: #c32aa3;
+  --brand-linkedin:  #0a66c2;
+  --brand-pinterest: #e60019;
+
+  /* ─── Semantic Colors ──────────────────────────────────────── */
+
+  /* Text */
+  --text-primary:   var(--neutral-600);
+  --text-secondary: var(--neutral-400);
+  --text-disabled:  var(--neutral-300);
+  --text-inverse:   var(--neutral-50);
+  --text-link:      var(--blue-600);
+  --text-link-hover:var(--blue-700);
+  --text-danger:    var(--red-300);
+  --text-success:   var(--green-500);
+  --text-warning:   var(--yellow-500);
+
+  /* Surface */
+  --surface-page:      var(--neutral-50);
+  --surface-secondary: var(--neutral-100);
+  --surface-tertiary:  var(--neutral-200);
+  --surface-overlay:   var(--neutral-50);
+
+  /* Border */
+  --border-default: var(--neutral-300);
+  --border-strong:  var(--neutral-400);
+  --border-focus:   var(--blue-600);
+  --border-danger:  var(--red-300);
+
+  /* Action */
+  --action-primary:           var(--blue-600);
+  --action-primary-hover:     var(--blue-700);
+  --action-primary-text:      var(--neutral-50);
+  --action-secondary:         var(--neutral-50);
+  --action-secondary-border:  var(--neutral-300);
+  --action-secondary-text:    var(--blue-600);
+  --action-danger:            var(--red-300);
+  --action-danger-text:       var(--neutral-50);
+
+  /* Status */
+  --status-success-bg:   var(--green-200);
+  --status-success-text: var(--green-500);
+  --status-warning-bg:   var(--yellow-300);
+  --status-warning-text: var(--yellow-500);
+  --status-danger-bg:    var(--red-50);
+  --status-danger-text:  var(--red-300);
+  --status-info-bg:      var(--blue-100);
+  --status-info-text:    var(--blue-700);
+
+  /* ─── Typography ───────────────────────────────────────────── */
+
+  --font-sans: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Font sizes — see token file for usage */
+  --fs-caption:      12px;
+  --fs-body-sm:      14px;
+  --fs-body:         16px;
+  --fs-heading-4:    20px;
+  --fs-heading-3:    24px;
+  --fs-heading-2:    32px;
+  --fs-heading-1:    40px;
+  --fs-marketing-sm: 50px;
+  --fs-marketing-md: 60px;
+  --fs-marketing-lg: 90px;
+
+  --fw-light:   300;
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-bold:    700;
+
+  --lh-tight:   1.2;
+  --lh-normal:  1.5;
+  --lh-relaxed: 1.7;
+
+  /* ─── Spacing — Bits "Single-Direction Margin" (right + bottom) */
+  --space-none:      0;
+  --space-xxxsmall:  4px;
+  --space-xxsmall:   8px;
+  --space-xsmall:    12px;
+  --space-small:     16px;
+  --space-mid:       24px;
+  --space-large:     32px;
+  --space-xlarge:    48px;
+  --space-xxlarge:   64px;
+  --space-xxxlarge:  72px;
+  --space-xxxxlarge: 96px;
+
+  /* ─── Radii ────────────────────────────────────────────────── */
+  --radius-none: 0;
+  --radius-sm:   4px;  /* chips */
+  --radius-md:   6px;  /* buttons, inputs, badges */
+  --radius-lg:   8px;  /* cards, modals */
+  --radius-xl:   12px; /* tooltips, popovers */
+  --radius-full: 9999px;
+
+  /* ─── Elevation (used sparingly — Bits prefers borders) ────── */
+  --shadow-xs: 0 1px 2px rgba(35, 42, 53, 0.06);
+  --shadow-sm: 0 1px 3px rgba(35, 42, 53, 0.08), 0 1px 2px rgba(35, 42, 53, 0.04);
+  --shadow-md: 0 4px 8px rgba(35, 42, 53, 0.08), 0 2px 4px rgba(35, 42, 53, 0.04);
+  --shadow-lg: 0 12px 24px rgba(35, 42, 53, 0.10), 0 4px 8px rgba(35, 42, 53, 0.06);
+  --shadow-focus: 0 0 0 3px rgba(23, 114, 235, 0.25);
+
+  /* ─── Breakpoints (for reference) ──────────────────────────── */
+  --bp-tablet:  768px;
+  --bp-desktop: 960px;
+  --bp-wide:    1280px;
+}
+
+/* =================================================================
+   Semantic typography classes — Bits text utility roles
+   ================================================================= */
+.t-display {
+  font-family: var(--font-sans);
+  font-size: var(--fs-marketing-lg);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+}
+.t-marketing-md {
+  font-family: var(--font-sans);
+  font-size: var(--fs-marketing-md);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  color: var(--text-primary);
+  letter-spacing: -0.015em;
+}
+.t-marketing-sm {
+  font-family: var(--font-sans);
+  font-size: var(--fs-marketing-sm);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  color: var(--text-primary);
+}
+.t-h1, h1 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-heading-1);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-tight);
+  color: var(--text-primary);
+  margin: 0;
+}
+.t-h2, h2 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-heading-2);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-tight);
+  color: var(--text-primary);
+  margin: 0;
+}
+.t-h3, h3 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-heading-3);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-tight);
+  color: var(--text-primary);
+  margin: 0;
+}
+.t-h4, h4 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-heading-4);
+  font-weight: var(--fw-medium);
+  line-height: var(--lh-normal);
+  color: var(--text-primary);
+  margin: 0;
+}
+.t-body, p {
+  font-family: var(--font-sans);
+  font-size: var(--fs-body);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-normal);
+  color: var(--text-primary);
+  margin: 0;
+}
+.t-body-sm {
+  font-family: var(--font-sans);
+  font-size: var(--fs-body-sm);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-normal);
+  color: var(--text-primary);
+}
+.t-caption {
+  font-family: var(--font-sans);
+  font-size: var(--fs-caption);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-normal);
+  color: var(--text-secondary);
+}
+.t-link, a.t-link {
+  color: var(--text-link);
+  text-decoration: none;
+}
+.t-link:hover, a.t-link:hover {
+  color: var(--text-link-hover);
+  text-decoration: underline;
+}
