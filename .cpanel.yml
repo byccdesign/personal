@@ -12,4 +12,3 @@ deployment:
     - /bin/cp -R *.webmanifest $DEPLOYPATH
     - /bin/cp -R img $DEPLOYPATH
     - /bin/cp -R vid $DEPLOYPATH
-    - /bin/cp -R public $DEPLOYPATH
