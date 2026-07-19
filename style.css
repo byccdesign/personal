@@ -2802,9 +2802,19 @@ a[href^="mailto:"] {
       }
 
       .title-line {
-        width: auto;
-        font-size: 45px;
-        line-height: 1.08;
+        width: 100%;
+        max-width: 100%;
+        font-size: clamp(40px, 10.8vw, 48px);
+        line-height: 1.04;
+        letter-spacing: -0.055em;
+        overflow-wrap: normal;
+        word-break: normal;
+        hyphens: none;
+        text-wrap: balance;
+      }
+
+      .hero-title-break {
+        display: none;
       }
 
       .description {

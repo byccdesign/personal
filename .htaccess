@@ -3,7 +3,7 @@ RewriteEngine On
 
 
 # Block direct public access to /vid/ and anything inside it.
-RewriteRule ^vid(/.*)?$ - [F,L]
+RewriteRule ^img/?$ - [F,L]
 
 # Block direct directory access to /img/ while allowing files inside it.
 RewriteRule ^img/?$ - [F,L]
