@@ -1,6 +1,16 @@
 Options -MultiViews
 RewriteEngine On
 
+
+# Block direct public access to /vid/ and anything inside it.
+RewriteRule ^vid(/.*)?$ - [F,L]
+
+# Block direct directory access to /img/ while allowing files inside it.
+RewriteRule ^img/?$ - [F,L]
+
+# Block direct directory access to /nc_assets/ while allowing files inside it.
+RewriteRule ^nc_assets/?$ - [F,L]
+
 # Redirect direct .html requests to clean URLs.
 RewriteCond %{THE_REQUEST} \s/+index\.html[\s?] [NC]
 RewriteRule ^index\.html$ / [R=301,L]
