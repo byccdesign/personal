@@ -188,6 +188,18 @@
               </button>
             </sc-if>
             <sc-if value="{{ headerTimerRunning }}" hint-placeholder-val="{{ false }}">
+              <button class="tt-btn tt-header-timer tt-header-timer--pause tt-hover-04" onClick="{{ pauseHeaderTimer }}">
+                <span class="material-icon tt-rule-006">pause</span>
+                Pause timer
+              </button>
+            </sc-if>
+            <sc-if value="{{ headerTimerPaused }}" hint-placeholder-val="{{ false }}">
+              <button class="tt-btn tt-btn-primary tt-header-timer tt-hover-03" onClick="{{ resumeHeaderTimer }}">
+                <span class="material-icon tt-rule-006">play_arrow</span>
+                Resume timer
+              </button>
+            </sc-if>
+            <sc-if value="{{ headerTimerActive }}" hint-placeholder-val="{{ false }}">
               <button class="tt-btn tt-header-timer tt-header-timer--stop tt-hover-06" onClick="{{ stopHeaderTimer }}">
                 <span class="material-icon tt-rule-006">stop</span>
                 Stop timer
@@ -202,7 +214,7 @@
               <span class="tt-active-avatar" style="--item-color:{{ activeInfo.color }}; --item-contrast:{{ activeInfo.iconColor }};"><span class="material-icon tt-project-avatar-icon">{{ activeInfo.icon }}</span></span>
               <div class="tt-rule-036">
                 <div class="tt-rule-037">{{ activeInfo.taskName }}</div>
-                <div class="tt-rule-038">{{ activeInfo.projectName }}</div>
+                <div class="tt-rule-038">{{ activeInfo.projectName }}{{ activeInfo.statusLabel }}</div>
               </div>
             </div>
             <div class="tt-rule-040">
@@ -2026,7 +2038,7 @@ class Component extends DCLogic {
     this.setState(s => {
       let projects = s.projects;
       if (s.activeTimer) {
-        const elapsed = Math.floor((Date.now() - s.activeTimer.startedAt) / 1000);
+        const elapsed = this.getActiveTimerElapsed(s.activeTimer, Date.now());
         if (elapsed > 0) {
           const at = s.activeTimer;
           projects = projects.map(p => p.id !== at.projectId ? p : {
@@ -2036,7 +2048,7 @@ class Component extends DCLogic {
       }
       return {
         projects,
-        activeTimer: { projectId, taskId, startedAt: Date.now() },
+        activeTimer: { projectId, taskId, startedAt: Date.now(), elapsedSeconds: 0, paused: false },
         lastTimerTarget: { projectId, taskId },
         collapsedProjectIds: s.collapsedProjectIds.filter(id => id !== projectId)
       };
@@ -2045,10 +2057,41 @@ class Component extends DCLogic {
       this.persist();
     });
   }
+  getActiveTimerElapsed(timer, now = Date.now()) {
+    if (!timer) return 0;
+    const savedElapsed = Math.max(0, Math.floor(Number(timer.elapsedSeconds) || 0));
+    if (timer.paused || !timer.startedAt) return savedElapsed;
+    return savedElapsed + Math.max(0, Math.floor((now - timer.startedAt) / 1000));
+  }
+  pauseActive() {
+    this.setState(s => {
+      if (!s.activeTimer || s.activeTimer.paused) return null;
+      return {
+        activeTimer: {
+          ...s.activeTimer,
+          elapsedSeconds: this.getActiveTimerElapsed(s.activeTimer, Date.now()),
+          startedAt: null,
+          paused: true
+        }
+      };
+    });
+  }
+  resumeActive() {
+    this.setState(s => {
+      if (!s.activeTimer || !s.activeTimer.paused) return null;
+      return {
+        activeTimer: {
+          ...s.activeTimer,
+          startedAt: Date.now(),
+          paused: false
+        }
+      };
+    });
+  }
   stopActive() {
     this.setState(s => {
       if (!s.activeTimer) return null;
-      const elapsed = Math.floor((Date.now() - s.activeTimer.startedAt) / 1000);
+      const elapsed = this.getActiveTimerElapsed(s.activeTimer, Date.now());
       let projects = s.projects;
       if (elapsed > 0) {
         const at = s.activeTimer;
@@ -2406,9 +2449,10 @@ class Component extends DCLogic {
       const p = s.projects.find(p => p.id === s.activeTimer.projectId);
       const t = p && p.tasks.find(t => t.id === s.activeTimer.taskId);
       if (p && t) {
-        const elapsed = Math.floor((s.now - s.activeTimer.startedAt) / 1000);
+        const elapsed = this.getActiveTimerElapsed(s.activeTimer, s.now);
         activeInfo = {
           icon: this.normalizeProjectIcon(p), color: p.color, iconColor: p.iconColor || this.getAccessibleTextColor(p.color), taskName: t.name, projectName: p.name,
+          statusLabel: s.activeTimer.paused ? ' · Paused' : '',
           elapsedLabel: this.formatDuration(elapsed), billedLabel: this.money((elapsed / 3600) * t.rate)
         };
       }
@@ -2612,8 +2656,12 @@ class Component extends DCLogic {
       noEntriesYet: (s.timeLogView === 'list' ? dayGroups.length === 0 : !weekHasEntries) && s.projects.length > 0,
       timeLogEmptyMessage,
       headerCanStartTimer: !s.activeTimer && !!lastActivityTarget,
-      headerTimerRunning: !!s.activeTimer,
+      headerTimerActive: !!s.activeTimer,
+      headerTimerRunning: !!(s.activeTimer && !s.activeTimer.paused),
+      headerTimerPaused: !!(s.activeTimer && s.activeTimer.paused),
       startLastActivity: () => this.startLastActivity(),
+      pauseHeaderTimer: () => this.pauseActive(),
+      resumeHeaderTimer: () => this.resumeActive(),
       stopHeaderTimer: () => this.stopActive(),
       projectFilterId,
       projectFilterOptions,

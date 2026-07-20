@@ -389,6 +389,12 @@ button {
   background: var(--color-danger);
 }
 
+.tt-header-timer--pause {
+  color: var(--color-text-strong);
+  background: var(--color-surface-muted);
+  border-color: var(--color-border-subtle);
+}
+
 .tt-week-calendar {
   min-width: 0;
   background: var(--color-surface);
