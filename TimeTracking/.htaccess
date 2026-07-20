@@ -14,9 +14,14 @@ DirectoryIndex index.html
 
 AuthType Basic
 AuthName "Restricted Access"
-# NOTE: AuthUserFile must be a real absolute path (Apache resolves it at
-# config-parse time, before any request-time variables exist), so this path
-# has to be updated to match wherever this .htaccess actually lives.
-# Local dev path is set below; swap it for the production cPanel path before deploying.
-AuthUserFile "/opt/homebrew/var/www/personal/TimeTracking/.htpasswd"
+# AuthUserFile must be a real absolute path (Apache resolves it at
+# config-parse time, not request time), so it can't be computed dynamically.
+# This picks the right absolute path per environment via the Host header,
+# so the same .htaccess works locally and on the live cPanel server.
+<If "%{HTTP_HOST} == 'timetracking.christine-uy.com'">
+    AuthUserFile "/home/chrimmrd/public_html/TimeTracking/.htpasswd"
+</If>
+<Else>
+    AuthUserFile "/opt/homebrew/var/www/personal/TimeTracking/.htpasswd"
+</Else>
 Require valid-user
