@@ -8,6 +8,15 @@ DirectoryIndex index.html
     Header always set Cache-Control "private, no-store"
 </IfModule>
 
-<FilesMatch "^(DEPLOYMENT\.md|TimeTracking-namecheap\.zip|.*\.json)$">
+<FilesMatch "^(DEPLOYMENT\.md|TimeTracking-namecheap\.zip|\.htpasswd|.*\.json)$">
     Require all denied
 </FilesMatch>
+
+AuthType Basic
+AuthName "Restricted Access"
+# NOTE: AuthUserFile must be a real absolute path (Apache resolves it at
+# config-parse time, before any request-time variables exist), so this path
+# has to be updated to match wherever this .htaccess actually lives.
+# Local dev path is set below; swap it for the production cPanel path before deploying.
+AuthUserFile "/opt/homebrew/var/www/personal/TimeTracking/.htpasswd"
+Require valid-user

@@ -1,2 +1,3 @@
 # Local API credentials and server config
 /api/
+/.htpasswd
