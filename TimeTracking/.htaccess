@@ -14,14 +14,13 @@ DirectoryIndex index.html
 
 AuthType Basic
 AuthName "Restricted Access"
-# AuthUserFile must be a real absolute path (Apache resolves it at
-# config-parse time, not request time), so it can't be computed dynamically.
-# This picks the right absolute path per environment via the Host header,
-# so the same .htaccess works locally and on the live cPanel server.
-<If "%{HTTP_HOST} == 'timetracking.christine-uy.com'">
-    AuthUserFile "/home/chrimmrd/public_html/TimeTracking/.htpasswd"
-</If>
-<Else>
-    AuthUserFile "/opt/homebrew/var/www/personal/TimeTracking/.htpasswd"
-</Else>
+# AuthUserFile must be a real absolute path (resolved at config-parse time,
+# not request time). The production LiteSpeed server didn't honor the
+# <If>/<Else> conditional this used to have (it silently dropped the whole
+# auth block), so this is hardcoded to the production path.
+# For LOCAL testing only, temporarily swap this line to:
+#   AuthUserFile "/opt/homebrew/var/www/personal/TimeTracking/.htpasswd"
+#   AuthUserFile "/home/chrimmrd/public_html/TimeTracking/.htpasswd"
+# then swap it back before deploying.
+AuthUserFile "/opt/homebrew/var/www/personal/TimeTracking/.htpasswd"
 Require valid-user
