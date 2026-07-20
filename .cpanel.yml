@@ -12,3 +12,9 @@ deployment:
     - /bin/cp -R *.webmanifest $DEPLOYPATH
     - /bin/cp -R img $DEPLOYPATH
     - /bin/cp -R vid $DEPLOYPATH
+
+    - export TTPATH=/home/chrimmrd/public_html/TimeTracking/
+    - /bin/mkdir -p $TTPATH
+    - /bin/cp TimeTracking/index.html $TTPATH
+    - /bin/cp TimeTracking/style.css $TTPATH
+    - /bin/cp TimeTracking/support.js $TTPATH
