@@ -529,7 +529,19 @@
       <div class="tt-invoice-view">
         <div class="tt-page-header no-print">
           <h1 class="tt-page-title">Invoice generator</h1>
-          <button class="tt-rule-048 tt-hover-03" onClick="{{ printInvoice }}"><span data-dc-tpl="107" class="material-icon tt-rule-006">save</span>Print / Save as PDF</button>
+          <div class="tt-page-actions tt-invoice-page-actions">
+            <div class="tt-project-filter tt-invoice-project-filter">
+              <span class="material-icon tt-project-filter-icon">filter_alt</span>
+              <select class="tt-project-filter-select" aria-label="Filter invoice entries by project" value="{{ inv.projectFilterId }}" onChange="{{ inv.onProjectFilter }}">
+                <option value="all">{{ inv.projectFilterAllLabel }}</option>
+                <sc-for list="{{ inv.projectOptions }}" as="option" hint-placeholder-count="2">
+                  <option value="{{ option.id }}">{{ option.name }}</option>
+                </sc-for>
+              </select>
+              <span class="material-icon tt-project-filter-arrow">expand_more</span>
+            </div>
+            <button class="tt-rule-048 tt-hover-03" onClick="{{ printInvoice }}"><span data-dc-tpl="107" class="material-icon tt-rule-006">save</span>Print / Save as PDF</button>
+          </div>
         </div>
         <div class="tt-invoice-layout">
 
@@ -633,16 +645,6 @@
             <div class="tt-card tt-form-card tt-rule-089">
               <div class="tt-invoice-time-header">
                 <div class="tt-section-label">Time entries</div>
-                <div class="tt-project-filter tt-invoice-project-filter">
-                  <span class="material-icon tt-project-filter-icon">filter_alt</span>
-                  <select class="tt-project-filter-select" aria-label="Filter invoice entries by project" value="{{ inv.projectFilterId }}" onChange="{{ inv.onProjectFilter }}">
-                    <option value="all">{{ inv.projectFilterAllLabel }}</option>
-                    <sc-for list="{{ inv.projectOptions }}" as="option" hint-placeholder-count="2">
-                      <option value="{{ option.id }}">{{ option.name }}</option>
-                    </sc-for>
-                  </select>
-                  <span class="material-icon tt-project-filter-arrow">expand_more</span>
-                </div>
               </div>
               <div class="tt-rule-085">
                 <div class="tt-rule-086">

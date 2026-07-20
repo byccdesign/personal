@@ -2814,6 +2814,10 @@ textarea.tt-field {
   box-shadow: none;
 }
 
+.tt-invoice-page-actions .tt-invoice-project-filter {
+  height: 38px;
+}
+
 .tt-invoice-project-filter .tt-project-filter-select {
   width: 164px;
   font-size: 12px;
