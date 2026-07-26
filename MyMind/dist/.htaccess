@@ -1,0 +1,10 @@
+Options -MultiViews
+RewriteEngine On
+
+# Keep the PHP API and built assets reachable as real files.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Public canvas slugs and editor routes are handled by the React app.
+RewriteRule ^ index.html [L]
