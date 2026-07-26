@@ -1,0 +1,11 @@
+CREATE TABLE IF NOT EXISTS mind_documents (
+  id VARCHAR(96) PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
+  slug VARCHAR(96) NOT NULL UNIQUE,
+  is_shared TINYINT(1) NOT NULL DEFAULT 0,
+  graph_json LONGTEXT NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_mind_documents_updated (updated_at),
+  INDEX idx_mind_documents_shared_slug (is_shared, slug)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
