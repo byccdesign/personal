@@ -18,3 +18,7 @@ deployment:
     - /bin/cp TimeTracking/index.html $TTPATH
     - /bin/cp TimeTracking/style.css $TTPATH
     - /bin/cp TimeTracking/support.js $TTPATH
+
+    - export MYMINDPATH=/home/chrimmrd/public_html/MyMind/
+    - /bin/mkdir -p $MYMINDPATH
+    - /bin/cp -R MyMind/dist/. $MYMINDPATH

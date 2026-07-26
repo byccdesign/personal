@@ -9,3 +9,11 @@ CREATE TABLE IF NOT EXISTS mind_documents (
   INDEX idx_mind_documents_updated (updated_at),
   INDEX idx_mind_documents_shared_slug (is_shared, slug)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS mind_folders (
+  id VARCHAR(96) PRIMARY KEY,
+  name VARCHAR(120) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_mind_folders_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
