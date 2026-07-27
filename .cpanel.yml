@@ -22,3 +22,4 @@ deployment:
     - export MYMINDPATH=/home/chrimmrd/public_html/MyMind/
     - /bin/mkdir -p $MYMINDPATH
     - /bin/cp -R MyMind/dist/. $MYMINDPATH
+
