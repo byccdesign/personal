@@ -3124,7 +3124,10 @@ a[href^="mailto:"] {
       }
 
       .work-section__title {
-        font-size: clamp(42px, 14vw, 54px);
+        font-size: clamp(42px, 14vw, 32px);
+        line-height: 1.1;
+    }
+
       }
 
       .featured-work {
