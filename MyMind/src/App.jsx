@@ -449,8 +449,8 @@ function perfectDrawingPath(drawing, offsetX = 0, offsetY = 0) {
   return svgPathFromStroke(getStroke(input, {
     size: drawing.width || 2.4,
     thinning: 0,
-    smoothing: drawing.smoothing ?? .5,
-    streamline: drawing.streamline ?? .5,
+    smoothing: .5,
+    streamline: drawing.streamline ?? .65,
     simulatePressure: false,
     last: true,
   }));
@@ -1027,8 +1027,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
   const [draftDrawing, setDraftDrawing] = useState(null);
   const [penWidth, setPenWidth] = useState(2.4);
   const [penColor, setPenColor] = useState("#3f4652");
-  const [penSmoothing, setPenSmoothing] = useState(.5);
-  const [penStreamline, setPenStreamline] = useState(.5);
+  const [penStreamline, setPenStreamline] = useState(.65);
   const [pan, setPan] = useState({ x: 80, y: 90 });
   const [zoom, setZoom] = useState(.9);
   const [tool, setTool] = useState("select");
@@ -1054,6 +1053,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
+  const [guestWelcomeOpen, setGuestWelcomeOpen] = useState(isPublicLink);
   const canvasRef = useRef(null);
   const imageInputRef = useRef(null);
   const dragRef = useRef(null);
@@ -1062,7 +1062,6 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
   const onSaveRef = useRef(onSave);
   const clipboardRef = useRef(null);
   const feedbackTimer = useRef(null);
-  const canvasImportRef = useRef(null);
   const publicView = isPublicLink && !document.guestEditable;
 
   const updateDocument = useCallback((updater) => {
@@ -1388,7 +1387,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
     if (tool === "pen" && !publicView) {
       const bounds = canvasRef.current.getBoundingClientRect();
       const point = { x: (event.clientX - bounds.left - pan.x) / zoom, y: (event.clientY - bounds.top - pan.y) / zoom };
-      setDraftDrawing({ id: uid("drawing"), points: [{ ...point, pressure: event.pressure || .5 }], color: penColor, width: penWidth, smoothing: penSmoothing, streamline: penStreamline });
+      setDraftDrawing({ id: uid("drawing"), points: [{ ...point, pressure: event.pressure || .5 }], color: penColor, width: penWidth, streamline: penStreamline });
       setSelection([]); setEdgeSelection([]); setDrawingSelection([]);
       event.currentTarget.setPointerCapture(event.pointerId);
       return;
@@ -1465,8 +1464,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
     if (publicView) return;
     setPenWidth(drawing.width || 2.4);
     setPenColor(drawing.color || "#3f4652");
-    setPenSmoothing(drawing.smoothing ?? .5);
-    setPenStreamline(drawing.streamline ?? .5);
+    setPenStreamline(drawing.streamline ?? .65);
     setEdgeSelection([]);
     setConnectionSource(null);
     if (event.shiftKey && drawingSelection.includes(drawing.id)) {
@@ -1712,12 +1710,6 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
     updateDocument((doc) => ({ ...doc, drawings: (doc.drawings || []).map((drawing) => drawingSelection.includes(drawing.id) ? { ...drawing, color } : drawing) }));
   };
 
-  const changeDrawingSmoothing = (smoothing) => {
-    setPenSmoothing(smoothing);
-    if (!drawingSelection.length) return;
-    updateDocument((doc) => ({ ...doc, drawings: (doc.drawings || []).map((drawing) => drawingSelection.includes(drawing.id) ? { ...drawing, smoothing } : drawing) }));
-  };
-
   const changeDrawingStreamline = (streamline) => {
     setPenStreamline(streamline);
     if (!drawingSelection.length) return;
@@ -1916,28 +1908,6 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
   const toggleShare = () => updateDocument((doc) => doc.shared ? { ...doc, shared: false, guestEditable: false } : { ...doc, shared: true });
   const toggleGuestEditing = () => updateDocument((doc) => ({ ...doc, guestEditable: !doc.guestEditable }));
 
-  const importCanvasFile = async (file) => {
-    if (!file) return;
-    try {
-      const { imported, itemCount } = await parseMyMindFile(file);
-      updateDocument((current) => normalisePagedDocument({
-        ...imported,
-        id: current.id,
-        slug: current.slug,
-        shared: current.shared,
-        guestEditable: current.guestEditable,
-        folderId: current.folderId,
-        title: imported.title || current.title,
-      }));
-      clearCanvasSelection();
-      showFeedback("imported", itemCount);
-    } catch (error) {
-      window.alert(error instanceof Error ? error.message : "MyMind could not import this canvas.");
-    } finally {
-      if (canvasImportRef.current) canvasImportRef.current.value = "";
-    }
-  };
-
   const exportDiagram = (format) => {
     if (format === "mymind") {
       const portable = syncActivePage({ ...document, shared: false, guestEditable: false, folderId: null });
@@ -2017,7 +1987,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
       }
       if (node.type === "arrow") {
         const strokeWidth = Math.max(2, size.height / 14.7);
-        return `<g fill="none" stroke="${tone.accent}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><line x1="${x + 4}" y1="${y + size.height / 2}" x2="${x + size.width - size.height * .36}" y2="${y + size.height / 2}"/><polyline points="${x + size.width - size.height * .68},${y + size.height * .18} ${x + size.width - size.height * .34},${y + size.height / 2} ${x + size.width - size.height * .68},${y + size.height * .82}"/></g>`;
+        return `<g transform="rotate(${node.rotation || 0} ${x + size.width / 2} ${y + size.height / 2})" fill="none" stroke="${tone.accent}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><line x1="${x + 4}" y1="${y + size.height / 2}" x2="${x + size.width - size.height * .36}" y2="${y + size.height / 2}"/><polyline points="${x + size.width - size.height * .68},${y + size.height * .18} ${x + size.width - size.height * .34},${y + size.height / 2} ${x + size.width - size.height * .68},${y + size.height * .82}"/></g>`;
       }
       if (node.type === "text") {
         const fontSize = node.fontSize || 24;
@@ -2102,7 +2072,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
         {!publicView && <button className="secondary-button" onClick={() => setExportOpen(true)}><DownloadSimple size={17} /> Export <CaretDown size={13} /></button>}
         {!isPublicLink && <button className="primary-button" onClick={() => setShareOpen(true)}><ShareNetwork size={17} /> Share</button>}
         {isPublicLink && <span className="public-pill"><ShareNetwork size={15} /> {publicView ? "Shared canvas" : "Guest editing"}</span>}
-        <div className="avatar">CU</div>
+        {!isPublicLink && <div className="avatar">CU</div>}
       </div>
     </header>
 
@@ -2135,8 +2105,6 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
         <button title="Upload picture · P" aria-label="Upload picture" aria-keyshortcuts="P" onClick={() => imageInputRef.current?.click()}><Photo size={21} /></button>
         <button title="Add link · K" aria-label="Add link" aria-keyshortcuts="K" onClick={() => setLinkOpen(true)}><LinkSimple size={21} /></button>
         <input ref={imageInputRef} className="visually-hidden-input" type="file" accept="image/*" onChange={(event) => { addImageFile(event.target.files?.[0]); event.target.value = ""; }} />
-        <button title="Import editable MyMind canvas" aria-label="Import MyMind canvas" onClick={() => canvasImportRef.current?.click()}><FileText size={21} /></button>
-        <input ref={canvasImportRef} className="visually-hidden-input" type="file" accept=".mymind,application/json,application/vnd.mymind.canvas+json" onChange={(event) => importCanvasFile(event.target.files?.[0])} />
         <span />
         <button title="Delete selected" disabled={!selection.length && !edgeSelection.length && !drawingSelection.length} onClick={deleteSelection}><Trash size={20} /></button>
         <button title="Keyboard shortcuts · ?" aria-label="Keyboard shortcuts" aria-keyshortcuts="?" onClick={() => setShortcutsOpen(true)}><HelpCircle size={21} /></button>
@@ -2166,7 +2134,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
         </div>
         {tool === "connect" && <div className="mode-toast"><LinkNodes size={16} /> {connectionSource ? "Choose a destination node" : "Choose a starting node"}</div>}
         {tool === "annotate" && !pendingAnnotation && <div className="mode-toast"><ChatCircleDots size={16} /> Click anywhere to add an annotation</div>}
-        {!publicView && (tool === "pen" || drawingSelection.length > 0) && <DrawingThicknessToolbar width={penWidth} color={penColor} smoothing={penSmoothing} streamline={penStreamline} selectionCount={drawingSelection.length} onChange={changeDrawingWidth} onColorChange={changeDrawingColor} onSmoothingChange={changeDrawingSmoothing} onStreamlineChange={changeDrawingStreamline} />}
+        {!publicView && (tool === "pen" || drawingSelection.length > 0) && <DrawingThicknessToolbar width={penWidth} color={penColor} streamline={penStreamline} selectionCount={drawingSelection.length} onChange={changeDrawingWidth} onColorChange={changeDrawingColor} onStreamlineChange={changeDrawingStreamline} onDelete={deleteSelection} />}
         {!publicView && selectedNode && !selectedNode.type && !editingNode && <NodeStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} connectionCount={document.edges.filter((edge) => edge.source === selectedNode.id || edge.target === selectedNode.id).length} hiddenConnectionCount={document.edges.filter((edge) => (edge.source === selectedNode.id || edge.target === selectedNode.id) && edge.hidden).length} onHideConnections={() => { hideNodeConnections(selectedNode.id); setNodeToolbarMenu(null); }} onShowConnections={() => { showHiddenConnections(selectedNode.id); setNodeToolbarMenu(null); }} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
         {!publicView && selectedNode?.type === "text" && !editingNode && <TextStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
         {!publicView && selectedNode?.type === "image" && <ImageStyleToolbar node={selectedNode} style={imageToolbarStyle} popoverPlacement={imageToolbarBelow ? "below" : "above"} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
@@ -2192,6 +2160,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
     {shareOpen && <ShareDialog document={document} url={shareUrl} onToggle={toggleShare} onToggleGuestEditing={toggleGuestEditing} onClose={() => setShareOpen(false)} />}
     {linkOpen && <LinkDialog onClose={() => setLinkOpen(false)} onAdd={(url) => { addLinkNode(url); setLinkOpen(false); }} />}
     {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
+    {guestWelcomeOpen && <GuestWelcomeModal accessMode={publicView ? "viewer" : "editor"} onClose={() => setGuestWelcomeOpen(false)} />}
   </div>;
 }
 
@@ -2223,7 +2192,7 @@ function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, conne
   const tone = toneForNode(node);
   const shapeColors = accessibleShapeColors(tone.accent);
   const size = nodeDimensions(node);
-  return <article className={`canvas-node ${node.type ? `node-type-${node.type}` : ""} ${node.isSvg ? "is-svg" : ""} ${node.cropAspect && node.cropAspect !== "original" ? "is-cropped" : ""} ${node.shape ? `shape-${node.shape}` : ""} ${selected ? "selected" : ""} ${connecting ? "connecting" : ""} ${dropTarget ? "connection-drop-target" : ""} ${editing ? "editing" : ""}`} role="button" tabIndex="0" data-node-id={node.id} aria-label={`${node.label}. ${node.subtitle || ""}. Press Enter to select, then Tab to add a connected node.`} style={{ left: node.x, top: node.y, width: size.width, height: size.height, zIndex: node.stackLevel === "front" ? 12 : node.stackLevel === "back" ? 1 : undefined, "--node-accent": tone.accent, "--node-soft": tone.soft, "--shape-fill": tone.accent, "--shape-text": shapeColors.text, "--shape-muted": shapeColors.muted, "--text-size": `${node.fontSize || 24}px`, "--text-background": node.textBackground || "transparent", "--text-align": node.textAlign || "left" }} onPointerDown={(event) => onPointerDown(event, node)} onContextMenu={onContextMenu} onKeyDown={editing ? undefined : onKeyDown} onDoubleClick={(event) => { event.stopPropagation(); onEdit(); }}>
+  return <article className={`canvas-node ${node.type ? `node-type-${node.type}` : ""} ${node.isSvg ? "is-svg" : ""} ${node.cropAspect && node.cropAspect !== "original" ? "is-cropped" : ""} ${node.shape ? `shape-${node.shape}` : ""} ${selected ? "selected" : ""} ${connecting ? "connecting" : ""} ${dropTarget ? "connection-drop-target" : ""} ${editing ? "editing" : ""}`} role="button" tabIndex="0" data-node-id={node.id} aria-label={`${node.label}. ${node.subtitle || ""}. Press Enter to select, then Tab to add a connected node.`} style={{ left: node.x, top: node.y, width: size.width, height: size.height, zIndex: node.stackLevel === "front" ? 12 : node.stackLevel === "back" ? 1 : undefined, transform: node.type === "arrow" ? `rotate(${node.rotation || 0}deg)` : undefined, "--node-accent": tone.accent, "--node-soft": tone.soft, "--shape-fill": tone.accent, "--shape-text": shapeColors.text, "--shape-muted": shapeColors.muted, "--text-size": `${node.fontSize || 24}px`, "--text-background": node.textBackground || "transparent", "--text-align": node.textAlign || "left" }} onPointerDown={(event) => onPointerDown(event, node)} onContextMenu={onContextMenu} onKeyDown={editing ? undefined : onKeyDown} onDoubleClick={(event) => { event.stopPropagation(); onEdit(); }}>
     {node.type === "image" && (node.isGif || node.mimeType === "image/gif" ? <GifImageNode node={node} /> : <span className="image-node-viewport"><img src={node.imageData} alt={node.label || "Canvas image"} draggable="false" style={{ objectPosition: "50% 50%", transform: `scale(${node.cropZoom || 1})` }} /></span>)}
     {node.type === "arrow" && (() => {
       const size = nodeDimensions(node);
@@ -2433,7 +2402,7 @@ function CanvasFeedback({ feedback }) {
   return <div className={`canvas-feedback-toast is-${feedback.type}`} role="status" aria-live="polite">{content.icon}<span>{content.label}</span></div>;
 }
 
-function DrawingThicknessToolbar({ width, color, smoothing, streamline, selectionCount, onChange, onColorChange, onSmoothingChange, onStreamlineChange }) {
+function DrawingThicknessToolbar({ width, color, streamline, selectionCount, onChange, onColorChange, onStreamlineChange, onDelete }) {
   const widths = [1.5, 2.4, 4, 7];
   const colors = ["#3f4652", "#5367ef", "#e05252", "#2fa86f", "#d79524"];
   return <div className="drawing-thickness-toolbar" role="toolbar" aria-label="Drawing style" onPointerDown={(event) => event.stopPropagation()}>
@@ -2441,8 +2410,8 @@ function DrawingThicknessToolbar({ width, color, smoothing, streamline, selectio
     <div>{widths.map((value) => <button key={value} className={width === value ? "selected" : ""} aria-label={`${value} pixel stroke`} title={`${value}px`} onClick={() => onChange(value)}><i style={{ height: value }} /></button>)}</div>
     <strong>{width}px</strong>
     <div className="drawing-color-options">{colors.map((value) => <button key={value} className={color === value ? "selected" : ""} aria-label={`Use ${value} pen colour`} title={value} onClick={() => onColorChange(value)}><i style={{ background: value }} /></button>)}<label className="drawing-custom-color" title="Custom pen colour" style={{ "--pen-color": color }}><Palette size={15} /><input aria-label="Custom pen colour" type="color" value={color} onChange={(event) => onColorChange(event.target.value)} /></label></div>
-    <label className="drawing-range">Smoothing <span>{Math.round(smoothing * 100)}%</span><input type="range" min="0" max="1" step=".05" value={smoothing} onChange={(event) => onSmoothingChange(Number(event.target.value))} /></label>
     <label className="drawing-range">Streamline <span>{Math.round(streamline * 100)}%</span><input type="range" min="0" max="1" step=".05" value={streamline} onChange={(event) => onStreamlineChange(Number(event.target.value))} /></label>
+    <button className="drawing-delete" disabled={!selectionCount} aria-label="Delete selected drawing" title={selectionCount ? "Delete selected drawing" : "Select a drawing to delete"} onClick={onDelete}><Trash size={17} /></button>
   </div>;
 }
 
@@ -2498,7 +2467,7 @@ function TextStyleToolbar({ node, style, openMenu, setOpenMenu, onChange, onDele
   const tone = toneForNode(node);
   const backgrounds = [["#ffffff", "White"], ["#111318", "Black"], ["#fff3c4", "Yellow"], ["#eafafb", "Aqua"], ["#eef1ff", "Blue"], ["#f3efff", "Violet"]];
   return <div className="node-style-toolbar text-style-toolbar" style={style} role="toolbar" aria-label="Text formatting" onPointerDown={(event) => event.stopPropagation()}>
-    <div className="node-toolbar-item"><button aria-label="Change text colour" className={openMenu === "text-colour" ? "active" : ""} onClick={() => setOpenMenu(openMenu === "text-colour" ? null : "text-colour")}><span className="toolbar-colour-dot" style={{ background: tone.accent }} /><CaretDown size={11} /></button>{openMenu === "text-colour" && <div className="node-toolbar-popover colour-popover"><strong>Text colour</strong><ColorControl node={node} tone={tone} onChange={(patch) => { onChange(patch); setOpenMenu(null); }} /></div>}</div>
+    <div className="node-toolbar-item"><button aria-label="Change text colour" className={openMenu === "text-colour" ? "active" : ""} onClick={() => setOpenMenu(openMenu === "text-colour" ? null : "text-colour")}><span className="toolbar-colour-dot" style={{ background: tone.accent }} /><CaretDown size={11} /></button>{openMenu === "text-colour" && <div className="node-toolbar-popover colour-popover"><strong>Text colour</strong><ColorControl node={node} tone={tone} onChange={onChange} /></div>}</div>
     <span className="node-toolbar-divider" />
     {[["left", TextBlock], ["center", TextAlignCenter], ["right", TextAlignRight]].map(([alignment, AlignmentIcon]) => <button key={alignment} className={(node.textAlign || "left") === alignment ? "active" : ""} aria-label={`Align text ${alignment}`} title={`${alignment[0].toUpperCase()}${alignment.slice(1)} align`} onClick={() => onChange({ textAlign: alignment })}><AlignmentIcon size={17} /></button>)}
     <span className="node-toolbar-divider" />
@@ -2526,10 +2495,11 @@ function ImageStyleToolbar({ node, style, popoverPlacement, openMenu, setOpenMen
 
 function ArrowStyleToolbar({ node, style, openMenu, setOpenMenu, onChange, onDelete }) {
   const tone = toneForNode(node);
+  const rotation = node.rotation || 0;
   return <div className="node-style-toolbar arrow-style-toolbar" style={style} role="toolbar" aria-label="Arrow line formatting" onPointerDown={(event) => event.stopPropagation()}>
     <div className="node-toolbar-item"><button className={openMenu === "arrow-colour" ? "active" : ""} aria-label="Arrow colour" onClick={() => setOpenMenu(openMenu === "arrow-colour" ? null : "arrow-colour")}><span className="toolbar-colour-dot" style={{ background: tone.accent }} /><CaretDown size={11} /></button>{openMenu === "arrow-colour" && <div className="node-toolbar-popover colour-popover"><strong>Arrow colour</strong><ColorControl node={node} tone={tone} onChange={(patch) => { onChange(patch); setOpenMenu(null); }} /></div>}</div>
     <span className="node-toolbar-divider" />
-    <div className="node-toolbar-item"><button className={openMenu === "arrow-size" ? "active" : ""} aria-label="Arrow length" onClick={() => setOpenMenu(openMenu === "arrow-size" ? null : "arrow-size")}><ArrowLine size={20} /><span>{node.width || 220}px</span></button>{openMenu === "arrow-size" && <div className="node-toolbar-popover arrow-size-popover"><strong>Arrow length</strong><input type="range" min="80" max="700" step="10" value={node.width || 220} onChange={(event) => onChange({ width: Number(event.target.value) })} /></div>}</div>
+    <div className="node-toolbar-item"><button className={openMenu === "arrow-rotation" ? "active" : ""} aria-label="Rotate arrow" onClick={() => setOpenMenu(openMenu === "arrow-rotation" ? null : "arrow-rotation")}><ArrowsClockwise size={18} /><span>{rotation}°</span></button>{openMenu === "arrow-rotation" && <div className="node-toolbar-popover arrow-rotation-popover"><strong>Rotate arrow</strong><input aria-label="Arrow rotation angle" type="range" min="-180" max="180" step="5" value={rotation} onChange={(event) => onChange({ rotation: Number(event.target.value) })} /><button onClick={() => onChange({ rotation: 0 })}>Reset to 0°</button></div>}</div>
     <span className="node-toolbar-divider" />
     <button className="toolbar-delete" aria-label="Delete arrow" onClick={onDelete}><Trash size={17} /></button>
   </div>;
@@ -2687,6 +2657,41 @@ function ShortcutsDialog({ onClose }) {
     <div className="shortcuts-list">{shortcuts.map(([keys, action]) => <div key={keys}><kbd>{keys}</kbd><span>{action}</span></div>)}</div>
     <div className="modal-actions"><button className="primary-button" onClick={onClose}>Done</button></div>
   </div></div>;
+}
+
+function GuestWelcomeModal({ accessMode, onClose }) {
+  const canEdit = accessMode === "editor";
+  useModalKeyboard(onClose, onClose);
+  return <div className="modal-backdrop guest-welcome-backdrop">
+    <section className="modal guest-welcome-modal" role="dialog" aria-modal="true" aria-labelledby="guest-welcome-title">
+      <div className="guest-welcome-art">
+        <video autoPlay muted loop playsInline preload="auto" poster={`${APP_BASE}assets/guest-welcome-mascot.png`} aria-label="A fuzzy blue character walking and waving hello">
+          <source src={`${APP_BASE}assets/guest-welcome-mascot-loop-v2.mp4`} type="video/mp4" />
+        </video>
+        <span>{canEdit ? "Editing powers: unlocked ✨" : "Viewer mode: cozy & curious 👀"}</span>
+      </div>
+      <div className="guest-welcome-copy">
+        <p className="eyebrow">{canEdit ? "Oh hey, collaborator!" : "Oh hey, friendly visitor!"}</p>
+        <h2 id="guest-welcome-title">Welcome to Christine’s canvas</h2>
+        <p>{canEdit
+          ? "You’ve got editing powers. Add ideas, draw questionable doodles, move things around, and leave comments."
+          : "You’re in viewer mode. Roam around, peek at every idea, and leave comments—the furniture stays put."}</p>
+        <div className="guest-welcome-tips">
+          <div><kbd>?</kbd><span><strong>Meet your shortcuts</strong><small>Press ? anytime for the full cheat sheet.</small></span></div>
+          <div><kbd>Space</kbd><span><strong>Glide around</strong><small>Hold Space and drag to roam the canvas.</small></span></div>
+          {canEdit
+            ? <div><kbd>D</kbd><span><strong>Doodle freely</strong><small>Pick the pen, then turn thoughts into squiggles.</small></span></div>
+            : <div><kbd>A</kbd><span><strong>Leave a tiny note</strong><small>Add a comment wherever a thought pops up.</small></span></div>}
+        </div>
+        <p className="guest-visibility-note">{canEdit
+          ? "Tiny heads-up: anything you put here, Christine can see it. Yes, even that doodle. 👀"
+          : "Comments you leave are visible to Christine. Be brilliant—or at least entertaining. 👀"}</p>
+        <div className="modal-actions">
+          <button className="primary-button" autoFocus onClick={onClose}>{canEdit ? "Let’s make a tiny mess" : "Let me have a look"}</button>
+        </div>
+      </div>
+    </section>
+  </div>;
 }
 
 function ExportPanel({ scope, setScope, hasSelection, onClose, onExport }) {
