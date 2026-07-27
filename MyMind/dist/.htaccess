@@ -1,6 +1,12 @@
 Options -MultiViews
 RewriteEngine On
 
+# Deny direct HTTP access to secrets, database exports, and backup files.
+# PHP may still include config.php internally; only browser requests are blocked.
+<FilesMatch "(?i)^(?:\.env(?:\..*)?|config(?:\.[^.]+)?\.php|.*\.(?:sql|sqlite|sqlite3|db|bak|backup|old|orig|save|swp|tmp|log|ini))$">
+    Require all denied
+</FilesMatch>
+
 # Keep the PHP API and built assets reachable as real files.
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
