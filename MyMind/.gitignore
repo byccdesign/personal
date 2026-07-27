@@ -1,4 +1,5 @@
 node_modules/
 .npm-cache/
+/api/
 public/api/config.php
 *.log
