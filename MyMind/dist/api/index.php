@@ -172,6 +172,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 $action = $_GET['action'] ?? 'list';
 
+if ($action === 'youtube-thumbnail' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+    $videoId = trim((string) ($_GET['id'] ?? ''));
+    if (!preg_match('/^[A-Za-z0-9_-]{6,20}$/', $videoId)) reply(['error' => 'Invalid YouTube video id'], 422);
+    if (!function_exists('curl_init')) reply(['error' => 'Thumbnail proxy unavailable'], 501);
+    foreach (['maxresdefault.jpg', 'hqdefault.jpg', 'mqdefault.jpg'] as $variant) {
+        $handle = curl_init('https://i.ytimg.com/vi/' . rawurlencode($videoId) . '/' . $variant);
+        curl_setopt_array($handle, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => false,
+            CURLOPT_CONNECTTIMEOUT => 4,
+            CURLOPT_TIMEOUT => 8,
+            CURLOPT_USERAGENT => 'MyMind Thumbnail Proxy/1.0',
+        ]);
+        $image = curl_exec($handle);
+        $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+        $contentType = strtolower((string) curl_getinfo($handle, CURLINFO_CONTENT_TYPE));
+        curl_close($handle);
+        if ($status === 200 && is_string($image) && $image !== '' && str_starts_with($contentType, 'image/') && strlen($image) <= 5 * 1024 * 1024) {
+            header('Content-Type: ' . $contentType);
+            header('Cache-Control: public, max-age=86400, stale-while-revalidate=604800');
+            echo $image;
+            exit;
+        }
+    }
+    reply(['error' => 'YouTube thumbnail unavailable'], 502);
+}
+
 if ($action === 'link-preview' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $payload = body();
     $target = public_http_target(trim((string) ($payload['url'] ?? '')));
@@ -441,11 +468,15 @@ try {
         reply($response);
     }
 
-    if (empty($_SESSION['mymind_authenticated'])) {
-        reply(['error' => 'Authentication required'], 401);
-    }
-
     if ($action === 'media-upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (empty($_SESSION['mymind_authenticated'])) {
+            $guestSlug = substr(trim((string) ($_POST['slug'] ?? '')), 0, 96);
+            $statement = $pdo->prepare('SELECT graph_json FROM mind_documents WHERE slug = ? AND is_shared = 1 LIMIT 1');
+            $statement->execute([$guestSlug]);
+            $guestRow = $statement->fetch();
+            $guestGraph = $guestRow ? json_decode((string) $guestRow['graph_json'], true) : null;
+            if ($guestSlug === '' || !is_array($guestGraph) || empty($guestGraph['guestEditable'])) reply(['error' => 'Authentication required'], 401);
+        }
         $file = $_FILES['file'] ?? null;
         if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file((string) ($file['tmp_name'] ?? ''))) {
             reply(['error' => 'Image upload failed'], 422);
@@ -460,6 +491,10 @@ try {
         if (!move_uploaded_file((string) $file['tmp_name'], $uploadDirectory . '/' . $filename)) reply(['error' => 'Could not store image'], 500);
         $basePath = rtrim(str_replace('\\', '/', dirname(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/api/index.php')))), '/');
         reply(['url' => ($basePath ?: '') . '/uploads/' . $filename, 'mimeType' => $mime]);
+    }
+
+    if (empty($_SESSION['mymind_authenticated'])) {
+        reply(['error' => 'Authentication required'], 401);
     }
 
     if ($action === 'list' && $_SERVER['REQUEST_METHOD'] === 'GET') {

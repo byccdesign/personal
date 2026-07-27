@@ -354,7 +354,12 @@ function mediaPreviewForUrl(value) {
     let youtubeId = null;
     if (host === "youtu.be") youtubeId = url.pathname.split("/").filter(Boolean)[0];
     if (host.endsWith("youtube.com")) youtubeId = url.searchParams.get("v") || url.pathname.match(/\/(?:shorts|embed)\/([^/?#]+)/)?.[1];
-    if (youtubeId) return { mediaKind: "youtube", thumbnail: `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`, thumbnailKind: "preview" };
+    if (youtubeId) return {
+      mediaKind: "youtube",
+      thumbnail: `${APP_BASE}api/index.php?action=youtube-thumbnail&id=${encodeURIComponent(youtubeId)}`,
+      thumbnailFallbacks: [`https://i.ytimg.com/vi/${youtubeId}/maxresdefault.jpg`, `https://i.ytimg.com/vi/${youtubeId}/hqdefault.jpg`, `https://i.ytimg.com/vi/${youtubeId}/mqdefault.jpg`],
+      thumbnailKind: "preview",
+    };
     if (host.endsWith("instagram.com")) {
       const match = url.pathname.match(/\/(p|reel|tv)\/([^/?#]+)/);
       if (match) return { mediaKind: match[1] === "reel" ? "instagram-reel" : "instagram", embedUrl: `https://www.instagram.com/${match[1]}/${match[2]}/embed/`, thumbnailKind: "embed" };
@@ -471,11 +476,16 @@ function edgeEndpoint(edge, side) {
   return edge.endShape || "arrow";
 }
 
-function readImageFile(file) {
+function readImageFile(file, { metadataOnly = false } = {}) {
   return new Promise((resolve, reject) => {
     const source = URL.createObjectURL(file);
     const image = new Image();
     image.onload = () => {
+      if (metadataOnly) {
+        URL.revokeObjectURL(source);
+        resolve({ dataUrl: null, aspectRatio: image.naturalWidth / image.naturalHeight || 1, mimeType: file.type, isGif: file.type === "image/gif", isSvg: file.type === "image/svg+xml" });
+        return;
+      }
       if (file.type === "image/gif") {
         const reader = new FileReader();
         reader.onload = () => {
@@ -563,7 +573,11 @@ const blankTemplate = () => ({
 
 function pageContent(source = {}) {
   return {
-    nodes: Array.isArray(source.nodes) ? source.nodes : [],
+    nodes: Array.isArray(source.nodes) ? source.nodes.map((node) => {
+      if (node?.type !== "link" || !node.linkUrl) return node;
+      const mediaPreview = mediaPreviewForUrl(node.linkUrl);
+      return mediaPreview.mediaKind === "youtube" ? { ...node, ...mediaPreview } : node;
+    }) : [],
     edges: Array.isArray(source.edges) ? source.edges : [],
     drawings: Array.isArray(source.drawings) ? source.drawings : [],
     annotations: Array.isArray(source.annotations) ? source.annotations : [],
@@ -644,6 +658,7 @@ function writeLocalFolders(folders) {
 async function apiRequest(action, body) {
   const response = await fetch(`${APP_BASE}api/index.php?action=${action}`, {
     method: body ? "POST" : "GET",
+    cache: "no-store",
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
   });
@@ -655,14 +670,28 @@ async function apiRequest(action, body) {
   return response.json();
 }
 
-async function uploadMediaFile(file) {
-  const form = new FormData();
-  form.append("file", file, file.name || `canvas-image-${Date.now()}`);
-  const response = await fetch(`${APP_BASE}api/index.php?action=media-upload`, { method: "POST", body: form });
-  if (!response.ok) throw new Error("Media upload unavailable");
-  const result = await response.json();
-  if (!result.url) throw new Error("Media upload did not return a URL");
-  return result.url;
+function uploadMediaFile(file, onProgress, guestSlug = "") {
+  return new Promise((resolve, reject) => {
+    const form = new FormData();
+    form.append("file", file, file.name || `canvas-image-${Date.now()}`);
+    if (guestSlug) form.append("slug", guestSlug);
+    const request = new XMLHttpRequest();
+    request.open("POST", `${APP_BASE}api/index.php?action=media-upload`);
+    request.upload.onprogress = (event) => {
+      if (event.lengthComputable) onProgress?.(Math.max(1, Math.min(99, Math.round(event.loaded / event.total * 100))));
+    };
+    request.onerror = () => reject(new Error("Media upload unavailable"));
+    request.onload = () => {
+      if (request.status < 200 || request.status >= 300) { reject(new Error("Media upload unavailable")); return; }
+      try {
+        const result = JSON.parse(request.responseText);
+        if (!result.url) throw new Error("Media upload did not return a URL");
+        onProgress?.(100);
+        resolve(result.url);
+      } catch (error) { reject(error); }
+    };
+    request.send(form);
+  });
 }
 
 function routeFromPath() {
@@ -1054,18 +1083,21 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
+  const [rotationFeedback, setRotationFeedback] = useState(null);
+  const [mediaUpload, setMediaUpload] = useState(null);
   const [guestWelcomeOpen, setGuestWelcomeOpen] = useState(isPublicLink);
   const canvasRef = useRef(null);
   const imageInputRef = useRef(null);
   const dragRef = useRef(null);
   const saveTimer = useRef(null);
+  const immediateSaveChain = useRef(Promise.resolve());
   const pendingSaveRef = useRef(null);
   const onSaveRef = useRef(onSave);
   const clipboardRef = useRef(null);
   const feedbackTimer = useRef(null);
   const publicView = isPublicLink && !document.guestEditable;
 
-  const updateDocument = useCallback((updater) => {
+  const updateDocument = useCallback((updater, { immediate = false } = {}) => {
     if (publicView) return;
     setDocument((current) => {
       const nextValue = typeof updater === "function" ? updater(current) : updater;
@@ -1074,6 +1106,14 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
       pendingSaveRef.current = next;
       queueMicrotask(() => onSaveRef.current(next, { localOnly: true }));
       clearTimeout(saveTimer.current);
+      if (immediate) {
+        immediateSaveChain.current = immediateSaveChain.current.catch(() => {}).then(async () => {
+          const result = await onSaveRef.current(next);
+          if (pendingSaveRef.current === next) pendingSaveRef.current = null;
+          setSaveState(result === "failed" ? "Save failed" : result === "local" ? "Saved locally" : "Saved");
+        });
+        return next;
+      }
       saveTimer.current = setTimeout(async () => {
         const result = await onSaveRef.current(next);
         pendingSaveRef.current = null;
@@ -1193,20 +1233,37 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
 
   const addImageFile = useCallback(async (file, clientPoint) => {
     if (publicView || !file?.type?.startsWith("image/")) return;
-    const image = await readImageFile(file);
-    let imageData = image.dataUrl;
-    if (image.isGif) {
-      try { imageData = await uploadMediaFile(file); }
-      catch { /* Keep the data URL as an offline development fallback. */ }
+    const isLargeUpload = file.size > 10 * 1024 * 1024 && ["image/jpeg", "image/png", "image/gif"].includes(file.type);
+    if (isLargeUpload) setMediaUpload({ name: file.name || "Large image", progress: 2, status: "Preparing upload…" });
+    try {
+      const image = await readImageFile(file, { metadataOnly: isLargeUpload });
+      let imageData = image.dataUrl;
+      if (image.isGif || isLargeUpload) {
+        try {
+          imageData = await uploadMediaFile(file, isLargeUpload ? (progress) => setMediaUpload({ name: file.name || "Large image", progress, status: progress < 100 ? "Uploading…" : "Finishing…" }) : undefined, isPublicLink ? document.slug : "");
+        } catch (error) {
+          if (isLargeUpload) throw error;
+          /* Keep the data URL as an offline development fallback for smaller GIFs. */
+        }
+      }
+      const bounds = canvasRef.current?.getBoundingClientRect();
+      const x = clientPoint && bounds ? (clientPoint.x - bounds.left - pan.x) / zoom - 140 : (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - 140;
+      const y = clientPoint && bounds ? (clientPoint.y - bounds.top - pan.y) / zoom - 90 : (canvasRef.current?.clientHeight / 2 - pan.y) / zoom - 90;
+      const node = { id: uid("image"), type: "image", x, y, label: file.name?.replace(/\.[^.]+$/, "") || "Image", imageData, aspectRatio: image.aspectRatio, mimeType: image.mimeType, isSvg: image.isSvg, isGif: image.isGif, width: 280, cropAspect: "original", cropZoom: 1, cropX: 50, cropY: 50 };
+      updateDocument((doc) => ({ ...doc, nodes: [...doc.nodes, node] }));
+      setSelection([node.id]);
+      setEdgeSelection([]);
+      if (isLargeUpload) {
+        setMediaUpload({ name: file.name || "Large image", progress: 100, status: "Ready!" });
+        setTimeout(() => setMediaUpload(null), 900);
+      }
+    } catch {
+      if (isLargeUpload) {
+        setMediaUpload({ name: file.name || "Large image", progress: 0, status: "Upload failed. Try a file under 25 MB.", error: true });
+        setTimeout(() => setMediaUpload(null), 3200);
+      }
     }
-    const bounds = canvasRef.current?.getBoundingClientRect();
-    const x = clientPoint && bounds ? (clientPoint.x - bounds.left - pan.x) / zoom - 140 : (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - 140;
-    const y = clientPoint && bounds ? (clientPoint.y - bounds.top - pan.y) / zoom - 90 : (canvasRef.current?.clientHeight / 2 - pan.y) / zoom - 90;
-    const node = { id: uid("image"), type: "image", x, y, label: file.name?.replace(/\.[^.]+$/, "") || "Image", imageData, aspectRatio: image.aspectRatio, mimeType: image.mimeType, isSvg: image.isSvg, isGif: image.isGif, width: 280, cropAspect: "original", cropZoom: 1, cropX: 50, cropY: 50 };
-    updateDocument((doc) => ({ ...doc, nodes: [...doc.nodes, node] }));
-    setSelection([node.id]);
-    setEdgeSelection([]);
-  }, [pan.x, pan.y, publicView, updateDocument, zoom]);
+  }, [document.slug, isPublicLink, pan.x, pan.y, publicView, updateDocument, zoom]);
 
   const addLinkNode = useCallback(async (value) => {
     if (publicView) return;
@@ -1502,7 +1559,34 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
     event.currentTarget.setPointerCapture?.(event.pointerId);
   };
 
+  const startElementRotate = (corner, event) => {
+    const node = selection.length === 1 ? document.nodes.find((item) => item.id === selection[0] && item.type === "arrow") : null;
+    if (!node) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const size = nodeDimensions(node);
+    const bounds = canvasRef.current.getBoundingClientRect();
+    const point = { x: (event.clientX - bounds.left - pan.x) / zoom, y: (event.clientY - bounds.top - pan.y) / zoom };
+    const centerX = node.x + size.width / 2;
+    const centerY = node.y + size.height / 2;
+    const rotation = ((node.rotation || 0) % 360 + 360) % 360;
+    dragRef.current = { type: "element-rotate", id: node.id, corner, centerX, centerY, initialRotation: rotation, initialPointerAngle: Math.atan2(point.y - centerY, point.x - centerX) };
+    setRotationFeedback(rotation);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
   const onPointerMove = (event) => {
+    if (dragRef.current?.type === "element-rotate") {
+      const drag = dragRef.current;
+      const bounds = canvasRef.current.getBoundingClientRect();
+      const point = { x: (event.clientX - bounds.left - pan.x) / zoom, y: (event.clientY - bounds.top - pan.y) / zoom };
+      const pointerAngle = Math.atan2(point.y - drag.centerY, point.x - drag.centerX);
+      const rotation = ((drag.initialRotation + (pointerAngle - drag.initialPointerAngle) * 180 / Math.PI) % 360 + 360) % 360;
+      const roundedRotation = Math.round(rotation);
+      setRotationFeedback(roundedRotation);
+      updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === drag.id ? { ...node, rotation: roundedRotation } : node) }));
+      return;
+    }
     if (dragRef.current?.type === "element-resize") {
       const drag = dragRef.current;
       const bounds = canvasRef.current.getBoundingClientRect();
@@ -1585,6 +1669,11 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
 
   const endDrag = (event) => {
     const drag = dragRef.current;
+    if (drag?.type === "element-rotate") {
+      setRotationFeedback(null);
+      dragRef.current = null;
+      return;
+    }
     if (drag?.type === "marquee") {
       setMarquee(null);
       dragRef.current = null;
@@ -1823,6 +1912,11 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
         setTool("annotate");
         setConnectionSource(null);
       }
+      if (publicView && !modalOpen && !isTyping && !event.metaKey && !event.ctrlKey && !event.altKey && ["v", "h"].includes(event.key.toLowerCase())) {
+        event.preventDefault();
+        setPagesOpen(false);
+        setTool(event.key.toLowerCase() === "h" ? "hand" : "select");
+      }
       if (!publicView && !modalOpen && !isTyping && !event.metaKey && !event.ctrlKey && !event.altKey) {
         const shortcut = event.key.toLowerCase();
         if (["v", "h", "l", "n", "t", "p", "d", "k", "s"].includes(shortcut)) {
@@ -1906,8 +2000,8 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
   }, [addImageFile, addLinkNode, addTextNode, editingNode, exportOpen, linkOpen, pasteElements, pendingAnnotation, publicView, selectionPayload, shareOpen, shortcutsOpen, showFeedback]);
 
   const shareUrl = `${window.location.origin}${APP_BASE}${document.slug}`;
-  const toggleShare = () => updateDocument((doc) => doc.shared ? { ...doc, shared: false, guestEditable: false } : { ...doc, shared: true });
-  const toggleGuestEditing = () => updateDocument((doc) => ({ ...doc, guestEditable: !doc.guestEditable }));
+  const toggleShare = () => updateDocument((doc) => doc.shared ? { ...doc, shared: false, guestEditable: false } : { ...doc, shared: true }, { immediate: true });
+  const toggleGuestEditing = () => updateDocument((doc) => ({ ...doc, guestEditable: !doc.guestEditable }), { immediate: true });
 
   const exportDiagram = (format) => {
     if (format === "mymind") {
@@ -2110,7 +2204,15 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
         <button title="Delete selected" disabled={!selection.length && !edgeSelection.length && !drawingSelection.length} onClick={deleteSelection}><Trash size={20} /></button>
         <button title="Keyboard shortcuts · ?" aria-label="Keyboard shortcuts" aria-keyshortcuts="?" onClick={() => setShortcutsOpen(true)}><HelpCircle size={21} /></button>
       </aside>}
-      {publicView && <aside className="left-toolbar public-annotation-toolbar" aria-label="Shared canvas tools"><PagesPanel pages={document.pages} activePageId={document.activePageId} open={pagesOpen} canManage={false} onToggle={() => setPagesOpen((value) => !value)} onSwitch={switchPage} /><span /><button className={!pagesOpen && tool === "annotate" ? "active" : ""} title="Annotate · A" aria-label="Add annotation" aria-keyshortcuts="A" onClick={() => { setPagesOpen(false); setTool(tool === "annotate" ? "select" : "annotate"); }}><ChatCircleDots size={21} /></button><button title="Keyboard shortcuts · ?" aria-label="Keyboard shortcuts" onClick={() => setShortcutsOpen(true)}><HelpCircle size={20} /></button></aside>}
+      {publicView && <aside className="left-toolbar public-annotation-toolbar" aria-label="Shared canvas tools">
+        <PagesPanel pages={document.pages} activePageId={document.activePageId} open={pagesOpen} canManage={false} onToggle={() => setPagesOpen((value) => !value)} onSwitch={switchPage} />
+        <span />
+        <button className={!pagesOpen && tool === "select" ? "active" : ""} title="Pointer · V" aria-label="Pointer tool" aria-keyshortcuts="V" onClick={() => { setPagesOpen(false); setTool("select"); }}><CursorClick size={21} /></button>
+        <button className={!pagesOpen && tool === "hand" ? "active" : ""} title="Hand tool · H" aria-label="Hand tool" aria-keyshortcuts="H" onClick={() => { setPagesOpen(false); setTool("hand"); }}><Hand size={21} /></button>
+        <span />
+        <button className={!pagesOpen && tool === "annotate" ? "active" : ""} title="Annotate · A" aria-label="Add annotation" aria-keyshortcuts="A" onClick={() => { setPagesOpen(false); setTool(tool === "annotate" ? "select" : "annotate"); }}><ChatCircleDots size={21} /></button>
+        <button title="Keyboard shortcuts · ?" aria-label="Keyboard shortcuts" onClick={() => setShortcutsOpen(true)}><HelpCircle size={20} /></button>
+      </aside>}
 
       <main ref={canvasRef} className={`canvas ${tool === "hand" || spaceHeld ? "is-panning" : ""} ${tool === "pen" ? "is-drawing" : ""} ${tool === "annotate" ? "is-annotating" : ""}`} onPointerDown={onCanvasPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag} onWheel={onWheel} onDragOver={(event) => { if (Array.from(event.dataTransfer?.items || []).some((item) => item.type.startsWith("image/"))) event.preventDefault(); }} onDrop={(event) => { const file = Array.from(event.dataTransfer?.files || []).find((item) => item.type.startsWith("image/")); if (file) { event.preventDefault(); addImageFile(file, { x: event.clientX, y: event.clientY }); } }}>
         <div className="canvas-grid" style={{ backgroundPosition: `${pan.x}px ${pan.y}px`, backgroundSize: `${24 * zoom}px ${24 * zoom}px` }} />
@@ -2130,11 +2232,12 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
             {draftDrawing && <DrawingStroke drawing={draftDrawing} passive />}
           </svg>
           {!publicView && marquee && <SelectionMarquee bounds={marquee} zoom={zoom} />}
-          {!publicView && selectedBounds && <SelectionFrame bounds={selectedBounds} zoom={zoom} count={selection.length + drawingSelection.length} resizable={["image", "text", "arrow"].includes(selectedNode?.type)} resizeLabel={selectedNode?.type || "element"} onResizeStart={startElementResize} />}
+          {!publicView && selectedBounds && <SelectionFrame bounds={selectedBounds} zoom={zoom} count={selection.length + drawingSelection.length} resizable={["image", "text"].includes(selectedNode?.type)} rotatable={selectedNode?.type === "arrow"} rotation={selectedNode?.rotation || 0} resizeLabel={selectedNode?.type || "element"} onResizeStart={startElementResize} onRotateStart={startElementRotate} />}
           {annotationsVisible && (document.annotations || []).map((annotation) => <AnnotationMarker key={annotation.id} annotation={annotation} selected={annotation.id === selectedAnnotationId} draggable={canManageAnnotation(annotation.id)} onDragStart={(event) => startAnnotationDrag(annotation, event)} onSelect={() => { setSelectedAnnotationId(annotation.id); setSelection([]); setEdgeSelection([]); setDrawingSelection([]); }} />)}
         </div>
         {tool === "connect" && <div className="mode-toast"><LinkNodes size={16} /> {connectionSource ? "Choose a destination node" : "Choose a starting node"}</div>}
         {tool === "annotate" && !pendingAnnotation && <div className="mode-toast"><ChatCircleDots size={16} /> Click anywhere to add an annotation</div>}
+        {rotationFeedback !== null && <div className="mode-toast rotation-mode-toast"><ArrowsClockwise size={16} /> Rotating arrow <strong>{rotationFeedback}°</strong></div>}
         {!publicView && (tool === "pen" || drawingSelection.length > 0) && <DrawingThicknessToolbar width={penWidth} color={penColor} streamline={penStreamline} selectionCount={drawingSelection.length} onChange={changeDrawingWidth} onColorChange={changeDrawingColor} onStreamlineChange={changeDrawingStreamline} onDelete={deleteSelection} />}
         {!publicView && selectedNode && !selectedNode.type && !editingNode && <NodeStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} connectionCount={document.edges.filter((edge) => edge.source === selectedNode.id || edge.target === selectedNode.id).length} hiddenConnectionCount={document.edges.filter((edge) => (edge.source === selectedNode.id || edge.target === selectedNode.id) && edge.hidden).length} onHideConnections={() => { hideNodeConnections(selectedNode.id); setNodeToolbarMenu(null); }} onShowConnections={() => { showHiddenConnections(selectedNode.id); setNodeToolbarMenu(null); }} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
         {!publicView && selectedNode?.type === "text" && !editingNode && <TextStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
@@ -2153,6 +2256,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
         </div>
         <div className="canvas-hint">D draws · Shift straightens · Hold Space + drag to pan</div>
         {feedback && <CanvasFeedback key={feedback.id} feedback={feedback} />}
+        {mediaUpload && <MediaUploadStatus upload={mediaUpload} />}
       </main>
 
       {exportOpen && <ExportPanel scope={exportScope} setScope={setExportScope} hasSelection={selection.length > 0 || drawingSelection.length > 0} onClose={() => setExportOpen(false)} onExport={exportDiagram} />}
@@ -2189,6 +2293,19 @@ function GifImageNode({ node }) {
   </span>;
 }
 
+function LinkThumbnail({ node }) {
+  return <img src={node.thumbnail} alt="" draggable="false" loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={(event) => {
+    const index = Number(event.currentTarget.dataset.fallbackIndex || 0);
+    const fallback = (node.thumbnailFallbacks || [])[index];
+    if (fallback) {
+      event.currentTarget.dataset.fallbackIndex = String(index + 1);
+      event.currentTarget.src = fallback;
+      return;
+    }
+    event.currentTarget.style.display = "none";
+  }} />;
+}
+
 function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, connecting, dropTarget, editing, onEdit, onSaveEdit, onCancelEdit, onPointerDown, onContextMenu, onKeyDown }) {
   const tone = toneForNode(node);
   const shapeColors = accessibleShapeColors(tone.accent);
@@ -2202,7 +2319,7 @@ function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, conne
     {editing ? <InlineNodeEditor node={node} onSave={onSaveEdit} onCancel={onCancelEdit} /> : <>
       {node.type === "text" && <span className="text-node-copy">{node.label}</span>}
       {node.type === "link" && <div className="link-card-content">
-        <div className={`link-card-thumbnail ${node.thumbnailKind === "favicon" ? "is-favicon" : ""} ${node.mediaKind ? "is-media" : ""}`}><GlobeHemisphereWest size={30} />{node.embedUrl && !node.thumbnail ? <iframe src={node.embedUrl} title={`${node.label} preview`} loading="lazy" tabIndex="-1" /> : <img src={node.thumbnail} alt="" draggable="false" onError={(event) => { event.currentTarget.style.display = "none"; }} />}{node.mediaKind && <span className="media-play"><Play size={14} /></span>}</div>
+        <div className={`link-card-thumbnail ${node.thumbnailKind === "favicon" ? "is-favicon" : ""} ${node.mediaKind ? "is-media" : ""}`}><GlobeHemisphereWest size={30} />{node.embedUrl && !node.thumbnail ? <iframe src={node.embedUrl} title={`${node.label} preview`} loading="lazy" tabIndex="-1" /> : <LinkThumbnail node={node} />}{node.mediaKind && <span className="media-play"><Play size={14} /></span>}</div>
         <div className="link-card-copy"><strong>{node.label}</strong><small>{node.subtitle}</small><span>{node.domain}</span></div>
         <a href={node.linkUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${node.label}`} title="Open link" onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}><OpenExternal size={17} /></a>
       </div>}
@@ -2378,12 +2495,12 @@ function CanvasContextMenu({ menu, onBack, onFront }) {
   </div>;
 }
 
-function SelectionFrame({ bounds, zoom, count, resizable = false, resizeLabel = "element", onResizeStart }) {
+function SelectionFrame({ bounds, zoom, count, resizable = false, rotatable = false, rotation = 0, resizeLabel = "element", onResizeStart, onRotateStart }) {
   const stroke = 2 / zoom;
   const handle = 10 / zoom;
   const handles = ["top-left", "top-right", "bottom-left", "bottom-right"];
-  return <div className={`selection-frame ${resizable ? "resizable" : ""}`} aria-hidden={!resizable} style={{ left: bounds.x, top: bounds.y, width: bounds.width, height: bounds.height, borderWidth: stroke, "--selection-handle": `${handle}px`, "--selection-offset": `${-handle / 2 - stroke / 2}px` }}>
-    {handles.map((corner) => resizable ? <button key={corner} type="button" className={`selection-handle ${corner}`} aria-label={`Resize ${resizeLabel} from ${corner.replace("-", " ")} corner`} onPointerDown={(event) => onResizeStart?.(corner, event)} /> : <i key={corner} className={`selection-handle ${corner}`} />)}
+  return <div className={`selection-frame ${resizable ? "resizable" : ""} ${rotatable ? "rotatable" : ""}`} aria-hidden={!resizable && !rotatable} style={{ left: bounds.x, top: bounds.y, width: bounds.width, height: bounds.height, borderWidth: stroke, transform: rotatable ? `rotate(${rotation}deg)` : undefined, "--selection-handle": `${handle}px`, "--selection-offset": `${-handle / 2 - stroke / 2}px` }}>
+    {handles.map((corner) => resizable || rotatable ? <button key={corner} type="button" className={`selection-handle ${corner}`} title={rotatable ? "Drag to rotate arrow" : undefined} aria-label={rotatable ? `Rotate arrow from ${corner.replace("-", " ")} corner` : `Resize ${resizeLabel} from ${corner.replace("-", " ")} corner`} onPointerDown={(event) => rotatable ? onRotateStart?.(corner, event) : onResizeStart?.(corner, event)} /> : <i key={corner} className={`selection-handle ${corner}`} />)}
     {count > 1 && <span className="selection-count" style={{ fontSize: `${10 / zoom}px`, height: `${22 / zoom}px`, padding: `0 ${7 / zoom}px`, top: `${-30 / zoom}px` }}>{count} selected</span>}
   </div>;
 }
@@ -2401,6 +2518,14 @@ function CanvasFeedback({ feedback }) {
     imported: { icon: <FileText size={17} />, label: `${itemLabel} imported` },
   }[feedback.type];
   return <div className={`canvas-feedback-toast is-${feedback.type}`} role="status" aria-live="polite">{content.icon}<span>{content.label}</span></div>;
+}
+
+function MediaUploadStatus({ upload }) {
+  return <div className={`media-upload-status ${upload.error ? "error" : ""}`} role="status" aria-live="polite">
+    <span className="media-upload-spinner"><ArrowPathIcon width="18" /></span>
+    <div><strong>{upload.status}</strong><small>{upload.name}</small><i><span style={{ width: `${upload.progress}%` }} /></i></div>
+    <b>{upload.error ? "!" : `${upload.progress}%`}</b>
+  </div>;
 }
 
 function DrawingThicknessToolbar({ width, color, streamline, selectionCount, onChange, onColorChange, onStreamlineChange, onDelete }) {
@@ -2496,11 +2621,8 @@ function ImageStyleToolbar({ node, style, popoverPlacement, openMenu, setOpenMen
 
 function ArrowStyleToolbar({ node, style, openMenu, setOpenMenu, onChange, onDelete }) {
   const tone = toneForNode(node);
-  const rotation = node.rotation || 0;
   return <div className="node-style-toolbar arrow-style-toolbar" style={style} role="toolbar" aria-label="Arrow line formatting" onPointerDown={(event) => event.stopPropagation()}>
     <div className="node-toolbar-item"><button className={openMenu === "arrow-colour" ? "active" : ""} aria-label="Arrow colour" onClick={() => setOpenMenu(openMenu === "arrow-colour" ? null : "arrow-colour")}><span className="toolbar-colour-dot" style={{ background: tone.accent }} /><CaretDown size={11} /></button>{openMenu === "arrow-colour" && <div className="node-toolbar-popover colour-popover"><strong>Arrow colour</strong><ColorControl node={node} tone={tone} onChange={(patch) => { onChange(patch); setOpenMenu(null); }} /></div>}</div>
-    <span className="node-toolbar-divider" />
-    <div className="node-toolbar-item"><button className={openMenu === "arrow-rotation" ? "active" : ""} aria-label="Rotate arrow" onClick={() => setOpenMenu(openMenu === "arrow-rotation" ? null : "arrow-rotation")}><ArrowsClockwise size={18} /><span>{rotation}°</span></button>{openMenu === "arrow-rotation" && <div className="node-toolbar-popover arrow-rotation-popover"><strong>Rotate arrow</strong><input aria-label="Arrow rotation angle" type="range" min="-180" max="180" step="5" value={rotation} onChange={(event) => onChange({ rotation: Number(event.target.value) })} /><button onClick={() => onChange({ rotation: 0 })}>Reset to 0°</button></div>}</div>
     <span className="node-toolbar-divider" />
     <button className="toolbar-delete" aria-label="Delete arrow" onClick={onDelete}><Trash size={17} /></button>
   </div>;
