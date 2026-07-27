@@ -3125,8 +3125,6 @@ a[href^="mailto:"] {
 
       .work-section__title {
         font-size: clamp(42px, 14vw, 54px);
-    }
-
       }
 
       .featured-work {
