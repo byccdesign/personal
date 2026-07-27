@@ -87,6 +87,7 @@ function adaptHeroIcon(Icon) {
   };
 }
 
+
 const ArrowLeft = adaptHeroIcon(ArrowLeftIcon);
 const ArrowLine = adaptHeroIcon(ArrowLongRightIcon);
 const ArrowRight = adaptHeroIcon(ArrowRightIcon);
