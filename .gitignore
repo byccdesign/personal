@@ -15,3 +15,4 @@ MyMind/.htaccess
 MyMind/public/.htaccess
 MyMind/dist/api/config.php
 .cpanel.yml
+MyMind/dist/.htaccess

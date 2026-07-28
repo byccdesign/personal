@@ -28,6 +28,7 @@ import {
   CloudIcon,
   CodeBracketIcon,
   Cog6ToothIcon,
+  CubeIcon,
   CurrencyDollarIcon,
   CursorArrowRaysIcon,
   CursorArrowRippleIcon,
@@ -42,6 +43,7 @@ import {
   HandRaisedIcon,
   HeartIcon,
   HomeIcon,
+  H1Icon,
   KeyIcon,
   LightBulbIcon,
   LinkIcon,
@@ -61,6 +63,7 @@ import {
   PlayIcon,
   QuestionMarkCircleIcon,
   RocketLaunchIcon,
+  ArrowRightStartOnRectangleIcon,
   ShieldCheckIcon,
   ShoppingCartIcon,
   ShareIcon,
@@ -78,6 +81,7 @@ import {
   WrenchScrewdriverIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
+import * as HeroOutlineIcons from "@heroicons/react/24/outline";
 import { jsPDF } from "jspdf";
 import { getStroke } from "perfect-freehand";
 
@@ -86,6 +90,10 @@ function adaptHeroIcon(Icon) {
     return <Icon width={size} height={size} {...props} />;
   };
 }
+
+const HERO_ICON_ENTRIES = Object.entries(HeroOutlineIcons)
+  .filter(([name, component]) => name.endsWith("Icon") && typeof component === "object")
+  .sort(([a], [b]) => a.localeCompare(b));
 
 
 const ArrowLeft = adaptHeroIcon(ArrowLeftIcon);
@@ -110,12 +118,14 @@ const ChatCircleDots = adaptHeroIcon(ChatBubbleLeftEllipsisIcon);
 const CirclesFour = adaptHeroIcon(Squares2X2Icon);
 const Cloud = adaptHeroIcon(CloudIcon);
 const Code = adaptHeroIcon(CodeBracketIcon);
+const Cube = adaptHeroIcon(CubeIcon);
 const Copy = adaptHeroIcon(DocumentDuplicateIcon);
 const CursorClick = adaptHeroIcon(CursorArrowRaysIcon);
 const LinkNodes = adaptHeroIcon(CursorArrowRippleIcon);
 const Database = adaptHeroIcon(CircleStackIcon);
 const Dollar = adaptHeroIcon(CurrencyDollarIcon);
 const DownloadSimple = adaptHeroIcon(ArrowDownTrayIcon);
+const Logout = adaptHeroIcon(ArrowRightStartOnRectangleIcon);
 const FileJpg = adaptHeroIcon(DocumentTextIcon);
 const FilePdf = adaptHeroIcon(DocumentTextIcon);
 const FileSvg = adaptHeroIcon(DocumentTextIcon);
@@ -129,6 +139,7 @@ const FolderOpen = adaptHeroIcon(FolderOpenIcon);
 const Hand = adaptHeroIcon(HandRaisedIcon);
 const Heart = adaptHeroIcon(HeartIcon);
 const Home = adaptHeroIcon(HomeIcon);
+const HeadingOne = adaptHeroIcon(H1Icon);
 const Key = adaptHeroIcon(KeyIcon);
 const Gear = adaptHeroIcon(Cog6ToothIcon);
 const GlobeHemisphereWest = adaptHeroIcon(GlobeAmericasIcon);
@@ -170,10 +181,25 @@ const Wrench = adaptHeroIcon(WrenchScrewdriverIcon);
 const X = adaptHeroIcon(XMarkIcon);
 
 const STORAGE_KEY = "mymind.documents.v1";
+const STORAGE_INDEX_KEY = "mymind.documentIndex.v2";
+const STORAGE_DOCUMENT_PREFIX = "mymind.document.v2.";
 const FOLDERS_KEY = "mymind.folders.v1";
 const ANNOTATION_TOKEN_KEY = "mymind.annotationTokens.v1";
+const PRESENCE_CLIENT_KEY = "mymind.presenceClient.v1";
 const NODE_SIZE = { width: 184, height: 82 };
 const APP_BASE = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+
+function presenceClientId() {
+  try {
+    const existing = sessionStorage.getItem(PRESENCE_CLIENT_KEY);
+    if (existing) return existing;
+    const next = globalThis.crypto?.randomUUID?.() || uid("presence");
+    sessionStorage.setItem(PRESENCE_CLIENT_KEY, next);
+    return next;
+  } catch {
+    return uid("presence");
+  }
+}
 
 function annotationTokens() {
   try { return JSON.parse(localStorage.getItem(ANNOTATION_TOKEN_KEY) || "{}"); }
@@ -275,7 +301,16 @@ function accessibleShapeColors(background) {
     : { text: "#000000", muted: "#000000" };
 }
 
+function fittedTextDimensions(label, fontSize = 24) {
+  const value = String(label || "Text");
+  const width = Math.min(420, Math.max(112, Math.max(...value.split("\n").map((line) => line.length), 1) * fontSize * .58 + 20));
+  const charsPerLine = Math.max(8, Math.floor((width - 12) / (fontSize * .58)));
+  const lineCount = value.split("\n").reduce((count, line) => count + Math.max(1, Math.ceil(line.length / charsPerLine)), 0);
+  return { width, height: Math.max(50, Math.ceil(lineCount * fontSize * 1.25 + 20)) };
+}
+
 function nodeDimensions(node) {
+  if (node?.type === "icon") return { width: node.width || 64, height: node.height || node.width || 64 };
   if (node?.type === "link") return { width: node.width || 300, height: 196 };
   if (node?.type === "image") {
     const width = node.width || 280;
@@ -286,6 +321,7 @@ function nodeDimensions(node) {
   if (node?.type === "arrow") return { width: node.width || 220, height: node.height || 44 };
   if (node?.type === "text") {
     const fontSize = node.fontSize || 24;
+    if (node.textFit === "auto") return fittedTextDimensions(node.label, fontSize);
     const longestLine = Math.max(1, ...String(node.label || "Text").split("\n").map((line) => line.length));
     const width = node.width || Math.min(420, Math.max(130, longestLine * fontSize * .58 + 28));
     const charsPerLine = Math.max(8, Math.floor((width - 20) / (fontSize * .58)));
@@ -373,7 +409,8 @@ function edgeGeometry(edge, source, target, offsetX = 0, offsetY = 0) {
   const sourcePort = edge.sourcePort || "auto";
   const goesRight = target.x >= source.x;
   let sx, sy;
-  if (sourcePort === "bottom") { sx = source.x + sourceSize.width / 2; sy = source.y + sourceSize.height; }
+  if (sourcePort === "top") { sx = source.x + sourceSize.width / 2; sy = source.y; }
+  else if (sourcePort === "bottom") { sx = source.x + sourceSize.width / 2; sy = source.y + sourceSize.height; }
   else if (sourcePort === "left") { sx = source.x; sy = source.y + sourceSize.height / 2; }
   else if (sourcePort === "right") { sx = source.x + sourceSize.width; sy = source.y + sourceSize.height / 2; }
   else { sx = goesRight ? source.x + sourceSize.width : source.x; sy = source.y + sourceSize.height / 2; }
@@ -386,7 +423,7 @@ function edgeGeometry(edge, source, target, offsetX = 0, offsetY = 0) {
   sx -= offsetX; sy -= offsetY; tx -= offsetX; ty -= offsetY;
   const orthogonal = edge.routing === "orthogonal" || source.shape || target.shape;
   if (orthogonal) {
-    if (sourcePort === "bottom") {
+    if (sourcePort === "bottom" || sourcePort === "top") {
       const midY = sy + (ty - sy) / 2;
       return { path: `M ${sx} ${sy} L ${sx} ${midY} L ${tx} ${midY} L ${tx} ${ty}`, labelX: sx === tx ? sx + 22 : (sx + tx) / 2, labelY: midY - 8, startX: sx, startY: sy, endX: tx, endY: ty };
     }
@@ -417,7 +454,8 @@ function connectionPreviewPath(source, sourcePort, point) {
   if (port === "left") x = source.x;
   if (port === "right") x = source.x + size.width;
   if (port === "bottom") { x = source.x + size.width / 2; y = source.y + size.height; }
-  if (port === "bottom") {
+  if (port === "top") { x = source.x + size.width / 2; y = source.y; }
+  if (port === "bottom" || port === "top") {
     const bend = Math.max(44, Math.abs(point.y - y) * .45);
     return `M ${x} ${y} C ${x} ${y + bend}, ${point.x} ${point.y - bend}, ${point.x} ${point.y}`;
   }
@@ -632,17 +670,59 @@ function seedDocuments() {
 
 function readLocalDocuments() {
   try {
+    const index = JSON.parse(localStorage.getItem(STORAGE_INDEX_KEY) || "null");
+    if (Array.isArray(index)) {
+      const documents = index.map((id) => {
+        try { return JSON.parse(localStorage.getItem(`${STORAGE_DOCUMENT_PREFIX}${id}`) || "null"); }
+        catch { return null; }
+      }).filter(Boolean);
+      if (documents.length) return documents;
+    }
     const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (Array.isArray(stored) && stored.length) return stored;
+    if (Array.isArray(stored) && stored.length) {
+      writeLocalDocuments(stored);
+      return stored;
+    }
   } catch {}
   const seeded = seedDocuments();
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(seeded));
+  writeLocalDocuments(seeded);
   return seeded;
 }
 
 function writeLocalDocuments(documents) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(documents)); return true; }
+  try {
+    const nextIds = documents.map((document) => document.id);
+    const previousIds = JSON.parse(localStorage.getItem(STORAGE_INDEX_KEY) || "[]");
+    documents.forEach((document) => localStorage.setItem(`${STORAGE_DOCUMENT_PREFIX}${document.id}`, JSON.stringify(document)));
+    if (Array.isArray(previousIds)) previousIds.filter((id) => !nextIds.includes(id)).forEach((id) => localStorage.removeItem(`${STORAGE_DOCUMENT_PREFIX}${id}`));
+    localStorage.setItem(STORAGE_INDEX_KEY, JSON.stringify(nextIds));
+    return true;
+  }
   catch { return false; }
+}
+
+function writeLocalDocument(document) {
+  try {
+    localStorage.setItem(`${STORAGE_DOCUMENT_PREFIX}${document.id}`, JSON.stringify(document));
+    const index = JSON.parse(localStorage.getItem(STORAGE_INDEX_KEY) || "[]");
+    const nextIndex = Array.isArray(index) ? index : [];
+    if (!nextIndex.includes(document.id)) localStorage.setItem(STORAGE_INDEX_KEY, JSON.stringify([document.id, ...nextIndex]));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearLocalWorkspace() {
+  try {
+    const index = JSON.parse(localStorage.getItem(STORAGE_INDEX_KEY) || "[]");
+    if (Array.isArray(index)) index.forEach((id) => localStorage.removeItem(`${STORAGE_DOCUMENT_PREFIX}${id}`));
+    localStorage.removeItem(STORAGE_INDEX_KEY);
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(FOLDERS_KEY);
+  } catch {
+    // The server session is still invalidated even if browser storage is unavailable.
+  }
 }
 
 function readLocalFolders() {
@@ -663,11 +743,48 @@ async function apiRequest(action, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   if (!response.ok) {
-    const error = new Error("API unavailable");
+    let payload = null;
+    try { payload = await response.json(); } catch {}
+    const error = new Error(payload?.error || "API unavailable");
     error.status = response.status;
+    error.payload = payload;
     throw error;
   }
   return response.json();
+}
+
+function pageSaveDocument(document) {
+  const synced = syncActivePage(document);
+  const activePage = synced.pages.find((page) => page.id === synced.activePageId) || synced.pages[0];
+  return {
+    id: synced.id,
+    title: synced.title,
+    slug: synced.slug,
+    shared: synced.shared,
+    guestEditable: synced.guestEditable,
+    folderId: synced.folderId || null,
+    activePageId: activePage.id,
+    pages: synced.pages.map((page) => ({ id: page.id, name: page.name })),
+    page: activePage,
+    deletedAnnotationIds: synced.deletedAnnotationIds || [],
+    deletedReplyIds: synced.deletedReplyIds || [],
+  };
+}
+
+async function persistCanvasPage(document, { guest = false, slug = "", baseRevision = null } = {}) {
+  const payload = { document: pageSaveDocument(document) };
+  if (Number.isInteger(baseRevision)) payload.baseRevision = baseRevision;
+  if (guest) payload.slug = slug;
+  try {
+    const result = await apiRequest("page-save", payload);
+    return { status: "server", revision: Number(result.revision ?? baseRevision ?? 0) };
+  } catch (error) {
+    if (error.status !== 404) throw error;
+    const fallback = guest
+      ? await apiRequest("guest-save", { slug, document, ...(Number.isInteger(baseRevision) ? { baseRevision } : {}) })
+      : await apiRequest("save", { document });
+    return { status: "server", revision: Number(fallback.revision ?? baseRevision ?? 0) };
+  }
 }
 
 function uploadMediaFile(file, onProgress, guestSlug = "") {
@@ -778,25 +895,65 @@ export function App() {
   const [route, setRoute] = useState(routeFromPath);
   const [newDialog, setNewDialog] = useState(false);
   const [authRequired, setAuthRequired] = useState(false);
+  const [routeLoading, setRouteLoading] = useState(true);
+  const [publicDocument, setPublicDocument] = useState(null);
+  const [routeError, setRouteError] = useState(null);
+
+  const acceptServerWorkspace = useCallback(async (data) => {
+    const serverDocuments = Array.isArray(data.documents) ? data.documents : [];
+    const cachedDocuments = readLocalDocuments();
+    let nextDocuments = serverDocuments;
+    if (serverDocuments.length === 0 && cachedDocuments.length > 0) {
+      const restored = [];
+      for (const document of cachedDocuments) {
+        try {
+          const result = await apiRequest("save", { document });
+          restored.push({ ...document, revision: Number(result.revision || document.revision || 0) });
+        } catch {
+          break;
+        }
+      }
+      if (restored.length === cachedDocuments.length) nextDocuments = restored;
+    }
+    setDocuments(nextDocuments);
+    writeLocalDocuments(nextDocuments);
+    if (Array.isArray(data.folders)) {
+      setFolders(data.folders);
+      writeLocalFolders(data.folders);
+    }
+  }, []);
 
   useEffect(() => {
+    let active = true;
+    setRouteLoading(true);
+    setRouteError(null);
+    if (route.publicView) setPublicDocument(null);
     const onRoute = () => setRoute(routeFromPath());
     window.addEventListener("popstate", onRoute);
     const load = route.publicView
       ? apiRequest(`shared&slug=${encodeURIComponent(route.slug || "")}`).then((data) => {
-          if (data.document) setDocuments((items) => items.some((item) => item.id === data.document.id) ? items.map((item) => item.id === data.document.id ? data.document : item) : [data.document, ...items]);
+          if (data.document && active) {
+            setPublicDocument(data.document);
+            setDocuments((items) => items.some((item) => item.id === data.document.id) ? items.map((item) => item.id === data.document.id ? data.document : item) : [data.document, ...items]);
+          }
         })
-      : apiRequest("list").then((data) => {
-          if (Array.isArray(data.documents)) {
-            setDocuments(data.documents);
-            writeLocalDocuments(data.documents);
-            if (Array.isArray(data.folders)) { setFolders(data.folders); writeLocalFolders(data.folders); }
+      : apiRequest("list").then(async (data) => {
+          if (Array.isArray(data.documents) && active) {
+            await acceptServerWorkspace(data);
             setAuthRequired(false);
           }
         });
-    load.catch((error) => { if (error.status === 401 && !route.publicView) setAuthRequired(true); });
-    return () => window.removeEventListener("popstate", onRoute);
-  }, [route.publicView, route.slug]);
+    load.catch((error) => {
+      if (!active) return;
+      if (route.publicView) setRouteError(error.status === 404 ? "not-found" : "unavailable");
+      else {
+        setAuthRequired(true);
+        setRouteError(error.status === 401 ? null : "unavailable");
+      }
+    })
+      .finally(() => { if (active) setRouteLoading(false); });
+    return () => { active = false; window.removeEventListener("popstate", onRoute); };
+  }, [acceptServerWorkspace, route.publicView, route.slug]);
 
   const commitDocuments = useCallback((updater) => {
     setDocuments((current) => {
@@ -870,41 +1027,67 @@ export function App() {
     apiRequest("delete", { id }).catch(() => {});
   };
 
+  if (routeLoading) return <LoadingScreen message={route.publicView ? "Opening shared canvas…" : "Opening your workspace…"} />;
+
   if (authRequired && !route.publicView) {
     return <Login onLogin={async (password) => {
       await apiRequest("login", { password });
       const data = await apiRequest("list");
-      if (Array.isArray(data.documents)) {
-        setDocuments(data.documents);
-        writeLocalDocuments(data.documents);
-      }
-      if (Array.isArray(data.folders)) { setFolders(data.folders); writeLocalFolders(data.folders); }
+      await acceptServerWorkspace(data);
+      setRouteError(null);
       setAuthRequired(false);
-    }} />;
+    }} serviceUnavailable={routeError === "unavailable"} />;
   }
 
   if (route.screen === "dashboard") {
-    return <Dashboard documents={documents} folders={folders} onNew={() => setNewDialog(true)} onImport={importDocument} onDelete={deleteDocument} onSaveFolder={saveFolder} onDeleteFolder={deleteFolder} onMoveDocument={moveDocument} dialog={newDialog} closeDialog={() => setNewDialog(false)} createDocument={createDocument} />;
+    return <Dashboard documents={documents} folders={folders} onNew={() => setNewDialog(true)} onImport={importDocument} onDelete={deleteDocument} onSaveFolder={saveFolder} onDeleteFolder={deleteFolder} onMoveDocument={moveDocument} onLogout={async () => {
+      try { await apiRequest("logout", {}); } catch { /* Lock the local UI even if the network drops during logout. */ }
+      finally {
+        clearLocalWorkspace();
+        setDocuments([]);
+        setFolders([]);
+        setAuthRequired(true);
+        setRouteError(null);
+        navigate("/");
+      }
+    }} dialog={newDialog} closeDialog={() => setNewDialog(false)} createDocument={createDocument} />;
   }
 
   const document = route.publicView
-    ? documents.find((item) => item.slug === route.slug && item.shared)
+    ? publicDocument
     : documents.find((item) => item.id === route.id);
 
-  return <Editor key={document?.id || route.slug} initialDocument={document} publicView={route.publicView} onSave={(next, { localOnly = false } = {}) => {
+  if (route.publicView && routeError === "unavailable") return <ServiceUnavailable />;
+  if (!document) return <NotFound />;
+
+  return <Editor
+    key={document?.id || route.slug}
+    initialDocument={document}
+    publicView={route.publicView}
+    onFetchRemote={() => route.publicView
+      ? apiRequest(`shared&slug=${encodeURIComponent(route.slug || "")}`).then((data) => data.document)
+      : apiRequest(`document&id=${encodeURIComponent(document?.id || "")}`).then((data) => data.document)}
+    onPresence={(clientId) => apiRequest("presence", route.publicView
+      ? { slug: route.slug, clientId }
+      : { documentId: document?.id, clientId })}
+    onSave={(next, { localOnly = false, baseRevision = null } = {}) => {
     if (route.publicView) {
-      if (localOnly) return Promise.resolve("local");
-      return apiRequest("guest-save", { slug: route.slug, document: next }).then(() => "server").catch(() => "failed");
+      if (localOnly) return Promise.resolve({ status: "local", revision: baseRevision });
+      return persistCanvasPage(next, { guest: true, slug: route.slug, baseRevision }).catch((error) => error.status === 409
+        ? { status: "conflict", revision: Number(error.payload?.currentRevision ?? baseRevision) }
+        : { status: "failed", revision: baseRevision });
     }
-    const updatedDocuments = documents.some((item) => item.id === next.id) ? documents.map((item) => item.id === next.id ? next : item) : [next, ...documents];
-    const savedLocally = writeLocalDocuments(updatedDocuments);
-    setDocuments(updatedDocuments);
-    if (localOnly) return Promise.resolve(savedLocally ? "local" : "failed");
-    return apiRequest("save", { document: next }).then(() => "server").catch(() => savedLocally ? "local" : "failed");
-  }} />;
+    const savedLocally = writeLocalDocument(next);
+    setDocuments((items) => items.some((item) => item.id === next.id) ? items.map((item) => item.id === next.id ? next : item) : [next, ...items]);
+    if (localOnly) return Promise.resolve({ status: savedLocally ? "local" : "failed", revision: baseRevision });
+    return persistCanvasPage(next, { baseRevision }).catch((error) => error.status === 409
+      ? { status: "conflict", revision: Number(error.payload?.currentRevision ?? baseRevision) }
+      : { status: savedLocally ? "local" : "failed", revision: baseRevision });
+  }}
+  />;
 }
 
-function Login({ onLogin }) {
+function Login({ onLogin, serviceUnavailable = false }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -915,13 +1098,14 @@ function Login({ onLogin }) {
       setBusy(true);
       setError("");
       try { await onLogin(password); }
-      catch { setError("That password didn’t work. Please try again."); }
+      catch (loginError) { setError(loginError?.status === 401 ? "That password didn’t work. Please try again." : "MyMind could not reach its database. Please try again in a moment."); }
       finally { setBusy(false); }
     }}>
       <span className="login-icon"><Brain size={27} weight="duotone" /></span>
       <p className="eyebrow">Private workspace</p>
       <h1>Welcome back</h1>
       <p>Enter your MyMind password to open the dashboard.</p>
+      {serviceUnavailable && <div className="login-warning">The workspace is locked because its database is currently unavailable.</div>}
       <label>Password<input type="password" autoFocus autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
       {error && <div className="login-error">{error}</div>}
       <button className="primary-button" disabled={busy || !password}>{busy ? "Opening…" : "Open MyMind"}</button>
@@ -929,7 +1113,7 @@ function Login({ onLogin }) {
   </div>;
 }
 
-function Dashboard({ documents, folders, onNew, onImport, onDelete, onSaveFolder, onDeleteFolder, onMoveDocument, dialog, closeDialog, createDocument }) {
+function Dashboard({ documents, folders, onNew, onImport, onDelete, onSaveFolder, onDeleteFolder, onMoveDocument, onLogout, dialog, closeDialog, createDocument }) {
   const [query, setQuery] = useState("");
   const [selectedFolder, setSelectedFolder] = useState("all");
   const [importing, setImporting] = useState(false);
@@ -944,7 +1128,7 @@ function Dashboard({ documents, folders, onNew, onImport, onDelete, onSaveFolder
       <header className="topbar dashboard-topbar">
         <Brand />
         <label className="search-field dashboard-search"><MagnifyingGlass size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search canvases" aria-label="Search canvases" /></label>
-        <div className="topbar-actions"><div className="avatar">CU</div></div>
+        <div className="topbar-actions"><button className="secondary-button dashboard-logout" onClick={onLogout}><Logout size={17} /> Logout</button><div className="avatar">CU</div></div>
       </header>
       <div className="dashboard-body">
         <aside className="folder-sidebar" aria-label="Canvas folders">
@@ -1047,7 +1231,7 @@ function TemplateDialog({ onClose, onCreate }) {
   </div>;
 }
 
-function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
+function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemote, onPresence }) {
   const fallback = useMemo(() => ({ id: uid("canvas"), title: "Shared canvas unavailable", slug: "unavailable", shared: false, updatedAt: new Date().toISOString(), ...blankTemplate() }), []);
   const [document, setDocument] = useState(() => normalisePagedDocument(initialDocument || fallback));
   const [selection, setSelection] = useState([]);
@@ -1086,6 +1270,9 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
   const [rotationFeedback, setRotationFeedback] = useState(null);
   const [mediaUpload, setMediaUpload] = useState(null);
   const [guestWelcomeOpen, setGuestWelcomeOpen] = useState(isPublicLink);
+  const [participants, setParticipants] = useState([]);
+  const [zoomMenuOpen, setZoomMenuOpen] = useState(false);
+  const [iconBrowserOpen, setIconBrowserOpen] = useState(false);
   const canvasRef = useRef(null);
   const imageInputRef = useRef(null);
   const dragRef = useRef(null);
@@ -1093,42 +1280,134 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
   const immediateSaveChain = useRef(Promise.resolve());
   const pendingSaveRef = useRef(null);
   const onSaveRef = useRef(onSave);
+  const onFetchRemoteRef = useRef(onFetchRemote);
+  const onPresenceRef = useRef(onPresence);
+  const serverRevisionRef = useRef(Number.isInteger(initialDocument?.revision) ? initialDocument.revision : null);
+  const conflictRef = useRef(false);
+  const presenceClientRef = useRef(presenceClientId());
   const clipboardRef = useRef(null);
   const feedbackTimer = useRef(null);
+  const historyRef = useRef({ past: [], future: [] });
   const publicView = isPublicLink && !document.guestEditable;
+  const collaborationEnabled = Boolean(initialDocument && (isPublicLink || document.shared));
+
+  const finishSave = useCallback((result, savedDocument) => {
+    const status = result?.status || "failed";
+    if (status === "conflict") {
+      conflictRef.current = true;
+      setSaveState("Refresh to sync");
+      return;
+    }
+    if (Number.isFinite(Number(result?.revision))) serverRevisionRef.current = Number(result.revision);
+    if (pendingSaveRef.current === savedDocument) pendingSaveRef.current = null;
+    setSaveState(status === "failed" ? "Save failed" : status === "local" ? "Saved locally" : "Saved");
+  }, []);
+
+  const acceptApiRevision = useCallback((response) => {
+    if (Number.isInteger(response?.revision)) serverRevisionRef.current = response.revision;
+  }, []);
 
   const updateDocument = useCallback((updater, { immediate = false } = {}) => {
     if (publicView) return;
     setDocument((current) => {
       const nextValue = typeof updater === "function" ? updater(current) : updater;
       const next = syncActivePage({ ...nextValue, updatedAt: new Date().toISOString() });
+      if (!saveTimer.current) {
+        historyRef.current.past = [...historyRef.current.past.slice(-59), current];
+        historyRef.current.future = [];
+      }
       setSaveState("Saving…");
       pendingSaveRef.current = next;
-      queueMicrotask(() => onSaveRef.current(next, { localOnly: true }));
+      queueMicrotask(() => onSaveRef.current(next, { localOnly: true, baseRevision: serverRevisionRef.current }));
       clearTimeout(saveTimer.current);
+      if (conflictRef.current) {
+        setSaveState("Refresh to sync");
+        return next;
+      }
       if (immediate) {
+        saveTimer.current = null;
         immediateSaveChain.current = immediateSaveChain.current.catch(() => {}).then(async () => {
-          const result = await onSaveRef.current(next);
-          if (pendingSaveRef.current === next) pendingSaveRef.current = null;
-          setSaveState(result === "failed" ? "Save failed" : result === "local" ? "Saved locally" : "Saved");
+          const result = await onSaveRef.current(next, { baseRevision: serverRevisionRef.current });
+          finishSave(result, next);
         });
         return next;
       }
       saveTimer.current = setTimeout(async () => {
-        const result = await onSaveRef.current(next);
-        pendingSaveRef.current = null;
-        setSaveState(result === "failed" ? "Save failed" : result === "local" ? "Saved locally" : "Saved");
+        saveTimer.current = null;
+        const result = await onSaveRef.current(next, { baseRevision: serverRevisionRef.current });
+        finishSave(result, next);
       }, 450);
       return next;
     });
-  }, [publicView]);
+  }, [finishSave, publicView]);
 
-  useEffect(() => { onSaveRef.current = onSave; }, [onSave]);
+  const applyHistory = useCallback((direction) => {
+    if (publicView) return;
+    setDocument((current) => {
+      const source = direction === "undo" ? historyRef.current.past : historyRef.current.future;
+      if (!source.length) return current;
+      const next = syncActivePage({ ...source[source.length - 1], updatedAt: new Date().toISOString() });
+      const destination = direction === "undo" ? "future" : "past";
+      historyRef.current[direction === "undo" ? "past" : "future"] = source.slice(0, -1);
+      historyRef.current[destination] = [...historyRef.current[destination].slice(-59), current];
+      clearTimeout(saveTimer.current);
+      setSaveState("Saving…");
+      pendingSaveRef.current = next;
+      queueMicrotask(() => onSaveRef.current(next, { localOnly: true, baseRevision: serverRevisionRef.current }));
+      saveTimer.current = setTimeout(async () => {
+        saveTimer.current = null;
+        const result = await onSaveRef.current(next, { baseRevision: serverRevisionRef.current });
+        finishSave(result, next);
+      }, 80);
+      return next;
+    });
+    setContextMenu(null);
+  }, [finishSave, publicView]);
+
+  useEffect(() => {
+    onSaveRef.current = onSave;
+    onFetchRemoteRef.current = onFetchRemote;
+    onPresenceRef.current = onPresence;
+  }, [onFetchRemote, onPresence, onSave]);
   useEffect(() => () => {
     clearTimeout(saveTimer.current);
     clearTimeout(feedbackTimer.current);
-    if (pendingSaveRef.current) onSaveRef.current(pendingSaveRef.current);
+    if (pendingSaveRef.current && !conflictRef.current) onSaveRef.current(pendingSaveRef.current, { baseRevision: serverRevisionRef.current });
   }, []);
+
+  useEffect(() => {
+    if (!collaborationEnabled) { setParticipants([]); return undefined; }
+    let stopped = false;
+    const heartbeat = async () => {
+      try {
+        const result = await onPresenceRef.current?.(presenceClientRef.current);
+        if (!stopped && Array.isArray(result?.participants)) setParticipants(result.participants);
+      } catch { /* Presence is optional and never blocks editing. */ }
+    };
+    heartbeat();
+    const timer = window.setInterval(heartbeat, 8000);
+    return () => { stopped = true; window.clearInterval(timer); };
+  }, [collaborationEnabled]);
+
+  useEffect(() => {
+    if (!collaborationEnabled) return undefined;
+    let stopped = false;
+    const refresh = async () => {
+      if (conflictRef.current || pendingSaveRef.current || dragRef.current) return;
+      try {
+        const remote = await onFetchRemoteRef.current?.();
+        const remoteRevision = Number(remote?.revision || 0);
+        if (stopped || !remote || remoteRevision <= serverRevisionRef.current) return;
+        const next = normalisePagedDocument(remote);
+        serverRevisionRef.current = remoteRevision;
+        setDocument(next);
+        setSaveState(publicView ? "View only" : "Saved");
+        onSaveRef.current(next, { localOnly: true, baseRevision: remoteRevision });
+      } catch { /* Keep the current canvas available during transient network failures. */ }
+    };
+    const timer = window.setInterval(refresh, publicView ? 2500 : 3500);
+    return () => { stopped = true; window.clearInterval(timer); };
+  }, [collaborationEnabled, publicView]);
 
   const showFeedback = useCallback((type, count = 1) => {
     clearTimeout(feedbackTimer.current);
@@ -1212,12 +1491,28 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
   }, [pan.x, pan.y, updateDocument, zoom]);
 
   const addTextNode = useCallback((initialLabel = "Add text") => {
-    const centerX = (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - 90;
-    const centerY = (canvasRef.current?.clientHeight / 2 - pan.y) / zoom - 30;
-    const node = { id: uid("node"), type: "text", x: centerX, y: centerY, width: 240, height: 82, label: String(initialLabel || "Add text").slice(0, 2000), fontSize: 24, textAlign: "left", color: "slate" };
+    const label = String(initialLabel || "Add text").slice(0, 2000);
+    const fontSize = 24;
+    const { width, height } = fittedTextDimensions(label, fontSize);
+    const centerX = (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - width / 2;
+    const centerY = (canvasRef.current?.clientHeight / 2 - pan.y) / zoom - height / 2;
+    const node = { id: uid("node"), type: "text", x: centerX, y: centerY, width, height, label, fontSize, textFit: "auto", textAlign: "left", color: "slate" };
     updateDocument((doc) => ({ ...doc, nodes: [...doc.nodes, node] }));
     setSelection([node.id]);
     setEdgeSelection([]);
+    setEditingNode(node.id);
+  }, [pan.x, pan.y, updateDocument, zoom]);
+
+  const addIconNode = useCallback((iconName) => {
+    const width = 64;
+    const x = (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - width / 2;
+    const y = (canvasRef.current?.clientHeight / 2 - pan.y) / zoom - width / 2;
+    const node = { id: uid("icon"), type: "icon", iconName, label: iconName.replace(/Icon$/, "").replace(/([a-z])([A-Z])/g, "$1 $2"), x, y, width, height: width, color: "slate" };
+    updateDocument((doc) => ({ ...doc, nodes: [...doc.nodes, node] }));
+    setSelection([node.id]);
+    setDrawingSelection([]);
+    setEdgeSelection([]);
+    setIconBrowserOpen(false);
   }, [pan.x, pan.y, updateDocument, zoom]);
 
   const addArrowShape = useCallback(() => {
@@ -1233,17 +1528,18 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
 
   const addImageFile = useCallback(async (file, clientPoint) => {
     if (publicView || !file?.type?.startsWith("image/")) return;
-    const isLargeUpload = file.size > 10 * 1024 * 1024 && ["image/jpeg", "image/png", "image/gif"].includes(file.type);
+    const hostableImage = ["image/jpeg", "image/png", "image/gif", "image/webp"].includes(file.type);
+    const isLargeUpload = file.size > 10 * 1024 * 1024 && hostableImage;
     if (isLargeUpload) setMediaUpload({ name: file.name || "Large image", progress: 2, status: "Preparing upload…" });
     try {
       const image = await readImageFile(file, { metadataOnly: isLargeUpload });
       let imageData = image.dataUrl;
-      if (image.isGif || isLargeUpload) {
+      if (hostableImage) {
         try {
           imageData = await uploadMediaFile(file, isLargeUpload ? (progress) => setMediaUpload({ name: file.name || "Large image", progress, status: progress < 100 ? "Uploading…" : "Finishing…" }) : undefined, isPublicLink ? document.slug : "");
         } catch (error) {
           if (isLargeUpload) throw error;
-          /* Keep the data URL as an offline development fallback for smaller GIFs. */
+          /* Keep the optimized data URL as an offline development fallback. */
         }
       }
       const bounds = canvasRef.current?.getBoundingClientRect();
@@ -1312,6 +1608,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
     if (!pendingAnnotation) return;
     if (isPublicLink) {
       const response = await apiRequest("comment", { slug: document.slug, pageId: document.activePageId, annotation: { ...pendingAnnotation, comment, author } });
+      acceptApiRevision(response);
       if (!response.annotation) throw new Error("Comment could not be saved");
       rememberAnnotationToken(response.annotation.id, response.editToken);
       setDocument((current) => syncActivePage({ ...current, annotations: [...(current.annotations || []), response.annotation] }));
@@ -1330,6 +1627,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
   const updateAnnotationComment = async (annotationId, comment) => {
     if (isPublicLink) {
       const response = await apiRequest("annotation", { slug: document.slug, pageId: document.activePageId, annotationId, operation: "update", comment, token: annotationTokens()[annotationId] });
+      acceptApiRevision(response);
       setDocument((current) => syncActivePage({ ...current, annotations: response.annotations || current.annotations }));
     } else updateDocument((doc) => ({ ...doc, annotations: (doc.annotations || []).map((item) => item.id === annotationId ? { ...item, comment, editedAt: new Date().toISOString() } : item) }));
   };
@@ -1337,6 +1635,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
   const deleteAnnotation = async (annotationId) => {
     if (isPublicLink) {
       const response = await apiRequest("annotation", { slug: document.slug, pageId: document.activePageId, annotationId, operation: "delete", token: annotationTokens()[annotationId] });
+      acceptApiRevision(response);
       setDocument((current) => syncActivePage({ ...current, annotations: response.annotations || [] }));
     } else updateDocument((doc) => ({ ...doc, annotations: (doc.annotations || []).filter((item) => item.id !== annotationId), deletedAnnotationIds: [...new Set([...(doc.deletedAnnotationIds || []), annotationId])] }));
     setSelectedAnnotationId(null);
@@ -1345,6 +1644,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
   const addAnnotationReply = async (annotationId, { comment, author }) => {
     if (isPublicLink) {
       const response = await apiRequest("annotation", { slug: document.slug, pageId: document.activePageId, annotationId, operation: "reply", comment, author });
+      acceptApiRevision(response);
       rememberAnnotationToken(response.reply?.id, response.editToken);
       setDocument((current) => syncActivePage({ ...current, annotations: response.annotations || current.annotations }));
     } else {
@@ -1356,6 +1656,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
   const mutateAnnotationReply = async (annotationId, replyId, operation, comment = "") => {
     if (isPublicLink) {
       const response = await apiRequest("annotation", { slug: document.slug, pageId: document.activePageId, annotationId, replyId, operation, comment, token: annotationTokens()[replyId] });
+      acceptApiRevision(response);
       setDocument((current) => syncActivePage({ ...current, annotations: response.annotations || current.annotations }));
     } else updateDocument((doc) => ({ ...doc, annotations: (doc.annotations || []).map((item) => item.id === annotationId ? { ...item, replies: (item.replies || []).flatMap((reply) => reply.id !== replyId ? [reply] : operation === "reply-delete" ? [] : [{ ...reply, comment, editedAt: new Date().toISOString() }]) } : item), ...(operation === "reply-delete" ? { deletedReplyIds: [...new Set([...(doc.deletedReplyIds || []), replyId])] } : {}) }));
   };
@@ -1473,7 +1774,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
   };
 
   const onNodePointerDown = (event, node) => {
-    if (spaceHeld || event.button === 1 || event.button === 2 || tool === "pen") return;
+    if (spaceHeld || event.button === 1 || event.button === 2 || tool === "pen" || tool === "hand") return;
     event.stopPropagation();
     if (tool === "annotate") { beginAnnotation(event.clientX, event.clientY); return; }
     setSelectedAnnotationId(null);
@@ -1511,8 +1812,10 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
       return;
     }
     const preserveGroup = selection.includes(node.id);
-    const nextNodeIds = event.shiftKey ? [...selection, node.id] : preserveGroup ? selection : [node.id];
-    const nextDrawingIds = event.shiftKey || preserveGroup ? drawingSelection : [];
+    const groupedNodeIds = node.groupId ? document.nodes.filter((item) => item.groupId === node.groupId).map((item) => item.id) : [node.id];
+    const groupedDrawingIds = node.groupId ? (document.drawings || []).filter((item) => item.groupId === node.groupId).map((item) => item.id) : [];
+    const nextNodeIds = event.shiftKey ? [...new Set([...selection, ...groupedNodeIds])] : preserveGroup ? selection : groupedNodeIds;
+    const nextDrawingIds = event.shiftKey ? [...new Set([...drawingSelection, ...groupedDrawingIds])] : preserveGroup ? drawingSelection : groupedDrawingIds;
     setSelection(nextNodeIds);
     setDrawingSelection(nextDrawingIds);
     startSelectionDrag(event, nextNodeIds, nextDrawingIds);
@@ -1530,8 +1833,10 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
       return;
     }
     const preserveGroup = drawingSelection.includes(drawing.id);
-    const nextDrawingIds = event.shiftKey ? [...drawingSelection, drawing.id] : preserveGroup ? drawingSelection : [drawing.id];
-    const nextNodeIds = event.shiftKey || preserveGroup ? selection : [];
+    const groupedDrawingIds = drawing.groupId ? (document.drawings || []).filter((item) => item.groupId === drawing.groupId).map((item) => item.id) : [drawing.id];
+    const groupedNodeIds = drawing.groupId ? document.nodes.filter((item) => item.groupId === drawing.groupId).map((item) => item.id) : [];
+    const nextDrawingIds = event.shiftKey ? [...new Set([...drawingSelection, ...groupedDrawingIds])] : preserveGroup ? drawingSelection : groupedDrawingIds;
+    const nextNodeIds = event.shiftKey ? [...new Set([...selection, ...groupedNodeIds])] : preserveGroup ? selection : groupedNodeIds;
     setDrawingSelection(nextDrawingIds);
     setSelection(nextNodeIds);
     startSelectionDrag(event, nextNodeIds, nextDrawingIds);
@@ -1605,7 +1910,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
       }
       const x = drag.signX < 0 ? drag.anchorX - width : drag.anchorX;
       const y = drag.signY < 0 ? drag.anchorY - height : drag.anchorY;
-      updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === drag.id ? { ...node, x, y, width, ...(["text", "arrow"].includes(drag.elementType) ? { height } : {}) } : node) }));
+      updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === drag.id ? { ...node, x, y, width, ...(["text", "arrow"].includes(drag.elementType) ? { height } : {}), ...(drag.elementType === "text" ? { textFit: "free" } : {}) } : node) }));
       return;
     }
     if (draftDrawing) {
@@ -1736,6 +2041,35 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
     setZoom(nextZoom);
   };
 
+  const zoomAtCenter = useCallback((nextValue) => {
+    const nextZoom = Math.min(2, Math.max(.35, nextValue));
+    const width = canvasRef.current?.clientWidth || 900;
+    const height = canvasRef.current?.clientHeight || 700;
+    const cx = width / 2;
+    const cy = height / 2;
+    setPan((current) => ({ x: cx - ((cx - current.x) / zoom) * nextZoom, y: cy - ((cy - current.y) / zoom) * nextZoom }));
+    setZoom(nextZoom);
+  }, [zoom]);
+
+  const zoomToBounds = useCallback((bounds) => {
+    if (!bounds) return;
+    const width = canvasRef.current?.clientWidth || 900;
+    const height = canvasRef.current?.clientHeight || 700;
+    const boundsWidth = Math.max(1, bounds.width ?? bounds.maxX - bounds.minX);
+    const boundsHeight = Math.max(1, bounds.height ?? bounds.maxY - bounds.minY);
+    const minX = bounds.x ?? bounds.minX;
+    const minY = bounds.y ?? bounds.minY;
+    const nextZoom = Math.min(2, Math.max(.35, Math.min((width - 140) / boundsWidth, (height - 140) / boundsHeight)));
+    setZoom(nextZoom);
+    setPan({ x: width / 2 - (minX + boundsWidth / 2) * nextZoom, y: height / 2 - (minY + boundsHeight / 2) * nextZoom });
+    setZoomMenuOpen(false);
+  }, []);
+
+  const zoomToContent = useCallback(() => {
+    const bounds = selectedElementsBounds(document.nodes.filter((node) => !collapsedNodeIds.has(node.id)), document.drawings || []);
+    zoomToBounds(bounds);
+  }, [collapsedNodeIds, document.drawings, document.nodes, zoomToBounds]);
+
   const deleteSelection = useCallback(() => {
     if ((!selection.length && !edgeSelection.length && !drawingSelection.length) || publicView) return;
     const count = selection.length + edgeSelection.length + drawingSelection.length;
@@ -1824,6 +2158,39 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
     setContextMenu(null);
   }, [drawingSelection, publicView, selection, updateDocument]);
 
+  const groupSelection = useCallback((target = null) => {
+    if (publicView) return;
+    const nodeIds = target?.nodeIds || selection;
+    const drawingIds = target?.drawingIds || drawingSelection;
+    if (nodeIds.length + drawingIds.length < 2) return;
+    const groupId = uid("group");
+    updateDocument((doc) => ({
+      ...doc,
+      nodes: doc.nodes.map((node) => nodeIds.includes(node.id) ? { ...node, groupId } : node),
+      drawings: (doc.drawings || []).map((drawing) => drawingIds.includes(drawing.id) ? { ...drawing, groupId } : drawing),
+    }));
+    setContextMenu(null);
+    showFeedback("grouped", nodeIds.length + drawingIds.length);
+  }, [drawingSelection, publicView, selection, showFeedback, updateDocument]);
+
+  const ungroupSelection = useCallback((target = null) => {
+    if (publicView) return;
+    const nodeIds = target?.nodeIds || selection;
+    const drawingIds = target?.drawingIds || drawingSelection;
+    const groupIds = new Set([
+      ...document.nodes.filter((node) => nodeIds.includes(node.id)).map((node) => node.groupId),
+      ...(document.drawings || []).filter((drawing) => drawingIds.includes(drawing.id)).map((drawing) => drawing.groupId),
+    ].filter(Boolean));
+    if (!groupIds.size) return;
+    updateDocument((doc) => ({
+      ...doc,
+      nodes: doc.nodes.map((node) => groupIds.has(node.groupId) ? { ...node, groupId: undefined } : node),
+      drawings: (doc.drawings || []).map((drawing) => groupIds.has(drawing.groupId) ? { ...drawing, groupId: undefined } : drawing),
+    }));
+    setContextMenu(null);
+    showFeedback("ungrouped", nodeIds.length + drawingIds.length);
+  }, [document.drawings, document.nodes, drawingSelection, publicView, selection, showFeedback, updateDocument]);
+
   const openNodeContextMenu = (event, node) => {
     if (publicView) return;
     event.preventDefault();
@@ -1833,7 +2200,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
     const drawingIds = keepGroup ? drawingSelection : [];
     if (!keepGroup) { setSelection([node.id]); setDrawingSelection([]); setEdgeSelection([]); }
     const bounds = canvasRef.current?.getBoundingClientRect();
-    setContextMenu({ x: Math.max(8, Math.min((bounds?.width || 900) - 190, event.clientX - (bounds?.left || 0))), y: Math.max(8, Math.min((bounds?.height || 700) - 82, event.clientY - (bounds?.top || 0))), nodeIds, drawingIds });
+    setContextMenu({ x: Math.max(8, Math.min((bounds?.width || 900) - 224, event.clientX - (bounds?.left || 0))), y: Math.max(8, Math.min((bounds?.height || 700) - 278, event.clientY - (bounds?.top || 0))), nodeIds, drawingIds });
   };
 
   const openDrawingContextMenu = (event, drawing) => {
@@ -1845,7 +2212,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
     const nodeIds = keepGroup ? selection : [];
     if (!keepGroup) { setDrawingSelection([drawing.id]); setSelection([]); setEdgeSelection([]); }
     const bounds = canvasRef.current?.getBoundingClientRect();
-    setContextMenu({ x: Math.max(8, Math.min((bounds?.width || 900) - 190, event.clientX - (bounds?.left || 0))), y: Math.max(8, Math.min((bounds?.height || 700) - 82, event.clientY - (bounds?.top || 0))), nodeIds, drawingIds });
+    setContextMenu({ x: Math.max(8, Math.min((bounds?.width || 900) - 224, event.clientX - (bounds?.left || 0))), y: Math.max(8, Math.min((bounds?.height || 700) - 278, event.clientY - (bounds?.top || 0))), nodeIds, drawingIds });
   };
 
   const selectionPayload = useCallback(() => {
@@ -1872,8 +2239,8 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
 
   const duplicateSelection = useCallback(() => {
     const payload = selectionPayload();
-    if (payload) pasteElements(payload, 32);
-  }, [pasteElements, selectionPayload]);
+    if (payload && pasteElements(payload, 32)) showFeedback("duplicated", (payload.nodes || []).length + (payload.drawings || []).length);
+  }, [pasteElements, selectionPayload, showFeedback]);
 
   useEffect(() => {
     const onKey = (event) => {
@@ -1898,7 +2265,24 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
         setNodeMenu(false);
       }
       const isTyping = ["INPUT", "TEXTAREA", "SELECT"].includes(activeTag) || window.document.activeElement?.isContentEditable;
+      if (!publicView && !modalOpen && !isTyping && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
+        event.preventDefault();
+        applyHistory(event.shiftKey ? "redo" : "undo");
+      }
+      if (!publicView && !modalOpen && !isTyping && (event.metaKey || event.ctrlKey) && (event.key.toLowerCase() === "x" || event.key.toLowerCase() === "y")) {
+        event.preventDefault();
+        applyHistory("redo");
+      }
+      if (!modalOpen && !isTyping && (event.metaKey || event.ctrlKey) && (event.key === "+" || event.key === "=" || event.key === "-")) {
+        event.preventDefault();
+        zoomAtCenter(event.key === "-" ? zoom - .1 : zoom + .1);
+      }
       if (!publicView && !modalOpen && !isTyping && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") { event.preventDefault(); duplicateSelection(); }
+      if (!publicView && !modalOpen && !isTyping && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") {
+        event.preventDefault();
+        if (event.shiftKey) ungroupSelection();
+        else groupSelection();
+      }
       if (!publicView && !modalOpen && !isTyping && (event.metaKey || event.ctrlKey) && (event.key === "[" || event.key === "]")) {
         event.preventDefault();
         changeStacking(event.key === "]" ? "front" : "back");
@@ -1919,7 +2303,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
       }
       if (!publicView && !modalOpen && !isTyping && !event.metaKey && !event.ctrlKey && !event.altKey) {
         const shortcut = event.key.toLowerCase();
-        if (["v", "h", "l", "n", "t", "p", "d", "k", "s"].includes(shortcut)) {
+        if (["v", "h", "l", "n", "t", "p", "d", "k", "s", "i"].includes(shortcut)) {
           event.preventDefault();
           setPagesOpen(false);
           setNodeMenu(false);
@@ -1933,6 +2317,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
         if (shortcut === "d") { setTool("pen"); setConnectionSource(null); }
         if (shortcut === "k") setLinkOpen(true);
         if (shortcut === "s") addArrowShape();
+        if (shortcut === "i") setIconBrowserOpen(true);
         if (shortcut === "?") { event.preventDefault(); setShortcutsOpen(true); }
       }
     };
@@ -1946,7 +2331,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [addArrowShape, addConnectedNode, addNode, addTextNode, changeStacking, connectionSource, deleteSelection, document.nodes, duplicateSelection, editingEdge, editingNode, exportOpen, linkOpen, pendingAnnotation, publicView, selection, shareOpen, shortcutsOpen, tool]);
+  }, [addArrowShape, addConnectedNode, addNode, addTextNode, applyHistory, changeStacking, connectionSource, deleteSelection, document.nodes, duplicateSelection, editingEdge, editingNode, exportOpen, groupSelection, linkOpen, pendingAnnotation, publicView, selection, shareOpen, shortcutsOpen, tool, ungroupSelection, zoom, zoomAtCenter]);
 
   useEffect(() => {
     const dismissFloatingPanels = (event) => {
@@ -2003,14 +2388,15 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
   const toggleShare = () => updateDocument((doc) => doc.shared ? { ...doc, shared: false, guestEditable: false } : { ...doc, shared: true }, { immediate: true });
   const toggleGuestEditing = () => updateDocument((doc) => ({ ...doc, guestEditable: !doc.guestEditable }), { immediate: true });
 
-  const exportDiagram = (format) => {
+  const exportDiagram = (format, scopeOverride = null) => {
     if (format === "mymind") {
       const portable = syncActivePage({ ...document, shared: false, guestEditable: false, folderId: null });
       downloadBlob(new Blob([JSON.stringify({ type: "mymind-canvas", version: 1, exportedAt: new Date().toISOString(), document: portable })], { type: "application/vnd.mymind.canvas+json" }), `${slugify(document.title)}.mymind`);
       setExportOpen(false);
       return;
     }
-    const selectedMode = exportScope === "selected";
+    const effectiveScope = scopeOverride || exportScope;
+    const selectedMode = effectiveScope === "selected";
     const ids = selectedMode ? new Set(selection) : null;
     const availableNodes = document.nodes.filter((node) => !collapsedNodeIds.has(node.id));
     const nodes = selectedMode ? availableNodes.filter((node) => ids.has(node.id)) : availableNodes;
@@ -2084,6 +2470,11 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
         const strokeWidth = Math.max(2, size.height / 14.7);
         return `<g transform="rotate(${node.rotation || 0} ${x + size.width / 2} ${y + size.height / 2})" fill="none" stroke="${tone.accent}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><line x1="${x + 4}" y1="${y + size.height / 2}" x2="${x + size.width - size.height * .36}" y2="${y + size.height / 2}"/><polyline points="${x + size.width - size.height * .68},${y + size.height * .18} ${x + size.width - size.height * .34},${y + size.height / 2} ${x + size.width - size.height * .68},${y + size.height * .82}"/></g>`;
       }
+      if (node.type === "icon") {
+        const HeroIcon = HeroOutlineIcons[node.iconName] || HeroOutlineIcons.SparklesIcon;
+        const iconMarkup = renderToStaticMarkup(<HeroIcon width={size.width} height={size.height} strokeWidth="1.7" color={tone.accent} />);
+        return `<g transform="translate(${x} ${y})">${iconMarkup}</g>`;
+      }
       if (node.type === "text") {
         const fontSize = node.fontSize || 24;
         const lines = wrapSvgText(node.label, Math.max(8, Math.floor((size.width - 20) / (fontSize * .58))));
@@ -2114,7 +2505,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
       return `<g>${shapeSurface}<circle cx="${x + 30}" cy="${y + 31}" r="17" fill="${tone.soft}"/>${icon}<text font-family="Inter,Arial" font-size="14" font-weight="700" fill="#333944">${svgLines(titleLines, x + 57, titleStart, 17)}</text><text font-family="Inter,Arial" font-size="11" fill="#7a8290">${svgLines(subtitleLines, x + 57, subtitleStart, 14)}</text></g>`;
     }).join("");
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 Z" fill="#bcc2cc"/></marker><marker id="circle" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><circle cx="4" cy="4" r="3" fill="#ffffff" stroke="#9da5b1" stroke-width="1.5"/></marker></defs><rect width="100%" height="100%" fill="#f7f8fb"/>${paths}${backDrawingPaths}${cards}${frontDrawingPaths}</svg>`;
-    const filename = `${slugify(document.title)}-${exportScope}`;
+    const filename = `${slugify(document.title)}-${effectiveScope}`;
     if (format === "svg") downloadBlob(new Blob([svg], { type: "image/svg+xml" }), `${filename}.svg`);
     else rasterizeSvg(svg, width, height, format, filename);
     setExportOpen(false);
@@ -2159,9 +2550,13 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
       <div className="editor-title-row">
         {!isPublicLink && <button className="icon-button" aria-label="Back to dashboard" onClick={() => navigate("/")}><ArrowLeft size={20} /></button>}
         <span className="brand editor-canvas-mark" aria-hidden="true"><span className="brand-mark"><Brain size={23} weight="duotone" /></span></span>
-        <input className="document-title" value={document.title} readOnly={publicView} onChange={(e) => updateDocument((doc) => ({ ...doc, title: e.target.value, slug: slugify(e.target.value) }))} />
+        <input className="document-title" value={document.title} readOnly={publicView} onChange={(e) => updateDocument((doc) => ({ ...doc, title: e.target.value }))} />
       </div>
       <div className="topbar-actions">
+        {collaborationEnabled && participants.length > 0 && <span className="presence-state" title={participants.map((participant) => participant.name).join(", ")} aria-label={`${participants.length} ${participants.length === 1 ? "person" : "people"} currently here`}>
+          <span className="presence-dots" aria-hidden="true">{participants.slice(0, 3).map((participant) => <i key={participant.clientId} className={`is-${participant.role}`} />)}</span>
+          {participants.length} here
+        </span>}
         <span className="save-state"><span /> {publicView ? "View only" : isPublicLink ? `Guest · ${saveState}` : saveState}</span>
         <button className={`icon-button comments-toggle ${annotationsVisible ? "active" : ""}`} aria-pressed={annotationsVisible} aria-label={annotationsVisible ? "Hide comments" : "Show comments"} title={annotationsVisible ? "Hide comments" : "Show comments"} onClick={() => setAnnotationsVisible((visible) => { if (visible) setSelectedAnnotationId(null); return !visible; })}><ChatCircleDots size={19} /></button>
         {!publicView && <button className="secondary-button" onClick={() => setExportOpen(true)}><DownloadSimple size={17} /> Export <CaretDown size={13} /></button>}
@@ -2195,7 +2590,8 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
             <button onClick={() => addNode("data")}><span className="menu-node blue"><Database size={18} /></span><span><strong>Input / Output</strong><small>Data in or out</small></span></button>
           </div>}
         </div>
-        <button title="Add text · T" aria-label="Add text" aria-keyshortcuts="T" onClick={() => addTextNode()}><TextBlock size={21} /></button>
+        <button title="Add text · T" aria-label="Add text" aria-keyshortcuts="T" onClick={() => addTextNode()}><HeadingOne size={21} /></button>
+        <button className={iconBrowserOpen ? "active" : ""} title="Add icon · I" aria-label="Add Heroicon" aria-keyshortcuts="I" onClick={() => { setPagesOpen(false); setNodeMenu(false); setIconBrowserOpen((open) => !open); }}><Cube size={21} /></button>
         <button title="Add arrow line · S" aria-label="Add arrow line" aria-keyshortcuts="S" onClick={addArrowShape}><ArrowLine size={21} /></button>
         <button title="Upload picture · P" aria-label="Upload picture" aria-keyshortcuts="P" onClick={() => imageInputRef.current?.click()}><Photo size={21} /></button>
         <button title="Add link · K" aria-label="Add link" aria-keyshortcuts="K" onClick={() => setLinkOpen(true)}><LinkSimple size={21} /></button>
@@ -2204,6 +2600,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
         <button title="Delete selected" disabled={!selection.length && !edgeSelection.length && !drawingSelection.length} onClick={deleteSelection}><Trash size={20} /></button>
         <button title="Keyboard shortcuts · ?" aria-label="Keyboard shortcuts" aria-keyshortcuts="?" onClick={() => setShortcutsOpen(true)}><HelpCircle size={21} /></button>
       </aside>}
+      {!publicView && iconBrowserOpen && <IconBrowser onSelect={addIconNode} onClose={() => setIconBrowserOpen(false)} />}
       {publicView && <aside className="left-toolbar public-annotation-toolbar" aria-label="Shared canvas tools">
         <PagesPanel pages={document.pages} activePageId={document.activePageId} open={pagesOpen} canManage={false} onToggle={() => setPagesOpen((value) => !value)} onSwitch={switchPage} />
         <span />
@@ -2226,7 +2623,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
           <svg className="drawing-layer drawing-layer-back" width="4000" height="2400" viewBox="-1000 -600 4000 2400">
             {(document.drawings || []).filter((drawing) => drawing.stackLevel === "back").map((drawing) => <DrawingStroke key={drawing.id} drawing={drawing} selected={drawingSelection.includes(drawing.id)} passive={spaceHeld || tool !== "select"} onSelect={(event) => onDrawingPointerDown(event, drawing)} onContextMenu={(event) => openDrawingContextMenu(event, drawing)} />)}
           </svg>
-          {document.nodes.filter((node) => !collapsedNodeIds.has(node.id)).map((node) => <CanvasNode key={node.id} node={node} hiddenConnectionCount={document.edges.filter((edge) => (edge.source === node.id || edge.target === node.id) && edge.hidden).length} onShowHidden={() => showHiddenConnections(node.id)} selected={selection.includes(node.id)} connecting={connectionSource?.nodeId === node.id} dropTarget={connectionTargetId === node.id} editing={editingNode === node.id} onEdit={() => { if (!publicView && !["image", "arrow"].includes(node.type)) { setNodeToolbarMenu(null); setEditingNode(node.id); } }} onSaveEdit={(patch) => { updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, ...patch } : item) })); setEditingNode(null); }} onCancelEdit={() => setEditingNode(null)} onPointerDown={onNodePointerDown} onContextMenu={(event) => openNodeContextMenu(event, node)} onKeyDown={(event) => { if (!publicView && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setSelection([node.id]); setEdgeSelection([]); setDrawingSelection([]); } }} />)}
+          {document.nodes.filter((node) => !collapsedNodeIds.has(node.id)).map((node) => <CanvasNode key={node.id} node={node} hiddenConnectionCount={document.edges.filter((edge) => (edge.source === node.id || edge.target === node.id) && edge.hidden).length} onShowHidden={() => showHiddenConnections(node.id)} selected={selection.includes(node.id)} connecting={connectionSource?.nodeId === node.id} dropTarget={connectionTargetId === node.id} editing={editingNode === node.id} onEdit={() => { if (!publicView && !["image", "arrow", "icon"].includes(node.type)) { setNodeToolbarMenu(null); setEditingNode(node.id); } }} onSaveEdit={(patch) => { const fitted = node.type === "text" && node.textFit !== "free" ? fittedTextDimensions(patch.label, node.fontSize || 24) : {}; updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, ...patch, ...fitted } : item) })); setEditingNode(null); }} onCancelEdit={() => setEditingNode(null)} onPointerDown={onNodePointerDown} onContextMenu={(event) => openNodeContextMenu(event, node)} onKeyDown={(event) => { if (!publicView && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setSelection([node.id]); setEdgeSelection([]); setDrawingSelection([]); } }} />)}
           <svg className="drawing-layer" width="4000" height="2400" viewBox="-1000 -600 4000 2400">
             {(document.drawings || []).filter((drawing) => drawing.stackLevel !== "back").map((drawing) => <DrawingStroke key={drawing.id} drawing={drawing} selected={drawingSelection.includes(drawing.id)} passive={spaceHeld || tool !== "select"} onSelect={(event) => onDrawingPointerDown(event, drawing)} onContextMenu={(event) => openDrawingContextMenu(event, drawing)} />)}
             {draftDrawing && <DrawingStroke drawing={draftDrawing} passive />}
@@ -2247,11 +2644,26 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
         {!publicView && selectedEdge && selectedEdgeScreenPoint && editingEdge === selectedEdge.id && <EdgeLabelEditor edge={selectedEdge} style={{ left: selectedEdgeScreenPoint.x, top: selectedEdgeScreenPoint.y }} onSave={(label) => { updateDocument((doc) => ({ ...doc, edges: doc.edges.map((edge) => edge.id === selectedEdge.id ? { ...edge, label } : edge) })); setEditingEdge(null); }} onCancel={() => setEditingEdge(null)} />}
         {annotationsVisible && selectedAnnotation && <AnnotationInspector floating style={annotationPanelStyle} annotation={selectedAnnotation} publicView={isPublicLink} canEdit={canManageAnnotation(selectedAnnotation.id)} canEditReply={(replyId) => canManageAnnotation(replyId)} onUpdate={(comment) => updateAnnotationComment(selectedAnnotation.id, comment)} onDelete={() => deleteAnnotation(selectedAnnotation.id)} onReply={(reply) => addAnnotationReply(selectedAnnotation.id, reply)} onUpdateReply={(replyId, comment) => mutateAnnotationReply(selectedAnnotation.id, replyId, "reply-update", comment)} onDeleteReply={(replyId) => mutateAnnotationReply(selectedAnnotation.id, replyId, "reply-delete")} onClose={() => setSelectedAnnotationId(null)} />}
         {pendingAnnotation && <AnnotationDialog publicView={isPublicLink} style={pendingAnnotationPanelStyle} onClose={() => setPendingAnnotation(null)} onAdd={addAnnotation} />}
-        {contextMenu && <CanvasContextMenu menu={contextMenu} onBack={() => changeStacking("back", contextMenu)} onFront={() => changeStacking("front", contextMenu)} />}
+        {contextMenu && <CanvasContextMenu
+          menu={contextMenu}
+          canGroup={(contextMenu.nodeIds.length + contextMenu.drawingIds.length) > 1}
+          canUngroup={[...document.nodes, ...(document.drawings || [])].some((item) => item.groupId && [...contextMenu.nodeIds, ...contextMenu.drawingIds].includes(item.id))}
+          onGroup={() => groupSelection(contextMenu)}
+          onUngroup={() => ungroupSelection(contextMenu)}
+          onDelete={() => { deleteSelection(); setContextMenu(null); }}
+          onExport={(format) => { exportDiagram(format, "selected"); setContextMenu(null); }}
+          onBack={() => changeStacking("back", contextMenu)}
+          onFront={() => changeStacking("front", contextMenu)}
+        />}
         <div className="zoom-controls">
-          <button onClick={() => setZoom((value) => Math.max(.35, value - .1))}><MagnifyingGlassMinus size={18} /></button>
-          <span>{Math.round(zoom * 100)}%</span>
-          <button onClick={() => setZoom((value) => Math.min(1.8, value + .1))}><MagnifyingGlassPlus size={18} /></button>
+          {zoomMenuOpen && <div className="zoom-menu" role="menu" onPointerDown={(event) => event.stopPropagation()}>
+            <button role="menuitem" onClick={zoomToContent}><span>Zoom to content</span><kbd>1</kbd></button>
+            <button role="menuitem" disabled={!selectedBounds} onClick={() => zoomToBounds(selectedBounds)}><span>Zoom to selection</span><kbd>2</kbd></button>
+            {[.5, .7, 1, 1.5, 2].map((value) => <button key={value} role="menuitem" className={Math.abs(zoom - value) < .01 ? "active" : ""} onClick={() => { zoomAtCenter(value); setZoomMenuOpen(false); }}><span>{Math.round(value * 100)}%</span><kbd>{value === .5 ? "5" : value === .7 ? "7" : value === 1 ? "0" : ""}</kbd></button>)}
+          </div>}
+          <button aria-label="Zoom out" title="Zoom out · ⌘−" onClick={() => zoomAtCenter(zoom - .1)}><MagnifyingGlassMinus size={18} /></button>
+          <button className="zoom-value-button" aria-haspopup="menu" aria-expanded={zoomMenuOpen} onClick={() => setZoomMenuOpen((open) => !open)}>{Math.round(zoom * 100)}%</button>
+          <button aria-label="Zoom in" title="Zoom in · ⌘+" onClick={() => zoomAtCenter(zoom + .1)}><MagnifyingGlassPlus size={18} /></button>
           <button title="Reset view" onClick={() => { setPan({ x: 80, y: 90 }); setZoom(.9); }}><ArrowsClockwise size={18} /></button>
         </div>
         <div className="canvas-hint">D draws · Shift straightens · Hold Space + drag to pan</div>
@@ -2262,7 +2674,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave }) {
       {exportOpen && <ExportPanel scope={exportScope} setScope={setExportScope} hasSelection={selection.length > 0 || drawingSelection.length > 0} onClose={() => setExportOpen(false)} onExport={exportDiagram} />}
     </div>
 
-    {shareOpen && <ShareDialog document={document} url={shareUrl} onToggle={toggleShare} onToggleGuestEditing={toggleGuestEditing} onClose={() => setShareOpen(false)} />}
+    {shareOpen && <ShareDialog document={document} url={shareUrl} publishing={saveState === "Saving…"} ready={saveState === "Saved"} onToggle={toggleShare} onToggleGuestEditing={toggleGuestEditing} onClose={() => setShareOpen(false)} />}
     {linkOpen && <LinkDialog onClose={() => setLinkOpen(false)} onAdd={(url) => { addLinkNode(url); setLinkOpen(false); }} />}
     {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
     {guestWelcomeOpen && <GuestWelcomeModal accessMode={publicView ? "viewer" : "editor"} onClose={() => setGuestWelcomeOpen(false)} />}
@@ -2312,6 +2724,7 @@ function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, conne
   const size = nodeDimensions(node);
   return <article className={`canvas-node ${node.type ? `node-type-${node.type}` : ""} ${node.isSvg ? "is-svg" : ""} ${node.cropAspect && node.cropAspect !== "original" ? "is-cropped" : ""} ${node.shape ? `shape-${node.shape}` : ""} ${selected ? "selected" : ""} ${connecting ? "connecting" : ""} ${dropTarget ? "connection-drop-target" : ""} ${editing ? "editing" : ""}`} role="button" tabIndex="0" data-node-id={node.id} aria-label={`${node.label}. ${node.subtitle || ""}. Press Enter to select, then Tab to add a connected node.`} style={{ left: node.x, top: node.y, width: size.width, height: size.height, zIndex: node.stackLevel === "front" ? 12 : node.stackLevel === "back" ? 1 : undefined, transform: node.type === "arrow" ? `rotate(${node.rotation || 0}deg)` : undefined, "--node-accent": tone.accent, "--node-soft": tone.soft, "--shape-fill": tone.accent, "--shape-text": shapeColors.text, "--shape-muted": shapeColors.muted, "--text-size": `${node.fontSize || 24}px`, "--text-background": node.textBackground || "transparent", "--text-align": node.textAlign || "left" }} onPointerDown={(event) => onPointerDown(event, node)} onContextMenu={onContextMenu} onKeyDown={editing ? undefined : onKeyDown} onDoubleClick={(event) => { event.stopPropagation(); onEdit(); }}>
     {node.type === "image" && (node.isGif || node.mimeType === "image/gif" ? <GifImageNode node={node} /> : <span className="image-node-viewport"><img src={node.imageData} alt={node.label || "Canvas image"} draggable="false" style={{ objectPosition: "50% 50%", transform: `scale(${node.cropZoom || 1})` }} /></span>)}
+    {node.type === "icon" && (() => { const HeroIcon = HeroOutlineIcons[node.iconName] || HeroOutlineIcons.SparklesIcon; return <HeroIcon className="standalone-icon" aria-hidden="true" />; })()}
     {node.type === "arrow" && (() => {
       const size = nodeDimensions(node);
       return <svg className="arrow-shape" viewBox={`0 0 ${size.width} ${size.height}`} aria-hidden="true" style={{ "--arrow-stroke": Math.max(2, size.height / 14.7) }}><line x1="4" y1={size.height / 2} x2={size.width - size.height * .36} y2={size.height / 2} /><polyline points={`${size.width - size.height * .68},${size.height * .18} ${size.width - size.height * .34},${size.height / 2} ${size.width - size.height * .68},${size.height * .82}`} /></svg>;
@@ -2326,7 +2739,7 @@ function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, conne
       {!node.type && <><span className="node-icon"><IconForNode name={node.icon} /></span><span className="node-copy"><strong>{node.label}</strong><small>{node.subtitle}</small></span></>}
     </>}
     <i className="node-port left" data-port="left" aria-hidden="true" /><i className="node-port right" data-port="right" aria-hidden="true" />
-    {node.shape === "decision" && <i className="node-port bottom" data-port="bottom" aria-hidden="true" />}
+    {node.shape === "decision" && <><i className="node-port top" data-port="top" aria-hidden="true" /><i className="node-port bottom" data-port="bottom" aria-hidden="true" /></>}
     {hiddenConnectionCount > 0 && <button className="hidden-connections-badge" aria-label={`Show ${hiddenConnectionCount} hidden ${hiddenConnectionCount === 1 ? "connection" : "connections"}`} title="Show hidden connections" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onShowHidden(); }}>+{hiddenConnectionCount}</button>}
   </article>;
 }
@@ -2339,7 +2752,7 @@ function InlineNodeEditor({ node, onSave, onCancel }) {
   const suggestedChoice = iconChoices.find((choice) => choice.id === suggestedIcon);
   const save = () => onSave({ label: label.trim() || "Untitled node", subtitle: subtitle.trim(), ...(!node.type ? { icon } : {}) });
   return <form className={`inline-node-editor ${node.type === "text" ? "text-only" : ""}`} onSubmit={(event) => { event.preventDefault(); save(); }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) save(); }} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
-    {node.type === "text" ? <textarea autoFocus aria-label="Edit text" value={label} wrap="soft" onChange={(event) => setLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }} /> : <input autoFocus aria-label="Node title" value={label} onChange={(event) => setLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }} />}
+    {node.type === "text" ? <textarea autoFocus aria-label="Edit text" value={label} wrap="soft" onFocus={(event) => { if (node.textFit === "auto" && label === "Add text") event.currentTarget.select(); }} onChange={(event) => setLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }} /> : <input autoFocus aria-label="Node title" value={label} onChange={(event) => setLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }} />}
     {node.type !== "text" && <textarea aria-label="Node description" value={subtitle} placeholder="Add a description" rows="2" onChange={(event) => setSubtitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); save(); } }} />}
     {!node.type && label.trim().length >= 2 && suggestedIcon !== icon && <button type="button" className="inline-icon-suggestion" onClick={() => setIcon(suggestedIcon)} title={`Use ${suggestedChoice?.label || "suggested"} icon`}><IconForNode name={suggestedIcon} size={15} /><span>Suggested: {suggestedChoice?.label}</span></button>}
   </form>;
@@ -2460,11 +2873,11 @@ function PagesPanel({ pages, activePageId, open, canManage, onToggle, onSwitch, 
   const finishRename = () => { if (editingId && name.trim()) onRename(editingId, name); setEditingId(null); };
   return <div className="pages-control" onPointerDown={(event) => event.stopPropagation()}>
     {open && <section className="pages-popover" aria-label="Canvas pages">
-      <div className="pages-heading"><div><strong>Pages</strong><span>{pages.length}</span></div>{canManage && <button aria-label="Add page" title="Add page" onClick={onAdd}><Plus size={16} /></button>}</div>
+      <div className="pages-heading"><div><strong>Pages</strong><span>{pages.length}</span></div>{canManage && <button aria-label="Add page" onClick={onAdd}><Plus size={16} /></button>}</div>
       <div className="pages-list">
         {pages.map((page, index) => <div key={page.id} className={`page-row ${page.id === activePageId ? "active" : ""}`}>
           {editingId === page.id ? <div className="page-select editing"><span>{index + 1}</span><input autoFocus value={name} maxLength="60" aria-label="Page name" onChange={(event) => setName(event.target.value)} onBlur={finishRename} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); finishRename(); } if (event.key === "Escape") { event.preventDefault(); setEditingId(null); } }} /></div> : <button className="page-select" onClick={() => onSwitch(page.id)} onDoubleClick={() => canManage && beginRename(page)}><span>{index + 1}</span><strong>{page.name}</strong></button>}
-          {canManage && editingId !== page.id && <div className="page-actions"><button aria-label={`Rename ${page.name}`} title="Rename page" onClick={() => beginRename(page)}><Pen size={13} /></button><button aria-label={`Delete ${page.name}`} title={pages.length === 1 ? "A canvas needs one page" : "Delete page"} disabled={pages.length === 1} onClick={() => { if (window.confirm(`Delete “${page.name}” and everything on it?`)) onDelete(page.id); }}><Trash size={13} /></button></div>}
+          {canManage && editingId !== page.id && <div className="page-actions"><button aria-label={`Rename ${page.name}`} onClick={() => beginRename(page)}><Pen size={13} /></button><button aria-label={`Delete ${page.name}`} disabled={pages.length === 1} onClick={() => { if (window.confirm(`Delete “${page.name}” and everything on it?`)) onDelete(page.id); }}><Trash size={13} /></button></div>}
         </div>)}
       </div>
     </section>}
@@ -2488,11 +2901,30 @@ function DrawingStroke({ drawing, selected, passive, onSelect, onContextMenu }) 
   return <g className={`drawing-stroke ${selected ? "selected" : ""}`} onPointerDown={(event) => { if (passive || event.button === 2) return; event.stopPropagation(); onSelect?.(event); }} onContextMenu={onContextMenu}><path className="drawing-hit" d={centerPath} /><path className="drawing-line" d={outlinePath} style={{ fill: drawing.color || "#3f4652" }} /></g>;
 }
 
-function CanvasContextMenu({ menu, onBack, onFront }) {
+function CanvasContextMenu({ menu, canGroup, canUngroup, onGroup, onUngroup, onDelete, onExport, onBack, onFront }) {
   return <div className="canvas-context-menu" role="menu" style={{ left: menu.x, top: menu.y }} onPointerDown={(event) => event.stopPropagation()}>
+    {canGroup && <button role="menuitem" onClick={onGroup}><span>Group selection</span><kbd>⌘ G</kbd></button>}
+    {canUngroup && <button role="menuitem" onClick={onUngroup}><span>Ungroup</span><kbd>⇧⌘ G</kbd></button>}
+    <div className="context-menu-label">Export selected</div>
+    <div className="context-export-row">{["jpg", "svg", "png", "gif"].map((format) => <button key={format} role="menuitem" onClick={() => onExport(format)}>{format.toUpperCase()}</button>)}</div>
     <button role="menuitem" onClick={onFront}><span>Bring to front</span><kbd>⌘ ]</kbd></button>
     <button role="menuitem" onClick={onBack}><span>Send to back</span><kbd>⌘ [</kbd></button>
+    <button className="danger" role="menuitem" onClick={onDelete}><span>Delete</span><kbd>⌫</kbd></button>
   </div>;
+}
+
+function IconBrowser({ onSelect, onClose }) {
+  const [query, setQuery] = useState("");
+  const icons = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return needle ? HERO_ICON_ENTRIES.filter(([name]) => name.toLowerCase().includes(needle)) : HERO_ICON_ENTRIES;
+  }, [query]);
+  return <aside className="icon-browser" aria-label="Heroicons browser">
+    <div className="icon-browser-head"><div><strong>Icons</strong><small>{icons.length} Heroicons</small></div><button aria-label="Close icon browser" onClick={onClose}><X size={16} /></button></div>
+    <label className="icon-browser-search"><MagnifyingGlassIcon width="16" /><input autoFocus value={query} placeholder="Search icons" onChange={(event) => setQuery(event.target.value)} /></label>
+    <div className={`icon-grid ${query.trim() ? "is-filtered" : ""}`}>{icons.map(([name, HeroIcon]) => <button key={name} title={name.replace(/Icon$/, "").replace(/([a-z])([A-Z])/g, "$1 $2")} aria-label={`Add ${name}`} onClick={() => onSelect(name)}><HeroIcon width="21" /></button>)}</div>
+    {!icons.length && <p className="icon-empty">No icons match “{query}”.</p>}
+  </aside>;
 }
 
 function SelectionFrame({ bounds, zoom, count, resizable = false, rotatable = false, rotation = 0, resizeLabel = "element", onResizeStart, onRotateStart }) {
@@ -2514,6 +2946,9 @@ function CanvasFeedback({ feedback }) {
   const content = {
     copied: { icon: <Copy size={17} />, label: `${itemLabel} copied` },
     pasted: { icon: <Check size={17} />, label: `${itemLabel} pasted` },
+    duplicated: { icon: <DocumentDuplicateIcon width="17" />, label: `${itemLabel} duplicated` },
+    grouped: { icon: <Squares2X2Icon width="17" />, label: `${itemLabel} grouped` },
+    ungrouped: { icon: <Squares2X2Icon width="17" />, label: `${itemLabel} ungrouped` },
     deleted: { icon: <Trash size={17} />, label: `${itemLabel} deleted` },
     imported: { icon: <FileText size={17} />, label: `${itemLabel} imported` },
   }[feedback.type];
@@ -2757,12 +3192,20 @@ function ShortcutsDialog({ onClose }) {
     ["L", "Link nodes"],
     ["N", "Add a node"],
     ["T", "Add a text block"],
+    ["I", "Open the Heroicons browser"],
     ["P", "Upload a picture"],
     ["S", "Add a basic arrow line"],
     ["K", "Add a website link"],
     ["D", "Draw with the pen tool"],
     ["A", "Add a numbered canvas annotation"],
+    ["⌘ / Ctrl + Z", "Undo"],
+    ["⇧⌘ Z / Ctrl + Y", "Redo"],
+    ["⌘ / Ctrl + X", "Redo (MyMind shortcut)"],
     ["⌘ / Ctrl + D", "Duplicate selected canvas elements"],
+    ["⌘ / Ctrl + G", "Group selected elements"],
+    ["⇧⌘ / Ctrl + G", "Ungroup selected elements"],
+    ["⌘ / Ctrl + +", "Zoom in around the canvas centre"],
+    ["⌘ / Ctrl + −", "Zoom out around the canvas centre"],
     ["⌘ / Ctrl + C", "Copy selected canvas elements"],
     ["⌘ / Ctrl + V", "Paste elements, links, or clipboard images"],
     ["⌘ / Ctrl + [", "Send selected elements to the back"],
@@ -2788,9 +3231,7 @@ function GuestWelcomeModal({ accessMode, onClose }) {
   return <div className="modal-backdrop guest-welcome-backdrop">
     <section className="modal guest-welcome-modal" role="dialog" aria-modal="true" aria-labelledby="guest-welcome-title">
       <div className="guest-welcome-art">
-        <video autoPlay muted loop playsInline preload="auto" poster={`${APP_BASE}assets/guest-welcome-mascot.png`} aria-label="A fuzzy blue character walking and waving hello">
-          <source src={`${APP_BASE}assets/guest-welcome-mascot-loop-v2.mp4`} type="video/mp4" />
-        </video>
+        <img src={`${APP_BASE}assets/mymind-cloud-welcome.webp`} alt="A fuzzy blue cloud mascot waving hello" />
         <span>{canEdit ? "Editing powers: unlocked ✨" : "Viewer mode: cozy & curious 👀"}</span>
       </div>
       <div className="guest-welcome-copy">
@@ -2827,26 +3268,44 @@ function ExportPanel({ scope, setScope, hasSelection, onClose, onExport }) {
       <button onClick={() => onExport("mymind")}><FileText size={27} weight="duotone" /><span><strong>MyMind</strong><small>Reopen and keep editing</small></span></button>
       <button onClick={() => onExport("pdf")}><FilePdf size={27} weight="duotone" /><span><strong>PDF</strong><small>Ready to present</small></span></button>
       <button onClick={() => onExport("jpg")}><FileJpg size={27} weight="duotone" /><span><strong>JPG</strong><small>Easy to share</small></span></button>
+      <button onClick={() => onExport("png")}><Photo size={27} weight="duotone" /><span><strong>PNG</strong><small>Crisp raster image</small></span></button>
+      <button onClick={() => onExport("gif")}><Play size={27} weight="duotone" /><span><strong>GIF</strong><small>Static GIF snapshot</small></span></button>
       <button onClick={() => onExport("svg")}><FileSvg size={27} weight="duotone" /><span><strong>SVG</strong><small>Editable vector</small></span></button>
     </div>
   </aside>;
 }
 
-function ShareDialog({ document, url, onToggle, onToggleGuestEditing, onClose }) {
+function ShareDialog({ document, url, publishing, ready: _ready, onToggle, onToggleGuestEditing, onClose }) {
   const [copied, setCopied] = useState(false);
-  const copy = async () => { await navigator.clipboard?.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1400); };
-  useModalKeyboard(onClose, document.shared ? copy : onToggle);
+  const linkReady = document.shared;
+  const copy = async () => {
+    if (!linkReady) return;
+    await navigator.clipboard?.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1400);
+  };
+  useModalKeyboard(onClose, linkReady ? copy : onToggle);
   return <div className="modal-backdrop" onMouseDown={onClose}><div className="modal share-modal" role="dialog" aria-modal="true" aria-labelledby="share-dialog-title" onMouseDown={(e) => e.stopPropagation()}>
     <div className="modal-header"><div><p className="eyebrow">Publish</p><h2 id="share-dialog-title">Share this canvas</h2></div><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={20} /></button></div>
-    <div className="share-status"><span className={document.shared ? "live" : ""}><ShareNetwork size={21} /></span><div><strong>{document.shared ? "Anyone with the link can access" : "This canvas is private"}</strong><small>{document.guestEditable ? "Guests can edit this canvas." : "Guests can view and comment."}</small></div><button className={`switch ${document.shared ? "on" : ""}`} aria-label="Toggle shared link" onClick={onToggle}><i /></button></div>
+    <div className="share-status"><span className={document.shared ? "live" : ""}><ShareNetwork size={21} /></span><div><strong>{publishing ? "Publishing shared link…" : document.shared ? "Anyone with the link can access" : "This canvas is private"}</strong><small>{document.guestEditable ? "Guests can edit this canvas." : "Guests can view and comment."}</small></div><button className={`switch ${document.shared ? "on" : ""}`} aria-label="Toggle shared link" disabled={publishing} onClick={onToggle}><i /></button></div>
     <div className={`share-status guest-edit-status ${!document.shared ? "disabled" : ""}`}><span className={document.guestEditable ? "live" : ""}><PencilIcon width="20" /></span><div><strong>Allow guest editing</strong><small>Anyone with the shared link can change canvas content.</small></div><button className={`switch ${document.guestEditable ? "on" : ""}`} aria-label="Toggle guest editing" disabled={!document.shared} onClick={onToggleGuestEditing}><i /></button></div>
-    <div className={`copy-field ${!document.shared ? "disabled" : ""}`}><span>{url}</span><button disabled={!document.shared} onClick={copy}>{copied ? <Check size={18} /> : <Copy size={18} />}{copied ? "Copied" : "Copy"}</button></div>
-    <p className="dialog-note">After deployment, this URL uses your own domain and the canvas slug.</p>
+    <div className={`copy-field ${!linkReady ? "disabled" : ""}`}><span>{url}</span><button disabled={!linkReady} onClick={copy}>{copied ? <Check size={18} /> : <Copy size={18} />}{copied ? "Copied" : "Copy"}</button></div>
   </div></div>;
+}
+
+function LoadingScreen({ message = "Loading…" }) {
+  return <div className="app-loading" role="status" aria-live="polite">
+    <Brand />
+    <div className="loading-card"><span><ArrowPathIcon width="24" /></span><strong>{message}</strong><small>Getting the latest version ready.</small></div>
+  </div>;
 }
 
 function NotFound() {
   return <div className="not-found"><Brand /><div><span><FolderOpen size={28} /></span><h1>Canvas not found</h1><p>This link may be private, deleted, or mistyped.</p><button className="primary-button" onClick={() => navigate("/")}>Go to dashboard</button></div></div>;
+}
+
+function ServiceUnavailable() {
+  return <div className="not-found"><Brand /><div><span><Database size={28} /></span><h1>Canvas is temporarily unavailable</h1><p>The shared canvas could not be loaded from the server. Your link may still be valid—please try again.</p><button className="primary-button" onClick={() => window.location.reload()}>Try again</button></div></div>;
 }
 
 function downloadBlob(blob, filename) {
@@ -2864,7 +3323,8 @@ function rasterizeSvg(svg, width, height, format, filename) {
   image.onload = () => {
     const canvas = window.document.createElement("canvas");
     const maxPixels = 16000000;
-    const scale = Math.min(2, 4096 / Math.max(width, height), Math.sqrt(maxPixels / Math.max(1, width * height)));
+    const maxDimension = format === "gif" ? 1600 : 4096;
+    const scale = Math.min(2, maxDimension / Math.max(width, height), Math.sqrt(maxPixels / Math.max(1, width * height)));
     canvas.width = Math.max(1, Math.round(width * scale));
     canvas.height = Math.max(1, Math.round(height * scale));
     const context = canvas.getContext("2d");
@@ -2877,6 +3337,11 @@ function rasterizeSvg(svg, width, height, format, filename) {
       anchor.href = jpg;
       anchor.download = `${filename}.jpg`;
       anchor.click();
+    } else if (format === "png") {
+      canvas.toBlob((blob) => blob && downloadBlob(blob, `${filename}.png`), "image/png");
+    } else if (format === "gif") {
+      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+      downloadBlob(encodeStaticGif(pixels, canvas.width, canvas.height), `${filename}.gif`);
     } else {
       const landscape = width >= height;
       const pageScale = Math.min(1, 14400 / Math.max(width, height));
@@ -2893,4 +3358,49 @@ function rasterizeSvg(svg, width, height, format, filename) {
     window.alert("MyMind could not rasterize this export. Try SVG or the editable MyMind format.");
   };
   image.src = source;
+}
+
+function encodeStaticGif(rgba, width, height) {
+  const bytes = [];
+  const pushText = (value) => [...value].forEach((char) => bytes.push(char.charCodeAt(0)));
+  const pushWord = (value) => bytes.push(value & 255, (value >> 8) & 255);
+  pushText("GIF89a");
+  pushWord(width); pushWord(height);
+  bytes.push(0xf7, 0, 0);
+  for (let index = 0; index < 256; index += 1) {
+    const red = (index >> 5) & 7;
+    const green = (index >> 2) & 7;
+    const blue = index & 3;
+    bytes.push(Math.round(red * 255 / 7), Math.round(green * 255 / 7), Math.round(blue * 255 / 3));
+  }
+  bytes.push(0x2c, 0, 0, 0, 0);
+  pushWord(width); pushWord(height);
+  bytes.push(0, 8);
+  const compressed = [];
+  let bitBuffer = 0;
+  let bitCount = 0;
+  const writeCode = (code) => {
+    bitBuffer |= code << bitCount;
+    bitCount += 9;
+    while (bitCount >= 8) {
+      compressed.push(bitBuffer & 255);
+      bitBuffer >>= 8;
+      bitCount -= 8;
+    }
+  };
+  writeCode(256);
+  let sinceClear = 0;
+  for (let offset = 0; offset < rgba.length; offset += 4) {
+    if (sinceClear >= 250) { writeCode(256); sinceClear = 0; }
+    writeCode(((rgba[offset] >> 5) << 5) | ((rgba[offset + 1] >> 5) << 2) | (rgba[offset + 2] >> 6));
+    sinceClear += 1;
+  }
+  writeCode(257);
+  if (bitCount) compressed.push(bitBuffer & 255);
+  for (let offset = 0; offset < compressed.length; offset += 255) {
+    const block = compressed.slice(offset, offset + 255);
+    bytes.push(block.length, ...block);
+  }
+  bytes.push(0, 0x3b);
+  return new Blob([new Uint8Array(bytes)], { type: "image/gif" });
 }

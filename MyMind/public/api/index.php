@@ -5,7 +5,13 @@ declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
 header('Cache-Control: no-store');
 
+ini_set('session.use_strict_mode', '1');
+session_name('MYMINDSESSID');
+$scriptPath = '/' . ltrim(str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? '/api/index.php')), '/');
+$sessionPath = preg_replace('#/(?:public/)?api/index\.php$#i', '', $scriptPath);
+if (!is_string($sessionPath) || $sessionPath === '') $sessionPath = '/';
 session_set_cookie_params([
+    'path' => $sessionPath,
     'httponly' => true,
     'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
     'samesite' => 'Strict',
@@ -21,7 +27,12 @@ function reply(array $payload, int $status = 200): never
 
 function body(): array
 {
-    $decoded = json_decode(file_get_contents('php://input') ?: '{}', true);
+    $raw = file_get_contents('php://input') ?: '{}';
+    if (strtolower((string) ($_SERVER['HTTP_CONTENT_ENCODING'] ?? '')) === 'gzip' && function_exists('gzdecode')) {
+        $decodedBody = gzdecode($raw);
+        if ($decodedBody !== false) $raw = $decodedBody;
+    }
+    $decoded = json_decode($raw, true);
     return is_array($decoded) ? $decoded : [];
 }
 
@@ -51,6 +62,19 @@ function graph_pages(array $graph): array
         ]];
     }
     return $pages;
+}
+
+function clean_page(array $page, int $index, array $existingAnnotations = [], array $deletedAnnotations = [], array $deletedReplies = []): array
+{
+    $pageId = substr((string) ($page['id'] ?? ('page-' . ($index + 1))), 0, 96);
+    return [
+        'id' => $pageId,
+        'name' => mb_substr(trim(strip_tags((string) ($page['name'] ?? ('Page ' . ($index + 1))))) ?: ('Page ' . ($index + 1)), 0, 60),
+        'nodes' => is_array($page['nodes'] ?? null) ? array_values($page['nodes']) : [],
+        'edges' => is_array($page['edges'] ?? null) ? array_values($page['edges']) : [],
+        'drawings' => is_array($page['drawings'] ?? null) ? array_values($page['drawings']) : [],
+        'annotations' => merge_annotations(is_array($page['annotations'] ?? null) ? $page['annotations'] : [], $existingAnnotations, $deletedAnnotations, $deletedReplies),
+    ];
 }
 
 function merge_annotations(array $incoming, array $existing, array $deletedAnnotations, array $deletedReplies): array
@@ -117,6 +141,7 @@ function document_from_row(array $row): array
         'guestEditable' => !empty($graph['guestEditable']),
         'folderId' => !empty($graph['folderId']) ? (string) $graph['folderId'] : null,
         'updatedAt' => $row['updated_at'],
+        'revision' => (int) ($row['revision'] ?? 0),
         'activePageId' => $activePageId,
         'pages' => $pages,
         'nodes' => is_array($activePage['nodes'] ?? null) ? $activePage['nodes'] : [],
@@ -124,6 +149,40 @@ function document_from_row(array $row): array
         'drawings' => is_array($activePage['drawings'] ?? null) ? $activePage['drawings'] : [],
         'annotations' => is_array($activePage['annotations'] ?? null) ? $activePage['annotations'] : [],
     ];
+}
+
+function ensure_sync_row(PDO $pdo, string $documentId): void
+{
+    $statement = $pdo->prepare('INSERT IGNORE INTO mind_document_sync (document_id, revision) VALUES (?, 0)');
+    $statement->execute([$documentId]);
+}
+
+function locked_revision(PDO $pdo, string $documentId): int
+{
+    ensure_sync_row($pdo, $documentId);
+    $statement = $pdo->prepare('SELECT revision FROM mind_document_sync WHERE document_id = ? FOR UPDATE');
+    $statement->execute([$documentId]);
+    return (int) ($statement->fetchColumn() ?: 0);
+}
+
+function bump_revision(PDO $pdo, string $documentId): int
+{
+    ensure_sync_row($pdo, $documentId);
+    $statement = $pdo->prepare('UPDATE mind_document_sync SET revision = revision + 1, updated_at = CURRENT_TIMESTAMP WHERE document_id = ?');
+    $statement->execute([$documentId]);
+    $statement = $pdo->prepare('SELECT revision FROM mind_document_sync WHERE document_id = ?');
+    $statement->execute([$documentId]);
+    return (int) ($statement->fetchColumn() ?: 0);
+}
+
+function revision_conflict(array $payload, int $currentRevision): bool
+{
+    return array_key_exists('baseRevision', $payload) && (int) $payload['baseRevision'] !== $currentRevision;
+}
+
+function document_select_columns(): string
+{
+    return 'd.id, d.title, d.slug, d.is_shared, d.graph_json, d.updated_at, COALESCE(s.revision, 0) AS revision';
 }
 
 function public_http_target(string $value): ?array
@@ -171,6 +230,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 $action = $_GET['action'] ?? 'list';
+
+if ($action === 'logout' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $_SESSION = [];
+    if (ini_get('session.use_cookies')) {
+        setcookie(session_name(), '', [
+            'expires' => time() - 42000,
+            'path' => $sessionPath,
+            'httponly' => true,
+            'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+            'samesite' => 'Strict',
+        ]);
+    }
+    session_destroy();
+    reply(['ok' => true]);
+}
 
 if ($action === 'youtube-thumbnail' && $_SERVER['REQUEST_METHOD'] === 'GET') {
     $videoId = trim((string) ($_GET['id'] ?? ''));
@@ -251,12 +325,22 @@ if (!is_file($configPath)) {
 
 try {
     $config = require $configPath;
-    $pdo = new PDO($config['dsn'], $config['username'], $config['password'], [
+    $requestHost = strtolower(preg_replace('/:\d+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? '')));
+    $useLocalDatabase = in_array($requestHost, ['localhost', '127.0.0.1', '::1'], true)
+        && isset($config['local_dsn'], $config['local_username'], $config['local_password']);
+    $pdo = new PDO(
+        $useLocalDatabase ? $config['local_dsn'] : $config['dsn'],
+        $useLocalDatabase ? $config['local_username'] : $config['username'],
+        $useLocalDatabase ? $config['local_password'] : $config['password'],
+        [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
-    ]);
+        ]
+    );
     $pdo->exec('CREATE TABLE IF NOT EXISTS mind_folders (id VARCHAR(96) PRIMARY KEY, name VARCHAR(120) NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+    $pdo->exec('CREATE TABLE IF NOT EXISTS mind_document_sync (document_id VARCHAR(96) PRIMARY KEY, revision BIGINT UNSIGNED NOT NULL DEFAULT 0, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+    $pdo->exec("CREATE TABLE IF NOT EXISTS mind_presence (document_id VARCHAR(96) NOT NULL, client_id VARCHAR(96) NOT NULL, display_name VARCHAR(80) NOT NULL, participant_role ENUM('owner','editor','viewer') NOT NULL DEFAULT 'viewer', last_seen TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (document_id, client_id), INDEX idx_mind_presence_seen (last_seen)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
     if ($action === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $payload = body();
@@ -269,10 +353,148 @@ try {
 
     if ($action === 'shared' && $_SERVER['REQUEST_METHOD'] === 'GET') {
         $slug = trim((string) ($_GET['slug'] ?? ''));
-        $statement = $pdo->prepare('SELECT id, title, slug, is_shared, graph_json, updated_at FROM mind_documents WHERE slug = ? AND is_shared = 1 LIMIT 1');
+        $statement = $pdo->prepare('SELECT ' . document_select_columns() . ' FROM mind_documents d LEFT JOIN mind_document_sync s ON s.document_id = d.id WHERE d.slug = ? AND d.is_shared = 1 LIMIT 1');
         $statement->execute([$slug]);
         $row = $statement->fetch();
         $row ? reply(['document' => document_from_row($row)]) : reply(['error' => 'Canvas not found'], 404);
+    }
+
+    if ($action === 'document' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+        $authenticated = !empty($_SESSION['mymind_authenticated']);
+        if ($authenticated) {
+            $id = substr(trim((string) ($_GET['id'] ?? '')), 0, 96);
+            $statement = $pdo->prepare('SELECT ' . document_select_columns() . ' FROM mind_documents d LEFT JOIN mind_document_sync s ON s.document_id = d.id WHERE d.id = ? LIMIT 1');
+            $statement->execute([$id]);
+        } else {
+            $slug = substr(trim((string) ($_GET['slug'] ?? '')), 0, 96);
+            $statement = $pdo->prepare('SELECT ' . document_select_columns() . ' FROM mind_documents d LEFT JOIN mind_document_sync s ON s.document_id = d.id WHERE d.slug = ? AND d.is_shared = 1 LIMIT 1');
+            $statement->execute([$slug]);
+        }
+        $row = $statement->fetch();
+        $row ? reply(['document' => document_from_row($row)]) : reply(['error' => 'Canvas not found'], 404);
+    }
+
+    if ($action === 'presence' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $payload = body();
+        $clientId = substr(preg_replace('/[^a-zA-Z0-9_-]/', '', (string) ($payload['clientId'] ?? '')), 0, 96);
+        if ($clientId === '') reply(['error' => 'Invalid presence client'], 422);
+        $authenticated = !empty($_SESSION['mymind_authenticated']);
+        if ($authenticated && !empty($payload['documentId'])) {
+            $statement = $pdo->prepare('SELECT id FROM mind_documents WHERE id = ? LIMIT 1');
+            $statement->execute([substr((string) $payload['documentId'], 0, 96)]);
+            $documentId = (string) ($statement->fetchColumn() ?: '');
+            $role = 'owner';
+            $displayName = 'Christine';
+        } else {
+            $statement = $pdo->prepare('SELECT id, graph_json FROM mind_documents WHERE slug = ? AND is_shared = 1 LIMIT 1');
+            $statement->execute([substr((string) ($payload['slug'] ?? ''), 0, 96)]);
+            $row = $statement->fetch();
+            $documentId = (string) ($row['id'] ?? '');
+            $graph = $row ? json_decode((string) $row['graph_json'], true) : null;
+            $role = is_array($graph) && !empty($graph['guestEditable']) ? 'editor' : 'viewer';
+            $displayName = $role === 'editor' ? 'Guest editor' : 'Guest viewer';
+        }
+        if ($documentId === '') reply(['error' => 'Canvas not found'], 404);
+        $pdo->prepare('DELETE FROM mind_presence WHERE last_seen < (CURRENT_TIMESTAMP - INTERVAL 2 MINUTE)')->execute();
+        $statement = $pdo->prepare('INSERT INTO mind_presence (document_id, client_id, display_name, participant_role, last_seen) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP) ON DUPLICATE KEY UPDATE display_name = VALUES(display_name), participant_role = VALUES(participant_role), last_seen = CURRENT_TIMESTAMP');
+        $statement->execute([$documentId, $clientId, $displayName, $role]);
+        $statement = $pdo->prepare('SELECT client_id, display_name, participant_role FROM mind_presence WHERE document_id = ? AND last_seen >= (CURRENT_TIMESTAMP - INTERVAL 30 SECOND) ORDER BY participant_role, display_name');
+        $statement->execute([$documentId]);
+        reply(['participants' => array_map(static fn (array $participant): array => [
+            'clientId' => $participant['client_id'],
+            'name' => $participant['display_name'],
+            'role' => $participant['participant_role'],
+        ], $statement->fetchAll())]);
+    }
+
+    if ($action === 'page-save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        if ((int) ($_SERVER['CONTENT_LENGTH'] ?? 0) > 25 * 1024 * 1024) reply(['error' => 'Canvas update is too large'], 413);
+        $payload = body();
+        $incoming = is_array($payload['document'] ?? null) ? $payload['document'] : [];
+        $incomingPage = is_array($incoming['page'] ?? null) ? $incoming['page'] : [];
+        $pageMeta = is_array($incoming['pages'] ?? null) ? array_values(array_filter($incoming['pages'], 'is_array')) : [];
+        if (!$incoming || !$incomingPage || empty($incomingPage['id']) || count($pageMeta) > 100) reply(['error' => 'Invalid page update'], 422);
+        $authenticated = !empty($_SESSION['mymind_authenticated']);
+
+        $pdo->beginTransaction();
+        if ($authenticated) {
+            $statement = $pdo->prepare('SELECT id, title, slug, is_shared, graph_json FROM mind_documents WHERE id = ? LIMIT 1 FOR UPDATE');
+            $statement->execute([substr((string) ($incoming['id'] ?? ''), 0, 96)]);
+        } else {
+            $statement = $pdo->prepare('SELECT id, title, slug, is_shared, graph_json FROM mind_documents WHERE slug = ? AND is_shared = 1 LIMIT 1 FOR UPDATE');
+            $statement->execute([substr((string) ($payload['slug'] ?? ''), 0, 96)]);
+        }
+        $row = $statement->fetch();
+        if (!$row) { $pdo->rollBack(); reply(['error' => 'Canvas not found'], 404); }
+        $graph = json_decode((string) $row['graph_json'], true);
+        if (!is_array($graph)) $graph = [];
+        if (!$authenticated && empty($graph['guestEditable'])) { $pdo->rollBack(); reply(['error' => 'Guest editing is disabled'], 403); }
+
+        $currentRevision = locked_revision($pdo, (string) $row['id']);
+        if (revision_conflict($payload, $currentRevision)) {
+            $pdo->rollBack();
+            reply(['error' => 'Canvas changed in another session', 'currentRevision' => $currentRevision], 409);
+        }
+
+        $existingPages = graph_pages($graph);
+        $existingById = [];
+        foreach ($existingPages as $page) if (!empty($page['id'])) $existingById[(string) $page['id']] = $page;
+        $incomingPageId = substr((string) $incomingPage['id'], 0, 96);
+        $deletedAnnotationIds = array_fill_keys(array_map('strval', is_array($incoming['deletedAnnotationIds'] ?? null) ? $incoming['deletedAnnotationIds'] : []), true);
+        $deletedReplyIds = array_fill_keys(array_map('strval', is_array($incoming['deletedReplyIds'] ?? null) ? $incoming['deletedReplyIds'] : []), true);
+        $pages = [];
+        foreach ($pageMeta as $index => $meta) {
+            $pageId = substr((string) ($meta['id'] ?? ''), 0, 96);
+            if ($pageId === '') continue;
+            if ($pageId === $incomingPageId) {
+                $incomingPage['name'] = (string) ($meta['name'] ?? ($incomingPage['name'] ?? 'Page ' . ($index + 1)));
+                $pages[] = clean_page($incomingPage, $index, is_array($existingById[$pageId]['annotations'] ?? null) ? $existingById[$pageId]['annotations'] : [], $deletedAnnotationIds, $deletedReplyIds);
+            } elseif (isset($existingById[$pageId])) {
+                $page = $existingById[$pageId];
+                $page['name'] = (string) ($meta['name'] ?? ($page['name'] ?? 'Page ' . ($index + 1)));
+                $pages[] = clean_page($page, $index, is_array($page['annotations'] ?? null) ? $page['annotations'] : []);
+            } else {
+                $pages[] = clean_page(['id' => $pageId, 'name' => (string) ($meta['name'] ?? 'Page ' . ($index + 1))], $index);
+            }
+        }
+        if (!array_filter($pages, static fn (array $page): bool => (string) $page['id'] === $incomingPageId)) {
+            $pages[] = clean_page($incomingPage, count($pages), is_array($existingById[$incomingPageId]['annotations'] ?? null) ? $existingById[$incomingPageId]['annotations'] : [], $deletedAnnotationIds, $deletedReplyIds);
+        }
+        if (!$pages) { $pdo->rollBack(); reply(['error' => 'Canvas needs at least one page'], 422); }
+
+        $totalItems = 0;
+        $totalPoints = 0;
+        foreach ($pages as $page) {
+            $totalItems += count($page['nodes']) + count($page['edges']) + count($page['drawings']);
+            foreach ($page['drawings'] as $drawing) $totalPoints += is_array($drawing['points'] ?? null) ? count($drawing['points']) : 0;
+        }
+        if ($totalItems > 100000 || $totalPoints > 2000000) { $pdo->rollBack(); reply(['error' => 'Canvas exceeds safe limits'], 422); }
+
+        $activePageId = substr((string) ($incoming['activePageId'] ?? $incomingPageId), 0, 96);
+        $activePage = $pages[0];
+        foreach ($pages as $page) if ((string) $page['id'] === $activePageId) { $activePage = $page; break; }
+        $graph['activePageId'] = (string) $activePage['id'];
+        $graph['pages'] = $pages;
+        $graph['nodes'] = $activePage['nodes'];
+        $graph['edges'] = $activePage['edges'];
+        $graph['drawings'] = $activePage['drawings'];
+        $graph['annotations'] = $activePage['annotations'];
+        if ($authenticated) {
+            $graph['folderId'] = !empty($incoming['folderId']) ? substr((string) $incoming['folderId'], 0, 96) : null;
+            $graph['guestEditable'] = !empty($incoming['guestEditable']);
+            $title = mb_substr(trim(strip_tags((string) ($incoming['title'] ?? $row['title']))) ?: 'Untitled canvas', 0, 255);
+            $slug = substr(trim((string) ($incoming['slug'] ?? $row['slug'])), 0, 96);
+            $shared = !empty($incoming['shared']) ? 1 : 0;
+        } else {
+            $title = mb_substr(trim(strip_tags((string) ($incoming['title'] ?? $row['title']))) ?: (string) $row['title'], 0, 255);
+            $slug = (string) $row['slug'];
+            $shared = 1;
+        }
+        $statement = $pdo->prepare('UPDATE mind_documents SET title = ?, slug = ?, is_shared = ?, graph_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+        $statement->execute([$title, $slug, $shared, json_encode($graph, JSON_UNESCAPED_SLASHES), $row['id']]);
+        $revision = bump_revision($pdo, (string) $row['id']);
+        $pdo->commit();
+        reply(['ok' => true, 'revision' => $revision]);
     }
 
     if ($action === 'guest-save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -288,6 +510,11 @@ try {
         if (!$row) { $pdo->rollBack(); reply(['error' => 'Canvas not found'], 404); }
         $graph = json_decode((string) $row['graph_json'], true);
         if (!is_array($graph) || empty($graph['guestEditable'])) { $pdo->rollBack(); reply(['error' => 'Guest editing is disabled'], 403); }
+        $currentRevision = locked_revision($pdo, (string) $row['id']);
+        if (revision_conflict($payload, $currentRevision)) {
+            $pdo->rollBack();
+            reply(['error' => 'Canvas changed in another session', 'currentRevision' => $currentRevision], 409);
+        }
 
         $pages = is_array($incoming['pages'] ?? null) && $incoming['pages'] ? array_values(array_filter($incoming['pages'], 'is_array')) : [[
             'id' => (string) ($incoming['activePageId'] ?? 'page-1'),
@@ -328,8 +555,9 @@ try {
         $title = mb_substr(trim(strip_tags((string) ($incoming['title'] ?? 'Untitled canvas'))) ?: 'Untitled canvas', 0, 255);
         $update = $pdo->prepare('UPDATE mind_documents SET title = ?, graph_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
         $update->execute([$title, json_encode($graph, JSON_UNESCAPED_SLASHES), $row['id']]);
+        $revision = bump_revision($pdo, (string) $row['id']);
         $pdo->commit();
-        reply(['ok' => true]);
+        reply(['ok' => true, 'revision' => $revision]);
     }
 
     if ($action === 'comment' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -376,10 +604,11 @@ try {
         if ((string) ($graph['activePageId'] ?? $pageId) === $pageId) $graph['annotations'] = $pages[$pageIndex]['annotations'];
         $update = $pdo->prepare('UPDATE mind_documents SET graph_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
         $update->execute([json_encode($graph, JSON_UNESCAPED_SLASHES), $row['id']]);
+        $revision = bump_revision($pdo, (string) $row['id']);
         $pdo->commit();
         $recentComments[] = $now;
         $_SESSION['mymind_comment_times'] = $recentComments;
-        reply(['annotation' => public_annotations([$annotation])[0], 'editToken' => $editToken]);
+        reply(['annotation' => public_annotations([$annotation])[0], 'editToken' => $editToken, 'revision' => $revision]);
     }
 
     if ($action === 'annotation' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -462,8 +691,9 @@ try {
         if ((string) ($graph['activePageId'] ?? $pageId) === $pageId) $graph['annotations'] = $annotations;
         $update = $pdo->prepare('UPDATE mind_documents SET graph_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
         $update->execute([json_encode($graph, JSON_UNESCAPED_SLASHES), $row['id']]);
+        $revision = bump_revision($pdo, (string) $row['id']);
         $pdo->commit();
-        $response = ['annotations' => public_annotations($annotations)];
+        $response = ['annotations' => public_annotations($annotations), 'revision' => $revision];
         if ($replyItem) $response += ['reply' => public_annotations([['replies' => [$replyItem]]])[0]['replies'][0], 'editToken' => $replyToken];
         reply($response);
     }
@@ -489,8 +719,7 @@ try {
         if (!is_dir($uploadDirectory) && !mkdir($uploadDirectory, 0755, true) && !is_dir($uploadDirectory)) reply(['error' => 'Upload directory unavailable'], 500);
         $filename = bin2hex(random_bytes(18)) . '.' . $extensions[$mime];
         if (!move_uploaded_file((string) $file['tmp_name'], $uploadDirectory . '/' . $filename)) reply(['error' => 'Could not store image'], 500);
-        $basePath = rtrim(str_replace('\\', '/', dirname(dirname((string) ($_SERVER['SCRIPT_NAME'] ?? '/api/index.php')))), '/');
-        reply(['url' => ($basePath ?: '') . '/uploads/' . $filename, 'mimeType' => $mime]);
+        reply(['url' => ($sessionPath === '/' ? '' : $sessionPath) . '/uploads/' . $filename, 'mimeType' => $mime]);
     }
 
     if (empty($_SESSION['mymind_authenticated'])) {
@@ -498,7 +727,7 @@ try {
     }
 
     if ($action === 'list' && $_SERVER['REQUEST_METHOD'] === 'GET') {
-        $rows = $pdo->query('SELECT id, title, slug, is_shared, graph_json, updated_at FROM mind_documents ORDER BY updated_at DESC')->fetchAll();
+        $rows = $pdo->query('SELECT ' . document_select_columns() . ' FROM mind_documents d LEFT JOIN mind_document_sync s ON s.document_id = d.id ORDER BY d.updated_at DESC')->fetchAll();
         $folders = $pdo->query('SELECT id, name FROM mind_folders ORDER BY name')->fetchAll();
         reply(['documents' => array_map('document_from_row', $rows), 'folders' => $folders]);
     }
@@ -582,7 +811,8 @@ try {
             ':shared' => !empty($document['shared']) ? 1 : 0,
             ':graph' => $graph,
         ]);
-        reply(['ok' => true]);
+        $revision = bump_revision($pdo, substr((string) $document['id'], 0, 96));
+        reply(['ok' => true, 'revision' => $revision]);
     }
 
     if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -591,11 +821,14 @@ try {
         if ($id === '') reply(['error' => 'Missing id'], 422);
         $statement = $pdo->prepare('DELETE FROM mind_documents WHERE id = ?');
         $statement->execute([$id]);
+        $pdo->prepare('DELETE FROM mind_document_sync WHERE document_id = ?')->execute([$id]);
+        $pdo->prepare('DELETE FROM mind_presence WHERE document_id = ?')->execute([$id]);
         reply(['ok' => true]);
     }
 
     reply(['error' => 'Unsupported action'], 404);
 } catch (Throwable $error) {
+    if (isset($pdo) && $pdo instanceof PDO && $pdo->inTransaction()) $pdo->rollBack();
     error_log('MyMind API error: ' . $error->getMessage());
     reply(['error' => 'Database request failed'], 500);
 }

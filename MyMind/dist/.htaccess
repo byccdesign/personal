@@ -1,4 +1,4 @@
-Options -MultiViews
+Options -Indexes -MultiViews
 RewriteEngine On
 
 # Deny direct HTTP access to secrets, database exports, and backup files.
