@@ -188,6 +188,12 @@ const ANNOTATION_TOKEN_KEY = "mymind.annotationTokens.v1";
 const PRESENCE_CLIENT_KEY = "mymind.presenceClient.v1";
 const NODE_SIZE = { width: 184, height: 82 };
 const APP_BASE = import.meta.env.BASE_URL.endsWith("/") ? import.meta.env.BASE_URL : `${import.meta.env.BASE_URL}/`;
+const AVATAR_COLORS = ["#596dec", "#8a70e8", "#43a6a1", "#d07b55", "#b56591", "#5e8bbf"];
+
+function participantAvatarColor(value, offset = 0) {
+  const hash = Array.from(String(value || "guest")).reduce((total, character) => total + character.charCodeAt(0), offset);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
 
 function presenceClientId() {
   try {
@@ -407,6 +413,7 @@ function mediaPreviewForUrl(value) {
 function edgeGeometry(edge, source, target, offsetX = 0, offsetY = 0) {
   const sourceSize = nodeDimensions(source), targetSize = nodeDimensions(target);
   const sourcePort = edge.sourcePort || "auto";
+  const targetPort = edge.targetPort || "auto";
   const goesRight = target.x >= source.x;
   let sx, sy;
   if (sourcePort === "top") { sx = source.x + sourceSize.width / 2; sy = source.y; }
@@ -416,14 +423,18 @@ function edgeGeometry(edge, source, target, offsetX = 0, offsetY = 0) {
   else { sx = goesRight ? source.x + sourceSize.width : source.x; sy = source.y + sourceSize.height / 2; }
 
   let tx, ty;
-  if (target.shape === "decision") { tx = target.x + targetSize.width / 2; ty = target.y; }
+  if (targetPort === "top") { tx = target.x + targetSize.width / 2; ty = target.y; }
+  else if (targetPort === "bottom") { tx = target.x + targetSize.width / 2; ty = target.y + targetSize.height; }
+  else if (targetPort === "left") { tx = target.x; ty = target.y + targetSize.height / 2; }
+  else if (targetPort === "right") { tx = target.x + targetSize.width; ty = target.y + targetSize.height / 2; }
+  else if (target.shape === "decision") { tx = target.x + targetSize.width / 2; ty = target.y; }
   else if (sourcePort === "bottom" && target.y >= source.y) { tx = target.x + targetSize.width / 2; ty = target.y; }
   else { tx = goesRight ? target.x : target.x + targetSize.width; ty = target.y + targetSize.height / 2; }
 
   sx -= offsetX; sy -= offsetY; tx -= offsetX; ty -= offsetY;
   const orthogonal = edge.routing === "orthogonal" || source.shape || target.shape;
   if (orthogonal) {
-    if (sourcePort === "bottom" || sourcePort === "top") {
+    if (sourcePort === "bottom" || sourcePort === "top" || (sourcePort === "auto" && (targetPort === "bottom" || targetPort === "top"))) {
       const midY = sy + (ty - sy) / 2;
       return { path: `M ${sx} ${sy} L ${sx} ${midY} L ${tx} ${midY} L ${tx} ${ty}`, labelX: sx === tx ? sx + 22 : (sx + tx) / 2, labelY: midY - 8, startX: sx, startY: sy, endX: tx, endY: ty };
     }
@@ -735,22 +746,47 @@ function writeLocalFolders(folders) {
   catch { /* The server remains the primary persistence layer. */ }
 }
 
-async function apiRequest(action, body) {
+async function apiRequest(action, body, { onProgress, signal } = {}) {
+  onProgress?.(8);
   const response = await fetch(`${APP_BASE}api/index.php?action=${action}`, {
     method: body ? "POST" : "GET",
     cache: "no-store",
     headers: body ? { "Content-Type": "application/json" } : undefined,
     body: body ? JSON.stringify(body) : undefined,
+    signal,
   });
+  onProgress?.(28);
+  let payload = null;
+  if (onProgress && response.body) {
+    const reader = response.body.getReader();
+    const expectedBytes = Number(response.headers.get("Content-Length") || 0);
+    const decoder = new TextDecoder();
+    const textChunks = [];
+    let receivedBytes = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      textChunks.push(decoder.decode(value, { stream: true }));
+      receivedBytes += value.byteLength;
+      const transferProgress = expectedBytes > 0
+        ? Math.min(92, 28 + (receivedBytes / expectedBytes) * 64)
+        : Math.min(88, 28 + Math.log2(receivedBytes / 16384 + 1) * 12);
+      onProgress(Math.round(transferProgress));
+    }
+    textChunks.push(decoder.decode());
+    const text = textChunks.join("");
+    try { payload = text ? JSON.parse(text) : null; } catch { payload = null; }
+    onProgress(96);
+  } else {
+    try { payload = await response.json(); } catch { payload = null; }
+  }
   if (!response.ok) {
-    let payload = null;
-    try { payload = await response.json(); } catch {}
     const error = new Error(payload?.error || "API unavailable");
     error.status = response.status;
     error.payload = payload;
     throw error;
   }
-  return response.json();
+  return payload;
 }
 
 function pageSaveDocument(document) {
@@ -898,6 +934,8 @@ export function App() {
   const [routeLoading, setRouteLoading] = useState(true);
   const [publicDocument, setPublicDocument] = useState(null);
   const [routeError, setRouteError] = useState(null);
+  const [loadProgress, setLoadProgress] = useState(6);
+  const [loadSlow, setLoadSlow] = useState(false);
 
   const acceptServerWorkspace = useCallback(async (data) => {
     const serverDocuments = Array.isArray(data.documents) ? data.documents : [];
@@ -925,34 +963,56 @@ export function App() {
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
+    const slowTimer = window.setTimeout(() => { if (active) setLoadSlow(true); }, 5000);
+    const progressTimer = window.setInterval(() => {
+      if (active) setLoadProgress((current) => Math.min(current + 2, 24));
+    }, 350);
     setRouteLoading(true);
+    setLoadProgress(6);
+    setLoadSlow(false);
     setRouteError(null);
     if (route.publicView) setPublicDocument(null);
     const onRoute = () => setRoute(routeFromPath());
     window.addEventListener("popstate", onRoute);
     const load = route.publicView
-      ? apiRequest(`shared&slug=${encodeURIComponent(route.slug || "")}`).then((data) => {
+      ? apiRequest(`shared&slug=${encodeURIComponent(route.slug || "")}`, undefined, { signal: controller.signal, onProgress: (progress) => active && setLoadProgress(progress) }).then((data) => {
           if (data.document && active) {
+            setLoadProgress(98);
             setPublicDocument(data.document);
             setDocuments((items) => items.some((item) => item.id === data.document.id) ? items.map((item) => item.id === data.document.id ? data.document : item) : [data.document, ...items]);
           }
         })
-      : apiRequest("list").then(async (data) => {
+      : apiRequest("list", undefined, { signal: controller.signal, onProgress: (progress) => active && setLoadProgress(progress) }).then(async (data) => {
           if (Array.isArray(data.documents) && active) {
             await acceptServerWorkspace(data);
+            setLoadProgress(98);
             setAuthRequired(false);
           }
         });
     load.catch((error) => {
-      if (!active) return;
+      if (!active || error.name === "AbortError") return;
       if (route.publicView) setRouteError(error.status === 404 ? "not-found" : "unavailable");
       else {
         setAuthRequired(true);
         setRouteError(error.status === 401 ? null : "unavailable");
       }
     })
-      .finally(() => { if (active) setRouteLoading(false); });
-    return () => { active = false; window.removeEventListener("popstate", onRoute); };
+      .finally(() => {
+        window.clearTimeout(slowTimer);
+        window.clearInterval(progressTimer);
+        if (active) {
+          setLoadProgress(100);
+          setRouteLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+      controller.abort();
+      window.clearTimeout(slowTimer);
+      window.clearInterval(progressTimer);
+      window.removeEventListener("popstate", onRoute);
+    };
   }, [acceptServerWorkspace, route.publicView, route.slug]);
 
   const commitDocuments = useCallback((updater) => {
@@ -1027,7 +1087,7 @@ export function App() {
     apiRequest("delete", { id }).catch(() => {});
   };
 
-  if (routeLoading) return <LoadingScreen message={route.publicView ? "Opening shared canvas…" : "Opening your workspace…"} />;
+  if (routeLoading) return <LoadingScreen message={route.publicView ? "Opening shared canvas…" : "Opening your workspace…"} progress={loadProgress} slow={loadSlow} />;
 
   if (authRequired && !route.publicView) {
     return <Login onLogin={async (password) => {
@@ -1117,11 +1177,42 @@ function Dashboard({ documents, folders, onNew, onImport, onDelete, onSaveFolder
   const [query, setQuery] = useState("");
   const [selectedFolder, setSelectedFolder] = useState("all");
   const [importing, setImporting] = useState(false);
+  const [editingFolderId, setEditingFolderId] = useState(null);
+  const [folderDraft, setFolderDraft] = useState("");
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const dashboardImportRef = useRef(null);
+  const folderEditCommittingRef = useRef(false);
   const filtered = documents.filter((doc) => doc.title.toLowerCase().includes(query.toLowerCase()) && (selectedFolder === "all" || (selectedFolder === "unfiled" ? !doc.folderId : doc.folderId === selectedFolder)));
-  const addFolder = () => {
-    const name = window.prompt("Folder name");
-    if (name?.trim()) onSaveFolder({ id: uid("folder"), name: name.trim() });
+  const beginFolderEdit = (folder = null) => {
+    folderEditCommittingRef.current = false;
+    setEditingFolderId(folder?.id || "new");
+    setFolderDraft(folder?.name || "New folder");
+  };
+  const finishFolderEdit = () => {
+    if (folderEditCommittingRef.current) return;
+    folderEditCommittingRef.current = true;
+    const name = folderDraft.trim();
+    if (name) {
+      const existing = folders.find((folder) => folder.id === editingFolderId);
+      onSaveFolder(existing ? { ...existing, name } : { id: uid("folder"), name });
+    }
+    setEditingFolderId(null);
+    setFolderDraft("");
+    window.requestAnimationFrame(() => { folderEditCommittingRef.current = false; });
+  };
+  const cancelFolderEdit = () => {
+    folderEditCommittingRef.current = true;
+    setEditingFolderId(null);
+    setFolderDraft("");
+    window.requestAnimationFrame(() => { folderEditCommittingRef.current = false; });
+  };
+  const confirmDashboardDelete = () => {
+    if (!confirmDelete) return;
+    if (confirmDelete.type === "folder") {
+      onDeleteFolder(confirmDelete.item.id);
+      if (selectedFolder === confirmDelete.item.id) setSelectedFolder("all");
+    } else onDelete(confirmDelete.item.id);
+    setConfirmDelete(null);
   };
   return (
     <div className="app-shell dashboard-shell">
@@ -1132,10 +1223,15 @@ function Dashboard({ documents, folders, onNew, onImport, onDelete, onSaveFolder
       </header>
       <div className="dashboard-body">
         <aside className="folder-sidebar" aria-label="Canvas folders">
-            <div className="folder-sidebar-heading"><strong>Folders</strong><button aria-label="Add folder" title="Add folder" onClick={addFolder}><Plus size={16} /></button></div>
+            <div className="folder-sidebar-heading"><strong>Folders</strong><button aria-label="Add folder" title="Add folder" onClick={() => beginFolderEdit()}><Plus size={16} /></button></div>
             <button className={selectedFolder === "all" ? "active" : ""} onClick={() => setSelectedFolder("all")}><Squares2X2Icon width="16" /><span>All canvases</span><small>{documents.length}</small></button>
             <button className={selectedFolder === "unfiled" ? "active" : ""} onClick={() => setSelectedFolder("unfiled")}><FolderOpen size={16} /><span>Unfiled</span></button>
-            <div className="folder-list">{folders.map((folder) => <div key={folder.id} className={`folder-row ${selectedFolder === folder.id ? "active" : ""}`}><button onClick={() => setSelectedFolder(folder.id)}><FolderOpen size={16} /><span>{folder.name}</span></button><div><button aria-label={`Rename ${folder.name}`} onClick={() => { const name = window.prompt("Rename folder", folder.name); if (name?.trim()) onSaveFolder({ ...folder, name: name.trim() }); }}><Pen size={13} /></button><button aria-label={`Delete ${folder.name}`} onClick={() => { if (window.confirm(`Delete “${folder.name}”? Its canvases will move to All canvases.`)) { onDeleteFolder(folder.id); if (selectedFolder === folder.id) setSelectedFolder("all"); } }}><Trash size={13} /></button></div></div>)}</div>
+            <div className="folder-list">
+              {editingFolderId === "new" && <form className="folder-row folder-edit-row" onSubmit={(event) => { event.preventDefault(); finishFolderEdit(); }}><FolderOpen size={16} /><input autoFocus value={folderDraft} aria-label="New folder name" onFocus={(event) => event.currentTarget.select()} onChange={(event) => setFolderDraft(event.target.value)} onBlur={finishFolderEdit} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); cancelFolderEdit(); } }} /></form>}
+              {folders.map((folder) => editingFolderId === folder.id
+                ? <form key={folder.id} className={`folder-row folder-edit-row ${selectedFolder === folder.id ? "active" : ""}`} onSubmit={(event) => { event.preventDefault(); finishFolderEdit(); }}><FolderOpen size={16} /><input autoFocus value={folderDraft} aria-label={`Rename ${folder.name}`} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setFolderDraft(event.target.value)} onBlur={finishFolderEdit} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); cancelFolderEdit(); } }} /></form>
+                : <div key={folder.id} className={`folder-row ${selectedFolder === folder.id ? "active" : ""}`}><button onClick={() => setSelectedFolder(folder.id)}><FolderOpen size={16} /><span>{folder.name}</span></button><div><button aria-label={`Rename ${folder.name}`} onClick={() => beginFolderEdit(folder)}><Pen size={13} /></button><button aria-label={`Delete ${folder.name}`} onClick={() => setConfirmDelete({ type: "folder", item: folder })}><Trash size={13} /></button></div></div>)}
+            </div>
         </aside>
         <main className="dashboard">
           <section className="dashboard-heading">
@@ -1156,13 +1252,14 @@ function Dashboard({ documents, folders, onNew, onImport, onDelete, onSaveFolder
           </section>
           <div className="dashboard-content">
             <section className="document-grid">
-              {filtered.map((doc) => <DocumentCard key={doc.id} document={doc} folders={folders} onMove={onMoveDocument} onDelete={onDelete} />)}
+              {filtered.map((doc) => <DocumentCard key={doc.id} document={doc} folders={folders} onMove={onMoveDocument} onDelete={() => setConfirmDelete({ type: "file", item: doc })} />)}
               <button className="new-card" onClick={onNew}><span><Plus size={22} /></span><strong>Create a canvas</strong><small>Start blank or use a template</small></button>
             </section>
           </div>
         </main>
       </div>
       {dialog && <TemplateDialog onClose={closeDialog} onCreate={createDocument} />}
+      {confirmDelete && <ConfirmDialog title={confirmDelete.type === "folder" ? `Delete “${confirmDelete.item.name}”?` : `Delete “${confirmDelete.item.title}”?`} message={confirmDelete.type === "folder" ? "The folder will be deleted. Its canvases will remain available in All canvases." : "This canvas and its saved content will be permanently deleted."} confirmLabel={confirmDelete.type === "folder" ? "Delete folder" : "Delete canvas"} onClose={() => setConfirmDelete(null)} onConfirm={confirmDashboardDelete} />}
     </div>
   );
 }
@@ -1210,7 +1307,7 @@ function DocumentCard({ document, folders, onMove, onDelete }) {
       </div>
       <div className="document-meta">
         <div><h2>{document.title}</h2><p>Updated {new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(document.updatedAt))}</p><div ref={folderPickerRef} className={`folder-picker ${folderOpen ? "open" : ""}`} onClick={(event) => event.stopPropagation()}><button type="button" className="folder-picker-trigger" aria-label={`Move ${document.title} to a folder`} aria-haspopup="listbox" aria-expanded={folderOpen} onClick={() => setFolderOpen((open) => !open)}><FolderOpen size={13} /><span>{selectedFolder?.name || "Unfiled"}</span><CaretDown size={11} /></button>{folderOpen && <div className="folder-picker-menu" role="listbox" aria-label={`Choose folder for ${document.title}`}><strong>Move to folder</strong><button role="option" aria-selected={!document.folderId} className={!document.folderId ? "selected" : ""} onClick={() => moveToFolder("")}><span className="folder-option-check">{!document.folderId && <Check size={13} />}</span><FolderOpen size={14} /><span>Unfiled</span></button>{folders.map((folder) => <button key={folder.id} role="option" aria-selected={document.folderId === folder.id} className={document.folderId === folder.id ? "selected" : ""} onClick={() => moveToFolder(folder.id)}><span className="folder-option-check">{document.folderId === folder.id && <Check size={13} />}</span><FolderOpen size={14} /><span>{folder.name}</span></button>)}</div>}</div></div>
-        <button className="card-delete" aria-label={`Delete ${document.title}`} onClick={(event) => { event.stopPropagation(); onDelete(document.id); }}><Trash size={17} /></button>
+        <button className="card-delete" aria-label={`Delete ${document.title}`} onClick={(event) => { event.stopPropagation(); onDelete(); }}><Trash size={17} /></button>
       </div>
       {document.shared && <span className="shared-badge"><ShareNetwork size={13} /> Shared</span>}
     </article>
@@ -1221,12 +1318,23 @@ function TemplateDialog({ onClose, onCreate }) {
   useModalKeyboard(onClose, () => onCreate("blank"));
   return <div className="modal-backdrop" onMouseDown={onClose}>
     <div className="modal template-modal" role="dialog" aria-modal="true" aria-labelledby="template-dialog-title" onMouseDown={(e) => e.stopPropagation()}>
-      <div className="modal-header"><div><p className="eyebrow">Create new</p><h2 id="template-dialog-title">Choose a starting point</h2></div><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={20} /></button></div>
+      <div className="modal-header"><h2 id="template-dialog-title">Choose a starting point</h2><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={20} /></button></div>
       <div className="template-grid">
         <button onClick={() => onCreate("blank")}><span className="template-icon"><Plus size={25} /></span><strong>Blank canvas</strong><small>Begin with one central idea</small></button>
         <button onClick={() => onCreate("mind")}><span className="template-icon violet"><Brain size={25} /></span><strong>Mind map</strong><small>Branch thoughts from a core idea</small></button>
         <button onClick={() => onCreate("process")}><span className="template-icon aqua"><FlowArrow size={25} /></span><strong>Process flow</strong><small>Explain a system step by step</small></button>
       </div>
+    </div>
+  </div>;
+}
+
+function ConfirmDialog({ title, message, confirmLabel, onClose, onConfirm }) {
+  useModalKeyboard(onClose, onConfirm);
+  return <div className="modal-backdrop" onMouseDown={onClose}>
+    <div className="modal compact-modal confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-message" onMouseDown={(event) => event.stopPropagation()}>
+      <div className="modal-header"><h2 id="confirm-dialog-title">{title}</h2><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={17} /></button></div>
+      <p id="confirm-dialog-message">{message}</p>
+      <div className="modal-actions"><button className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button danger-button" autoFocus onClick={onConfirm}><Trash size={15} /> {confirmLabel}</button></div>
     </div>
   </div>;
 }
@@ -1248,6 +1356,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
   const [connectionSource, setConnectionSource] = useState(null);
   const [connectionPreview, setConnectionPreview] = useState(null);
   const [connectionTargetId, setConnectionTargetId] = useState(null);
+  const [connectionTargetPort, setConnectionTargetPort] = useState(null);
   const [reconnectPreview, setReconnectPreview] = useState(null);
   const [nodeMenu, setNodeMenu] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
@@ -1255,6 +1364,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
   const [shareOpen, setShareOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
+  const [imageSourceOpen, setImageSourceOpen] = useState(false);
   const [saveState, setSaveState] = useState("Saved");
   const [editingNode, setEditingNode] = useState(null);
   const [editingEdge, setEditingEdge] = useState(null);
@@ -1268,6 +1378,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
   const [feedback, setFeedback] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [rotationFeedback, setRotationFeedback] = useState(null);
+  const [rotationModeId, setRotationModeId] = useState(null);
   const [mediaUpload, setMediaUpload] = useState(null);
   const [guestWelcomeOpen, setGuestWelcomeOpen] = useState(isPublicLink);
   const [participants, setParticipants] = useState([]);
@@ -1341,11 +1452,18 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     });
   }, [finishSave, publicView]);
 
+  const showFeedback = useCallback((type, count = 1) => {
+    clearTimeout(feedbackTimer.current);
+    setFeedback({ id: Date.now(), type, count });
+    feedbackTimer.current = setTimeout(() => setFeedback(null), 1800);
+  }, []);
+
   const applyHistory = useCallback((direction) => {
     if (publicView) return;
+    const source = direction === "undo" ? historyRef.current.past : historyRef.current.future;
+    if (!source.length) return;
+    showFeedback(direction);
     setDocument((current) => {
-      const source = direction === "undo" ? historyRef.current.past : historyRef.current.future;
-      if (!source.length) return current;
       const next = syncActivePage({ ...source[source.length - 1], updatedAt: new Date().toISOString() });
       const destination = direction === "undo" ? "future" : "past";
       historyRef.current[direction === "undo" ? "past" : "future"] = source.slice(0, -1);
@@ -1362,7 +1480,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
       return next;
     });
     setContextMenu(null);
-  }, [finishSave, publicView]);
+  }, [finishSave, publicView, showFeedback]);
 
   useEffect(() => {
     onSaveRef.current = onSave;
@@ -1409,12 +1527,6 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     return () => { stopped = true; window.clearInterval(timer); };
   }, [collaborationEnabled, publicView]);
 
-  const showFeedback = useCallback((type, count = 1) => {
-    clearTimeout(feedbackTimer.current);
-    setFeedback({ id: Date.now(), type, count });
-    feedbackTimer.current = setTimeout(() => setFeedback(null), 1800);
-  }, []);
-
   const clearCanvasSelection = () => {
     setSelection([]);
     setEdgeSelection([]);
@@ -1423,6 +1535,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     setEditingNode(null);
     setEditingEdge(null);
     setConnectionSource(null);
+    setRotationModeId(null);
   };
 
   const switchPage = (pageId) => {
@@ -1461,6 +1574,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     if (!connectionSource) {
       setConnectionPreview(null);
       setConnectionTargetId(null);
+      setConnectionTargetPort(null);
     }
   }, [connectionSource]);
 
@@ -1519,11 +1633,11 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     const width = 220;
     const x = (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - width / 2;
     const y = (canvasRef.current?.clientHeight / 2 - pan.y) / zoom - 22;
-    const node = { id: uid("arrow"), type: "arrow", x, y, width, color: "slate", label: "Arrow line" };
+    const node = { id: uid("arrow"), type: "arrow", x, y, width, height: 44, color: "slate", lineStyle: "solid", label: "Arrow line" };
     updateDocument((doc) => ({ ...doc, nodes: [...doc.nodes, node] }));
     setSelection([node.id]);
     setEdgeSelection([]);
-    if (!event.shiftKey) setDrawingSelection([]);
+    setDrawingSelection([]);
   }, [pan.x, pan.y, updateDocument, zoom]);
 
   const addImageFile = useCallback(async (file, clientPoint) => {
@@ -1560,6 +1674,59 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
       }
     }
   }, [document.slug, isPublicLink, pan.x, pan.y, publicView, updateDocument, zoom]);
+
+  const addImageUrl = useCallback(async (value) => {
+    if (publicView) return;
+    const imageUrl = normaliseLinkUrl(value);
+    if (!imageUrl) throw new Error("Enter a valid image URL.");
+    setMediaUpload({ name: imageUrl, progress: 18, status: "Checking image…" });
+    let image;
+    try {
+      image = await new Promise((resolve, reject) => {
+        const probe = new Image();
+        const timer = window.setTimeout(() => reject(new Error("The image took too long to respond.")), 8000);
+        probe.onload = () => {
+          window.clearTimeout(timer);
+          resolve({ width: probe.naturalWidth || 1, height: probe.naturalHeight || 1 });
+        };
+        probe.onerror = () => {
+          window.clearTimeout(timer);
+          reject(new Error("That URL did not return a usable image."));
+        };
+        probe.referrerPolicy = "no-referrer";
+        probe.src = imageUrl;
+      });
+    } catch (error) {
+      setMediaUpload({ name: imageUrl, progress: 0, status: error instanceof Error ? error.message : "Image could not be loaded.", error: true });
+      window.setTimeout(() => setMediaUpload(null), 3200);
+      throw error;
+    }
+    const width = 280;
+    const aspectRatio = image.width / image.height;
+    const node = {
+      id: uid("image"),
+      type: "image",
+      x: (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - width / 2,
+      y: (canvasRef.current?.clientHeight / 2 - pan.y) / zoom - (width / aspectRatio) / 2,
+      label: new URL(imageUrl).pathname.split("/").pop()?.replace(/\.[^.]+$/, "") || "Remote image",
+      imageData: imageUrl,
+      aspectRatio,
+      mimeType: "image/remote",
+      isSvg: /\.svg(?:$|[?#])/i.test(imageUrl),
+      isGif: /\.gif(?:$|[?#])/i.test(imageUrl),
+      width,
+      cropAspect: "original",
+      cropZoom: 1,
+      cropX: 50,
+      cropY: 50,
+    };
+    updateDocument((doc) => ({ ...doc, nodes: [...doc.nodes, node] }));
+    setSelection([node.id]);
+    setEdgeSelection([]);
+    setDrawingSelection([]);
+    setMediaUpload({ name: node.label, progress: 100, status: "Image added" });
+    window.setTimeout(() => setMediaUpload(null), 900);
+  }, [pan.x, pan.y, publicView, updateDocument, zoom]);
 
   const addLinkNode = useCallback(async (value) => {
     if (publicView) return;
@@ -1690,14 +1857,14 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     requestAnimationFrame(() => window.document.querySelector(`[data-node-id="${node.id}"]`)?.focus());
   }, [document.edges, document.nodes, publicView, updateDocument]);
 
-  const createConnection = (sourceInfo, targetNode) => {
+  const createConnection = (sourceInfo, targetNode, targetPort = "auto") => {
     if (!sourceInfo || !targetNode || sourceInfo.nodeId === targetNode.id) return false;
     const edgeId = uid("edge");
     const sourceNode = document.nodes.find((item) => item.id === sourceInfo.nodeId);
     if (!sourceNode) return false;
     const isFlowchart = !!(sourceNode.shape || targetNode.shape);
     const label = sourceNode.shape === "decision" ? (sourceInfo.port === "bottom" ? "No" : "Yes") : "";
-    updateDocument((doc) => ({ ...doc, edges: [...doc.edges, { id: edgeId, source: sourceInfo.nodeId, target: targetNode.id, label, sourcePort: sourceInfo.port, ...(isFlowchart ? { routing: "orthogonal" } : {}) }] }));
+    updateDocument((doc) => ({ ...doc, edges: [...doc.edges, { id: edgeId, source: sourceInfo.nodeId, target: targetNode.id, label, sourcePort: sourceInfo.port, targetPort, ...(isFlowchart ? { routing: "orthogonal" } : {}) }] }));
     setConnectionSource(null);
     setTool("select");
     setSelection([]);
@@ -1779,6 +1946,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     if (tool === "annotate") { beginAnnotation(event.clientX, event.clientY); return; }
     setSelectedAnnotationId(null);
     if (publicView) return;
+    setRotationModeId(null);
     const clickedPort = event.target instanceof Element && event.target.classList.contains("node-port");
     if (clickedPort && !connectionSource) {
       const bounds = canvasRef.current.getBoundingClientRect();
@@ -1802,7 +1970,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
         dragRef.current = { type: "connect", source: sourceInfo, startX: event.clientX, startY: event.clientY, moved: false };
         event.currentTarget.setPointerCapture(event.pointerId);
       } else if (connectionSource.nodeId !== node.id) {
-        createConnection(connectionSource, node);
+        createConnection(connectionSource, node, clickedPort ? event.target.dataset.port || "auto" : "auto");
       }
       return;
     }
@@ -1843,7 +2011,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
   };
 
   const startElementResize = (corner, event) => {
-    const node = selection.length === 1 ? document.nodes.find((item) => item.id === selection[0] && ["image", "text", "arrow"].includes(item.type)) : null;
+    const node = selection.length === 1 ? document.nodes.find((item) => item.id === selection[0] && ["image", "text", "arrow", "icon"].includes(item.type)) : null;
     if (!node) return;
     event.preventDefault();
     event.stopPropagation();
@@ -1858,6 +2026,11 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
       signY,
       width: size.width,
       height: size.height,
+      startX: event.clientX,
+      startY: event.clientY,
+      rotation: Number(node.rotation || 0),
+      centerX: node.x + size.width / 2,
+      centerY: node.y + size.height / 2,
       anchorX: signX < 0 ? node.x + size.width : node.x,
       anchorY: signY < 0 ? node.y + size.height : node.y,
     };
@@ -1900,17 +2073,35 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
       const extentY = (point.y - drag.anchorY) * drag.signY;
       let width;
       let height;
-      if (drag.elementType === "image") {
+      let x;
+      let y;
+      if (drag.elementType === "arrow") {
+        const radians = drag.rotation * Math.PI / 180;
+        const axisX = Math.cos(radians);
+        const axisY = Math.sin(radians);
+        const pointerDelta = ((event.clientX - drag.startX) / zoom) * axisX + ((event.clientY - drag.startY) / zoom) * axisY;
+        width = Math.max(80, Math.min(1600, drag.width + pointerDelta * drag.signX));
+        height = drag.height;
+        const fixedX = drag.centerX - axisX * drag.width * drag.signX / 2;
+        const fixedY = drag.centerY - axisY * drag.width * drag.signX / 2;
+        const nextCenterX = fixedX + axisX * width * drag.signX / 2;
+        const nextCenterY = fixedY + axisY * width * drag.signX / 2;
+        x = nextCenterX - width / 2;
+        y = nextCenterY - height / 2;
+      } else if (["image", "icon"].includes(drag.elementType)) {
         const projectedScale = (extentX * drag.width + extentY * drag.height) / (drag.width ** 2 + drag.height ** 2);
-        width = Math.max(80, Math.min(1600, drag.width * projectedScale));
+        const minimum = drag.elementType === "icon" ? 32 : 80;
+        width = Math.max(minimum, Math.min(1600, drag.width * projectedScale));
         height = width * (drag.height / drag.width);
+        x = drag.signX < 0 ? drag.anchorX - width : drag.anchorX;
+        y = drag.signY < 0 ? drag.anchorY - height : drag.anchorY;
       } else {
         width = Math.max(80, Math.min(1600, extentX));
-        height = Math.max(drag.elementType === "arrow" ? 20 : 40, Math.min(1200, extentY));
+        height = Math.max(40, Math.min(1200, extentY));
+        x = drag.signX < 0 ? drag.anchorX - width : drag.anchorX;
+        y = drag.signY < 0 ? drag.anchorY - height : drag.anchorY;
       }
-      const x = drag.signX < 0 ? drag.anchorX - width : drag.anchorX;
-      const y = drag.signY < 0 ? drag.anchorY - height : drag.anchorY;
-      updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === drag.id ? { ...node, x, y, width, ...(["text", "arrow"].includes(drag.elementType) ? { height } : {}), ...(drag.elementType === "text" ? { textFit: "free" } : {}) } : node) }));
+      updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === drag.id ? { ...node, x, y, width, ...(["text", "arrow", "icon"].includes(drag.elementType) ? { height } : {}), ...(drag.elementType === "text" ? { textFit: "free" } : {}) } : node) }));
       return;
     }
     if (draftDrawing) {
@@ -1942,19 +2133,25 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     if (dragRef.current?.type === "reconnect") {
       const bounds = canvasRef.current.getBoundingClientRect();
       setReconnectPreview((current) => current ? { ...current, point: { x: (event.clientX - bounds.left - pan.x) / zoom, y: (event.clientY - bounds.top - pan.y) / zoom } } : current);
-      const hoveredNode = window.document.elementFromPoint(event.clientX, event.clientY)?.closest?.("[data-node-id]");
+      const hitElement = window.document.elementFromPoint(event.clientX, event.clientY);
+      const hoveredNode = hitElement?.closest?.("[data-node-id]");
       const edge = document.edges.find((item) => item.id === dragRef.current.edgeId);
       const blockedId = dragRef.current.side === "target" ? edge?.source : edge?.target;
       const hoveredId = hoveredNode?.dataset.nodeId;
-      setConnectionTargetId(hoveredId && hoveredId !== blockedId ? hoveredId : null);
+      const validTarget = hoveredId && hoveredId !== blockedId;
+      setConnectionTargetId(validTarget ? hoveredId : null);
+      setConnectionTargetPort(validTarget ? hitElement?.closest?.(".node-port")?.dataset.port || "auto" : null);
       return;
     }
     if (connectionSource) {
       const bounds = canvasRef.current.getBoundingClientRect();
       setConnectionPreview({ x: (event.clientX - bounds.left - pan.x) / zoom, y: (event.clientY - bounds.top - pan.y) / zoom });
-      const hoveredNode = window.document.elementFromPoint(event.clientX, event.clientY)?.closest?.("[data-node-id]");
+      const hitElement = window.document.elementFromPoint(event.clientX, event.clientY);
+      const hoveredNode = hitElement?.closest?.("[data-node-id]");
       const hoveredId = hoveredNode?.dataset.nodeId;
-      setConnectionTargetId(hoveredId && hoveredId !== connectionSource.nodeId ? hoveredId : null);
+      const validTarget = hoveredId && hoveredId !== connectionSource.nodeId;
+      setConnectionTargetId(validTarget ? hoveredId : null);
+      setConnectionTargetPort(validTarget ? hitElement?.closest?.(".node-port")?.dataset.port || "auto" : null);
       if (dragRef.current?.type === "connect" && Math.hypot(event.clientX - dragRef.current.startX, event.clientY - dragRef.current.startY) > 4) dragRef.current.moved = true;
     }
     const drag = dragRef.current;
@@ -1976,6 +2173,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     const drag = dragRef.current;
     if (drag?.type === "element-rotate") {
       setRotationFeedback(null);
+      setRotationModeId(null);
       dragRef.current = null;
       return;
     }
@@ -1995,30 +2193,36 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     }
     if (drag?.type === "reconnect") {
       const edge = document.edges.find((item) => item.id === drag.edgeId);
-      const targetElement = event?.type !== "pointercancel" ? window.document.elementFromPoint(event.clientX, event.clientY)?.closest?.("[data-node-id]") : null;
+      const hitElement = event?.type !== "pointercancel" ? window.document.elementFromPoint(event.clientX, event.clientY) : null;
+      const targetElement = hitElement?.closest?.("[data-node-id]");
       const droppedNode = targetElement ? document.nodes.find((node) => node.id === targetElement.dataset.nodeId) : null;
+      const droppedPort = hitElement?.closest?.(".node-port")?.dataset.port || "auto";
       const blockedId = drag.side === "target" ? edge?.source : edge?.target;
       if (edge && droppedNode && droppedNode.id !== blockedId) {
         const sourceId = drag.side === "source" ? droppedNode.id : edge.source;
         const targetId = drag.side === "target" ? droppedNode.id : edge.target;
         const sourceNode = document.nodes.find((node) => node.id === sourceId);
         const targetNode = document.nodes.find((node) => node.id === targetId);
-        updateDocument((doc) => ({ ...doc, edges: doc.edges.map((item) => item.id === edge.id ? { ...item, source: sourceId, target: targetId, sourcePort: drag.side === "source" ? "auto" : item.sourcePort, routing: sourceNode?.shape || targetNode?.shape ? "orthogonal" : undefined } : item) }));
+        updateDocument((doc) => ({ ...doc, edges: doc.edges.map((item) => item.id === edge.id ? { ...item, source: sourceId, target: targetId, sourcePort: drag.side === "source" ? droppedPort : item.sourcePort, targetPort: drag.side === "target" ? droppedPort : item.targetPort, routing: sourceNode?.shape || targetNode?.shape ? "orthogonal" : undefined } : item) }));
       }
       setReconnectPreview(null);
       setConnectionTargetId(null);
+      setConnectionTargetPort(null);
       dragRef.current = null;
       return;
     }
     if (drag?.type === "connect") {
-      const targetElement = event?.type !== "pointercancel" ? window.document.elementFromPoint(event.clientX, event.clientY)?.closest?.("[data-node-id]") : null;
+      const hitElement = event?.type !== "pointercancel" ? window.document.elementFromPoint(event.clientX, event.clientY) : null;
+      const targetElement = hitElement?.closest?.("[data-node-id]");
       const targetNode = targetElement ? document.nodes.find((node) => node.id === targetElement.dataset.nodeId) : null;
-      const connected = targetNode ? createConnection(drag.source, targetNode) : false;
+      const targetPort = hitElement?.closest?.(".node-port")?.dataset.port || connectionTargetPort || "auto";
+      const connected = targetNode ? createConnection(drag.source, targetNode, targetPort) : false;
       if (!connected && (drag.moved || event?.type === "pointercancel")) {
         setConnectionSource(null);
         setTool("select");
       }
       setConnectionTargetId(null);
+      setConnectionTargetPort(null);
       dragRef.current = null;
       return;
     }
@@ -2200,7 +2404,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     const drawingIds = keepGroup ? drawingSelection : [];
     if (!keepGroup) { setSelection([node.id]); setDrawingSelection([]); setEdgeSelection([]); }
     const bounds = canvasRef.current?.getBoundingClientRect();
-    setContextMenu({ x: Math.max(8, Math.min((bounds?.width || 900) - 224, event.clientX - (bounds?.left || 0))), y: Math.max(8, Math.min((bounds?.height || 700) - 278, event.clientY - (bounds?.top || 0))), nodeIds, drawingIds });
+    setContextMenu({ x: Math.max(8, Math.min((bounds?.width || 900) - 224, event.clientX - (bounds?.left || 0))), y: Math.max(8, Math.min((bounds?.height || 700) - 278, event.clientY - (bounds?.top || 0))), nodeIds, drawingIds, rotateNodeId: node.type === "arrow" ? node.id : null });
   };
 
   const openDrawingContextMenu = (event, drawing) => {
@@ -2246,7 +2450,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     const onKey = (event) => {
       if ((event.key === "Backspace" || event.key === "Delete") && !["INPUT", "TEXTAREA"].includes(window.document.activeElement?.tagName)) deleteSelection();
       if ((event.metaKey || event.ctrlKey) && event.key === "0") { event.preventDefault(); setPan({ x: 80, y: 90 }); setZoom(.9); }
-      const modalOpen = editingNode || editingEdge || exportOpen || shareOpen || shortcutsOpen || linkOpen || pendingAnnotation;
+      const modalOpen = editingNode || editingEdge || exportOpen || shareOpen || shortcutsOpen || linkOpen || imageSourceOpen || pendingAnnotation;
       const activeTag = window.document.activeElement?.tagName;
       const selectedSource = selection.length === 1 ? selection[0] : (document.nodes.length === 1 ? document.nodes[0].id : null);
       if (event.key === "Tab" && selectedSource && !publicView && !modalOpen && !["INPUT", "TEXTAREA", "BUTTON", "SELECT"].includes(activeTag)) {
@@ -2260,6 +2464,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
       if (event.key === "Escape" && tool === "annotate" && !pendingAnnotation) setTool("select");
       if (event.key === "Escape") {
         setContextMenu(null);
+        setRotationModeId(null);
         setSelectedAnnotationId(null);
         setPagesOpen(false);
         setNodeMenu(false);
@@ -2313,7 +2518,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
         if (shortcut === "l") { setTool("connect"); setConnectionSource(null); }
         if (shortcut === "n") addNode("idea");
         if (shortcut === "t") addTextNode();
-        if (shortcut === "p") imageInputRef.current?.click();
+        if (shortcut === "p") setImageSourceOpen(true);
         if (shortcut === "d") { setTool("pen"); setConnectionSource(null); }
         if (shortcut === "k") setLinkOpen(true);
         if (shortcut === "s") addArrowShape();
@@ -2331,7 +2536,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [addArrowShape, addConnectedNode, addNode, addTextNode, applyHistory, changeStacking, connectionSource, deleteSelection, document.nodes, duplicateSelection, editingEdge, editingNode, exportOpen, groupSelection, linkOpen, pendingAnnotation, publicView, selection, shareOpen, shortcutsOpen, tool, ungroupSelection, zoom, zoomAtCenter]);
+  }, [addArrowShape, addConnectedNode, addNode, addTextNode, applyHistory, changeStacking, connectionSource, deleteSelection, document.nodes, duplicateSelection, editingEdge, editingNode, exportOpen, groupSelection, imageSourceOpen, linkOpen, pendingAnnotation, publicView, selection, shareOpen, shortcutsOpen, tool, ungroupSelection, zoom, zoomAtCenter]);
 
   useEffect(() => {
     const dismissFloatingPanels = (event) => {
@@ -2358,7 +2563,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
       showFeedback("copied", (payload.nodes || []).length + (payload.drawings || []).length);
     };
     const onPaste = (event) => {
-      if (publicView || editingNode || exportOpen || shareOpen || shortcutsOpen || linkOpen || pendingAnnotation) return;
+      if (publicView || editingNode || exportOpen || shareOpen || shortcutsOpen || linkOpen || imageSourceOpen || pendingAnnotation) return;
       const activeTag = window.document.activeElement?.tagName;
       if (["INPUT", "TEXTAREA", "SELECT"].includes(activeTag) || window.document.activeElement?.isContentEditable) return;
       const custom = event.clipboardData?.getData("application/x-mymind");
@@ -2382,7 +2587,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     window.addEventListener("copy", onCopy);
     window.addEventListener("paste", onPaste);
     return () => { window.removeEventListener("copy", onCopy); window.removeEventListener("paste", onPaste); };
-  }, [addImageFile, addLinkNode, addTextNode, editingNode, exportOpen, linkOpen, pasteElements, pendingAnnotation, publicView, selectionPayload, shareOpen, shortcutsOpen, showFeedback]);
+  }, [addImageFile, addLinkNode, addTextNode, editingNode, exportOpen, imageSourceOpen, linkOpen, pasteElements, pendingAnnotation, publicView, selectionPayload, shareOpen, shortcutsOpen, showFeedback]);
 
   const shareUrl = `${window.location.origin}${APP_BASE}${document.slug}`;
   const toggleShare = () => updateDocument((doc) => doc.shared ? { ...doc, shared: false, guestEditable: false } : { ...doc, shared: true }, { immediate: true });
@@ -2468,7 +2673,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
       }
       if (node.type === "arrow") {
         const strokeWidth = Math.max(2, size.height / 14.7);
-        return `<g transform="rotate(${node.rotation || 0} ${x + size.width / 2} ${y + size.height / 2})" fill="none" stroke="${tone.accent}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"><line x1="${x + 4}" y1="${y + size.height / 2}" x2="${x + size.width - size.height * .36}" y2="${y + size.height / 2}"/><polyline points="${x + size.width - size.height * .68},${y + size.height * .18} ${x + size.width - size.height * .34},${y + size.height / 2} ${x + size.width - size.height * .68},${y + size.height * .82}"/></g>`;
+        return `<g transform="rotate(${node.rotation || 0} ${x + size.width / 2} ${y + size.height / 2})" fill="none" stroke="${tone.accent}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" ${node.lineStyle === "dashed" ? 'stroke-dasharray="9 7"' : ""}><line x1="${x + 4}" y1="${y + size.height / 2}" x2="${x + size.width - size.height * .36}" y2="${y + size.height / 2}"/><polyline points="${x + size.width - size.height * .68},${y + size.height * .18} ${x + size.width - size.height * .34},${y + size.height / 2} ${x + size.width - size.height * .68},${y + size.height * .82}"/></g>`;
       }
       if (node.type === "icon") {
         const HeroIcon = HeroOutlineIcons[node.iconName] || HeroOutlineIcons.SparklesIcon;
@@ -2526,6 +2731,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     transform: imageToolbarBelow ? "translate(-50%, 0)" : "translate(-50%, -100%)",
   } : null;
   const selectedEdge = edgeSelection.length === 1 ? document.edges.find((edge) => edge.id === edgeSelection[0]) : null;
+  const visibleParticipants = participants.filter((participant) => participant.clientId !== presenceClientRef.current);
   const selectedAnnotation = (document.annotations || []).find((annotation) => annotation.id === selectedAnnotationId) || null;
   const annotationPanelStyle = selectedAnnotation ? {
     left: Math.max(180, Math.min((canvasRef.current?.clientWidth || 900) - 180, pan.x + selectedAnnotation.x * zoom)),
@@ -2548,21 +2754,19 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
   return <div className={`app-shell editor-shell ${isPublicLink ? "is-public" : ""}`}>
     <header className="topbar editor-topbar">
       <div className="editor-title-row">
-        {!isPublicLink && <button className="icon-button" aria-label="Back to dashboard" onClick={() => navigate("/")}><ArrowLeft size={20} /></button>}
-        <span className="brand editor-canvas-mark" aria-hidden="true"><span className="brand-mark"><Brain size={23} weight="duotone" /></span></span>
-        <input className="document-title" value={document.title} readOnly={publicView} onChange={(e) => updateDocument((doc) => ({ ...doc, title: e.target.value }))} />
+        {!isPublicLink && <button className="editor-back-button" aria-label="Back to dashboard" onClick={() => navigate("/")}><ArrowLeft size={16} /></button>}
+        <input className="document-title" value={document.title} readOnly={isPublicLink} aria-readonly={isPublicLink} onChange={(e) => updateDocument((doc) => ({ ...doc, title: e.target.value }))} />
       </div>
       <div className="topbar-actions">
-        {collaborationEnabled && participants.length > 0 && <span className="presence-state" title={participants.map((participant) => participant.name).join(", ")} aria-label={`${participants.length} ${participants.length === 1 ? "person" : "people"} currently here`}>
-          <span className="presence-dots" aria-hidden="true">{participants.slice(0, 3).map((participant) => <i key={participant.clientId} className={`is-${participant.role}`} />)}</span>
-          {participants.length} here
+        {(!isPublicLink || visibleParticipants.length > 0) && <span className="topbar-presence" title={[...(!isPublicLink ? ["Christine"] : []), ...visibleParticipants.map((participant) => participant.name)].join(", ")} aria-label={`${visibleParticipants.length + 1} ${visibleParticipants.length ? "people" : "person"} currently here`}>
+          {!isPublicLink && <span className="avatar topbar-avatar" style={{ background: participantAvatarColor("Christine") }}>CU</span>}
+          {collaborationEnabled && visibleParticipants.slice(0, isPublicLink ? 3 : 2).map((participant, index) => <span key={participant.clientId} className={`avatar topbar-avatar is-${participant.role}`} style={{ background: participantAvatarColor(participant.clientId || participant.name, index + 1) }} aria-hidden="true"><UserCircle size={14} /></span>)}
         </span>}
         <span className="save-state"><span /> {publicView ? "View only" : isPublicLink ? `Guest · ${saveState}` : saveState}</span>
         <button className={`icon-button comments-toggle ${annotationsVisible ? "active" : ""}`} aria-pressed={annotationsVisible} aria-label={annotationsVisible ? "Hide comments" : "Show comments"} title={annotationsVisible ? "Hide comments" : "Show comments"} onClick={() => setAnnotationsVisible((visible) => { if (visible) setSelectedAnnotationId(null); return !visible; })}><ChatCircleDots size={19} /></button>
         {!publicView && <button className="secondary-button" onClick={() => setExportOpen(true)}><DownloadSimple size={17} /> Export <CaretDown size={13} /></button>}
         {!isPublicLink && <button className="primary-button" onClick={() => setShareOpen(true)}><ShareNetwork size={17} /> Share</button>}
         {isPublicLink && <span className="public-pill"><ShareNetwork size={15} /> {publicView ? "Shared canvas" : "Guest editing"}</span>}
-        {!isPublicLink && <div className="avatar">CU</div>}
       </div>
     </header>
 
@@ -2593,9 +2797,9 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
         <button title="Add text · T" aria-label="Add text" aria-keyshortcuts="T" onClick={() => addTextNode()}><HeadingOne size={21} /></button>
         <button className={iconBrowserOpen ? "active" : ""} title="Add icon · I" aria-label="Add Heroicon" aria-keyshortcuts="I" onClick={() => { setPagesOpen(false); setNodeMenu(false); setIconBrowserOpen((open) => !open); }}><Cube size={21} /></button>
         <button title="Add arrow line · S" aria-label="Add arrow line" aria-keyshortcuts="S" onClick={addArrowShape}><ArrowLine size={21} /></button>
-        <button title="Upload picture · P" aria-label="Upload picture" aria-keyshortcuts="P" onClick={() => imageInputRef.current?.click()}><Photo size={21} /></button>
+        <button title="Add picture · P" aria-label="Add picture from URL or file" aria-keyshortcuts="P" onClick={() => setImageSourceOpen(true)}><Photo size={21} /></button>
         <button title="Add link · K" aria-label="Add link" aria-keyshortcuts="K" onClick={() => setLinkOpen(true)}><LinkSimple size={21} /></button>
-        <input ref={imageInputRef} className="visually-hidden-input" type="file" accept="image/*" onChange={(event) => { addImageFile(event.target.files?.[0]); event.target.value = ""; }} />
+        <input ref={imageInputRef} className="visually-hidden-input" type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) { addImageFile(file); setImageSourceOpen(false); } event.target.value = ""; }} />
         <span />
         <button title="Delete selected" disabled={!selection.length && !edgeSelection.length && !drawingSelection.length} onClick={deleteSelection}><Trash size={20} /></button>
         <button title="Keyboard shortcuts · ?" aria-label="Keyboard shortcuts" aria-keyshortcuts="?" onClick={() => setShortcutsOpen(true)}><HelpCircle size={21} /></button>
@@ -2629,7 +2833,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
             {draftDrawing && <DrawingStroke drawing={draftDrawing} passive />}
           </svg>
           {!publicView && marquee && <SelectionMarquee bounds={marquee} zoom={zoom} />}
-          {!publicView && selectedBounds && <SelectionFrame bounds={selectedBounds} zoom={zoom} count={selection.length + drawingSelection.length} resizable={["image", "text"].includes(selectedNode?.type)} rotatable={selectedNode?.type === "arrow"} rotation={selectedNode?.rotation || 0} resizeLabel={selectedNode?.type || "element"} onResizeStart={startElementResize} onRotateStart={startElementRotate} />}
+          {!publicView && selectedBounds && <SelectionFrame bounds={selectedBounds} zoom={zoom} count={selection.length + drawingSelection.length} resizable={["image", "text", "icon", "arrow"].includes(selectedNode?.type) && rotationModeId !== selectedNode?.id} rotatable={selectedNode?.type === "arrow" && rotationModeId === selectedNode.id} rotation={selectedNode?.rotation || 0} resizeLabel={selectedNode?.type || "element"} onResizeStart={startElementResize} onRotateStart={startElementRotate} />}
           {annotationsVisible && (document.annotations || []).map((annotation) => <AnnotationMarker key={annotation.id} annotation={annotation} selected={annotation.id === selectedAnnotationId} draggable={canManageAnnotation(annotation.id)} onDragStart={(event) => startAnnotationDrag(annotation, event)} onSelect={() => { setSelectedAnnotationId(annotation.id); setSelection([]); setEdgeSelection([]); setDrawingSelection([]); }} />)}
         </div>
         {tool === "connect" && <div className="mode-toast"><LinkNodes size={16} /> {connectionSource ? "Choose a destination node" : "Choose a starting node"}</div>}
@@ -2639,6 +2843,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
         {!publicView && selectedNode && !selectedNode.type && !editingNode && <NodeStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} connectionCount={document.edges.filter((edge) => edge.source === selectedNode.id || edge.target === selectedNode.id).length} hiddenConnectionCount={document.edges.filter((edge) => (edge.source === selectedNode.id || edge.target === selectedNode.id) && edge.hidden).length} onHideConnections={() => { hideNodeConnections(selectedNode.id); setNodeToolbarMenu(null); }} onShowConnections={() => { showHiddenConnections(selectedNode.id); setNodeToolbarMenu(null); }} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
         {!publicView && selectedNode?.type === "text" && !editingNode && <TextStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
         {!publicView && selectedNode?.type === "image" && <ImageStyleToolbar node={selectedNode} style={imageToolbarStyle} popoverPlacement={imageToolbarBelow ? "below" : "above"} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
+        {!publicView && selectedNode?.type === "icon" && <IconStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
         {!publicView && selectedNode?.type === "arrow" && <ArrowStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
         {!publicView && selectedEdge && selectedEdgeGeometry && !editingEdge && <EdgeStyleToolbar edge={selectedEdge} style={edgeToolbarStyle} openMenu={edgeToolbarMenu} setOpenMenu={setEdgeToolbarMenu} onEditLabel={() => { setEdgeToolbarMenu(null); setEditingEdge(selectedEdge.id); }} onChange={(patch) => updateDocument((doc) => ({ ...doc, edges: doc.edges.map((edge) => edge.id === selectedEdge.id ? { ...edge, ...patch } : edge) }))} onHide={hideSelectedConnection} onDelete={deleteSelection} />}
         {!publicView && selectedEdge && selectedEdgeScreenPoint && editingEdge === selectedEdge.id && <EdgeLabelEditor edge={selectedEdge} style={{ left: selectedEdgeScreenPoint.x, top: selectedEdgeScreenPoint.y }} onSave={(label) => { updateDocument((doc) => ({ ...doc, edges: doc.edges.map((edge) => edge.id === selectedEdge.id ? { ...edge, label } : edge) })); setEditingEdge(null); }} onCancel={() => setEditingEdge(null)} />}
@@ -2648,8 +2853,10 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
           menu={contextMenu}
           canGroup={(contextMenu.nodeIds.length + contextMenu.drawingIds.length) > 1}
           canUngroup={[...document.nodes, ...(document.drawings || [])].some((item) => item.groupId && [...contextMenu.nodeIds, ...contextMenu.drawingIds].includes(item.id))}
+          canRotate={Boolean(contextMenu.rotateNodeId)}
           onGroup={() => groupSelection(contextMenu)}
           onUngroup={() => ungroupSelection(contextMenu)}
+          onRotate={() => { setRotationModeId(contextMenu.rotateNodeId); setContextMenu(null); }}
           onDelete={() => { deleteSelection(); setContextMenu(null); }}
           onExport={(format) => { exportDiagram(format, "selected"); setContextMenu(null); }}
           onBack={() => changeStacking("back", contextMenu)}
@@ -2675,6 +2882,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     </div>
 
     {shareOpen && <ShareDialog document={document} url={shareUrl} publishing={saveState === "Saving…"} ready={saveState === "Saved"} onToggle={toggleShare} onToggleGuestEditing={toggleGuestEditing} onClose={() => setShareOpen(false)} />}
+    {imageSourceOpen && <ImageSourceDialog onClose={() => setImageSourceOpen(false)} onChooseFile={() => imageInputRef.current?.click()} onAddUrl={addImageUrl} />}
     {linkOpen && <LinkDialog onClose={() => setLinkOpen(false)} onAdd={(url) => { addLinkNode(url); setLinkOpen(false); }} />}
     {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
     {guestWelcomeOpen && <GuestWelcomeModal accessMode={publicView ? "viewer" : "editor"} onClose={() => setGuestWelcomeOpen(false)} />}
@@ -2727,7 +2935,7 @@ function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, conne
     {node.type === "icon" && (() => { const HeroIcon = HeroOutlineIcons[node.iconName] || HeroOutlineIcons.SparklesIcon; return <HeroIcon className="standalone-icon" aria-hidden="true" />; })()}
     {node.type === "arrow" && (() => {
       const size = nodeDimensions(node);
-      return <svg className="arrow-shape" viewBox={`0 0 ${size.width} ${size.height}`} aria-hidden="true" style={{ "--arrow-stroke": Math.max(2, size.height / 14.7) }}><line x1="4" y1={size.height / 2} x2={size.width - size.height * .36} y2={size.height / 2} /><polyline points={`${size.width - size.height * .68},${size.height * .18} ${size.width - size.height * .34},${size.height / 2} ${size.width - size.height * .68},${size.height * .82}`} /></svg>;
+      return <svg className={`arrow-shape ${node.lineStyle === "dashed" ? "dashed" : ""}`} viewBox={`0 0 ${size.width} ${size.height}`} aria-hidden="true" style={{ "--arrow-stroke": Math.max(2, size.height / 14.7) }}><line x1="4" y1={size.height / 2} x2={size.width - size.height * .36} y2={size.height / 2} /><polyline points={`${size.width - size.height * .68},${size.height * .18} ${size.width - size.height * .34},${size.height / 2} ${size.width - size.height * .68},${size.height * .82}`} /></svg>;
     })()}
     {editing ? <InlineNodeEditor node={node} onSave={onSaveEdit} onCancel={onCancelEdit} /> : <>
       {node.type === "text" && <span className="text-node-copy">{node.label}</span>}
@@ -2901,10 +3109,11 @@ function DrawingStroke({ drawing, selected, passive, onSelect, onContextMenu }) 
   return <g className={`drawing-stroke ${selected ? "selected" : ""}`} onPointerDown={(event) => { if (passive || event.button === 2) return; event.stopPropagation(); onSelect?.(event); }} onContextMenu={onContextMenu}><path className="drawing-hit" d={centerPath} /><path className="drawing-line" d={outlinePath} style={{ fill: drawing.color || "#3f4652" }} /></g>;
 }
 
-function CanvasContextMenu({ menu, canGroup, canUngroup, onGroup, onUngroup, onDelete, onExport, onBack, onFront }) {
+function CanvasContextMenu({ menu, canGroup, canUngroup, canRotate, onGroup, onUngroup, onRotate, onDelete, onExport, onBack, onFront }) {
   return <div className="canvas-context-menu" role="menu" style={{ left: menu.x, top: menu.y }} onPointerDown={(event) => event.stopPropagation()}>
     {canGroup && <button role="menuitem" onClick={onGroup}><span>Group selection</span><kbd>⌘ G</kbd></button>}
     {canUngroup && <button role="menuitem" onClick={onUngroup}><span>Ungroup</span><kbd>⇧⌘ G</kbd></button>}
+    {canRotate && <button role="menuitem" onClick={onRotate}><span>Rotate arrow</span><ArrowsClockwise size={15} /></button>}
     <div className="context-menu-label">Export selected</div>
     <div className="context-export-row">{["jpg", "svg", "png", "gif"].map((format) => <button key={format} role="menuitem" onClick={() => onExport(format)}>{format.toUpperCase()}</button>)}</div>
     <button role="menuitem" onClick={onFront}><span>Bring to front</span><kbd>⌘ ]</kbd></button>
@@ -2927,11 +3136,24 @@ function IconBrowser({ onSelect, onClose }) {
   </aside>;
 }
 
+function HeroIconReplacementPicker({ currentIcon, onSelect }) {
+  const [query, setQuery] = useState("");
+  const icons = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return needle ? HERO_ICON_ENTRIES.filter(([name]) => name.toLowerCase().includes(needle)) : HERO_ICON_ENTRIES;
+  }, [query]);
+  return <div className="icon-replacement-picker">
+    <label className="icon-browser-search"><MagnifyingGlassIcon width="16" /><input autoFocus value={query} placeholder="Search Heroicons" onChange={(event) => setQuery(event.target.value)} /></label>
+    <div className="replacement-icon-grid">{icons.map(([name, HeroIcon]) => <button key={name} className={name === currentIcon ? "selected" : ""} title={name.replace(/Icon$/, "").replace(/([a-z])([A-Z])/g, "$1 $2")} aria-label={`Replace with ${name}`} onClick={() => onSelect(name)}><HeroIcon width="20" /></button>)}</div>
+    {!icons.length && <p className="icon-empty">No icons match “{query}”.</p>}
+  </div>;
+}
+
 function SelectionFrame({ bounds, zoom, count, resizable = false, rotatable = false, rotation = 0, resizeLabel = "element", onResizeStart, onRotateStart }) {
   const stroke = 2 / zoom;
   const handle = 10 / zoom;
   const handles = ["top-left", "top-right", "bottom-left", "bottom-right"];
-  return <div className={`selection-frame ${resizable ? "resizable" : ""} ${rotatable ? "rotatable" : ""}`} aria-hidden={!resizable && !rotatable} style={{ left: bounds.x, top: bounds.y, width: bounds.width, height: bounds.height, borderWidth: stroke, transform: rotatable ? `rotate(${rotation}deg)` : undefined, "--selection-handle": `${handle}px`, "--selection-offset": `${-handle / 2 - stroke / 2}px` }}>
+  return <div className={`selection-frame ${resizable ? "resizable" : ""} ${rotatable ? "rotatable" : ""}`} aria-hidden={!resizable && !rotatable} style={{ left: bounds.x, top: bounds.y, width: bounds.width, height: bounds.height, borderWidth: stroke, transform: rotation ? `rotate(${rotation}deg)` : undefined, "--selection-handle": `${handle}px`, "--selection-offset": `${-handle / 2 - stroke / 2}px` }}>
     {handles.map((corner) => resizable || rotatable ? <button key={corner} type="button" className={`selection-handle ${corner}`} title={rotatable ? "Drag to rotate arrow" : undefined} aria-label={rotatable ? `Rotate arrow from ${corner.replace("-", " ")} corner` : `Resize ${resizeLabel} from ${corner.replace("-", " ")} corner`} onPointerDown={(event) => rotatable ? onRotateStart?.(corner, event) : onResizeStart?.(corner, event)} /> : <i key={corner} className={`selection-handle ${corner}`} />)}
     {count > 1 && <span className="selection-count" style={{ fontSize: `${10 / zoom}px`, height: `${22 / zoom}px`, padding: `0 ${7 / zoom}px`, top: `${-30 / zoom}px` }}>{count} selected</span>}
   </div>;
@@ -2951,6 +3173,8 @@ function CanvasFeedback({ feedback }) {
     ungrouped: { icon: <Squares2X2Icon width="17" />, label: `${itemLabel} ungrouped` },
     deleted: { icon: <Trash size={17} />, label: `${itemLabel} deleted` },
     imported: { icon: <FileText size={17} />, label: `${itemLabel} imported` },
+    undo: { icon: <ArrowsClockwise size={17} />, label: "Change undone" },
+    redo: { icon: <ArrowsClockwise size={17} />, label: "Change redone" },
   }[feedback.type];
   return <div className={`canvas-feedback-toast is-${feedback.type}`} role="status" aria-live="polite">{content.icon}<span>{content.label}</span></div>;
 }
@@ -3054,10 +3278,29 @@ function ImageStyleToolbar({ node, style, popoverPlacement, openMenu, setOpenMen
   </div>;
 }
 
+function IconStyleToolbar({ node, style, openMenu, setOpenMenu, onChange, onDelete }) {
+  const tone = toneForNode(node);
+  const size = Math.round(node.width || 64);
+  const CurrentIcon = HeroOutlineIcons[node.iconName] || CubeIcon;
+  const toggle = (menu) => setOpenMenu((current) => current === menu ? null : menu);
+  return <div className="node-style-toolbar icon-style-toolbar" style={style} role="toolbar" aria-label="Icon formatting" onPointerDown={(event) => event.stopPropagation()}>
+    <div className="node-toolbar-item"><button className={openMenu === "icon-colour" ? "active" : ""} aria-label="Icon colour" onClick={() => toggle("icon-colour")}><span className="toolbar-colour-dot" style={{ background: tone.accent }} /><CaretDown size={11} /></button>{openMenu === "icon-colour" && <div className="node-toolbar-popover colour-popover"><ColorControl node={node} tone={tone} onChange={onChange} /></div>}</div>
+    <span className="node-toolbar-divider" />
+    <div className="node-toolbar-item"><button className={openMenu === "icon-replace" ? "active" : ""} aria-label="Replace icon" onClick={() => toggle("icon-replace")}><CurrentIcon width="17" /><CaretDown size={11} /></button>{openMenu === "icon-replace" && <div className="node-toolbar-popover icon-replace-popover"><HeroIconReplacementPicker currentIcon={node.iconName} onSelect={(iconName) => { onChange({ iconName }); setOpenMenu(null); }} /></div>}</div>
+    <span className="node-toolbar-divider" />
+    <div className="node-toolbar-item"><button className={openMenu === "icon-size" ? "active" : ""} aria-label={`Icon size ${size} pixels`} onClick={() => toggle("icon-size")}><Cube size={17} /><span>{size}px</span><CaretDown size={11} /></button>{openMenu === "icon-size" && <div className="node-toolbar-popover icon-size-popover"><strong>Icon size</strong><label><span>{size}px</span><input type="range" min="32" max="320" step="4" value={size} onChange={(event) => { const nextSize = Number(event.target.value); onChange({ width: nextSize, height: nextSize }); }} /></label></div>}</div>
+    <span className="node-toolbar-divider" />
+    <button className="toolbar-delete" aria-label="Delete icon" onClick={onDelete}><Trash size={17} /></button>
+  </div>;
+}
+
 function ArrowStyleToolbar({ node, style, openMenu, setOpenMenu, onChange, onDelete }) {
   const tone = toneForNode(node);
+  const toggle = (menu) => setOpenMenu((current) => current === menu ? null : menu);
   return <div className="node-style-toolbar arrow-style-toolbar" style={style} role="toolbar" aria-label="Arrow line formatting" onPointerDown={(event) => event.stopPropagation()}>
-    <div className="node-toolbar-item"><button className={openMenu === "arrow-colour" ? "active" : ""} aria-label="Arrow colour" onClick={() => setOpenMenu(openMenu === "arrow-colour" ? null : "arrow-colour")}><span className="toolbar-colour-dot" style={{ background: tone.accent }} /><CaretDown size={11} /></button>{openMenu === "arrow-colour" && <div className="node-toolbar-popover colour-popover"><strong>Arrow colour</strong><ColorControl node={node} tone={tone} onChange={(patch) => { onChange(patch); setOpenMenu(null); }} /></div>}</div>
+    <div className="node-toolbar-item"><button className={openMenu === "arrow-colour" ? "active" : ""} aria-label="Arrow colour" onClick={() => toggle("arrow-colour")}><span className="toolbar-colour-dot" style={{ background: tone.accent }} /><CaretDown size={11} /></button>{openMenu === "arrow-colour" && <div className="node-toolbar-popover colour-popover"><ColorControl node={node} tone={tone} onChange={onChange} /></div>}</div>
+    <span className="node-toolbar-divider" />
+    <div className="node-toolbar-item"><button className={openMenu === "arrow-line" ? "active" : ""} aria-label="Arrow line style" onClick={() => toggle("arrow-line")}><i className={`line-preview ${node.lineStyle === "dashed" ? "dashed" : "solid"}`} /><CaretDown size={11} /></button>{openMenu === "arrow-line" && <div className="node-toolbar-popover line-style-popover"><strong>Line</strong><div className="line-toolbar-options"><button className={(node.lineStyle || "solid") === "solid" ? "selected" : ""} onClick={() => { onChange({ lineStyle: "solid" }); setOpenMenu(null); }}><i className="line-preview solid" />Solid</button><button className={node.lineStyle === "dashed" ? "selected" : ""} onClick={() => { onChange({ lineStyle: "dashed" }); setOpenMenu(null); }}><i className="line-preview dashed" />Dashed</button></div></div>}</div>
     <span className="node-toolbar-divider" />
     <button className="toolbar-delete" aria-label="Delete arrow" onClick={onDelete}><Trash size={17} /></button>
   </div>;
@@ -3142,6 +3385,36 @@ function NodeConnectionsControl({ count, hiddenCount, onHide, onShow }) {
   return <div className="node-connections-control"><div><span>Connections</span><strong>{count}</strong></div><p>{visibleCount} visible · {hiddenCount} hidden</p><div className="choice-segments"><button disabled={visibleCount === 0} onClick={onHide}>Hide all</button><button disabled={hiddenCount === 0} onClick={onShow}>Show all</button></div></div>;
 }
 
+function ImageSourceDialog({ onClose, onChooseFile, onAddUrl }) {
+  const [url, setUrl] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const addUrl = async () => {
+    if (!url.trim()) { setError("Enter an image URL."); return; }
+    setBusy(true);
+    setError("");
+    try {
+      await onAddUrl(url.trim());
+      onClose();
+    } catch (addError) {
+      setError(addError instanceof Error ? addError.message : "MyMind could not load that image.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  useModalKeyboard(onClose, addUrl);
+  return <div className="modal-backdrop" onMouseDown={onClose}>
+    <form className="modal compact-modal image-source-modal" role="dialog" aria-modal="true" aria-labelledby="image-source-title" onSubmit={(event) => { event.preventDefault(); addUrl(); }} onMouseDown={(event) => event.stopPropagation()}>
+      <div className="modal-header"><h2 id="image-source-title">Add a picture</h2><button type="button" className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={19} /></button></div>
+      <button type="button" className="image-upload-choice" onClick={onChooseFile}><Photo size={21} /><span><strong>Upload from device</strong><small>PNG, JPG, GIF, WebP, or SVG</small></span></button>
+      <div className="image-source-divider"><span>or use a URL</span></div>
+      <label>Image URL<input autoFocus type="url" inputMode="url" value={url} placeholder="https://example.com/image.png" aria-invalid={Boolean(error)} onChange={(event) => { setUrl(event.target.value); setError(""); }} /></label>
+      {error && <p className="field-error" role="alert">{error}</p>}
+      <div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>Cancel</button><button className="primary-button" disabled={busy || !url.trim()}><LinkSimple size={16} /> {busy ? "Loading…" : "Add from URL"}</button></div>
+    </form>
+  </div>;
+}
+
 function ColorControl({ node, tone, onChange }) {
   const neutralColors = node.type === "text" ? [["#ffffff", "white"], ["#111318", "black"]] : [];
   const isPresetNeutral = neutralColors.some(([value]) => value === node.customColor?.toLowerCase());
@@ -3176,7 +3449,7 @@ function LinkDialog({ onClose, onAdd }) {
   };
   useModalKeyboard(onClose, submit);
   return <div className="modal-backdrop" onMouseDown={onClose}><form className="modal compact-modal link-modal" role="dialog" aria-modal="true" aria-labelledby="link-dialog-title" onSubmit={(event) => { event.preventDefault(); submit(); }} onMouseDown={(event) => event.stopPropagation()}>
-    <div className="modal-header"><div><p className="eyebrow">Canvas item</p><h2 id="link-dialog-title">Add a link</h2></div><button type="button" className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={19} /></button></div>
+    <div className="modal-header"><h2 id="link-dialog-title">Add a link</h2><button type="button" className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={19} /></button></div>
     <label>Website URL<input autoFocus type="url" inputMode="url" value={value} placeholder="https://example.com" aria-invalid={!!error} onChange={(event) => { setValue(event.target.value); setError(""); }} /></label>
     {error && <p className="field-error" role="alert">{error}</p>}
     <p className="dialog-note">MyMind will add the page title, description, and available preview image.</p>
@@ -3219,7 +3492,7 @@ function ShortcutsDialog({ onClose }) {
     ["⌘ / Ctrl + 0", "Reset the canvas view"],
   ];
   return <div className="modal-backdrop" onMouseDown={onClose}><div className="modal shortcuts-modal" role="dialog" aria-modal="true" aria-labelledby="shortcuts-dialog-title" onMouseDown={(event) => event.stopPropagation()}>
-    <div className="modal-header"><div><p className="eyebrow">Accessibility</p><h2 id="shortcuts-dialog-title">Keyboard shortcuts</h2></div><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={20} /></button></div>
+    <div className="modal-header"><h2 id="shortcuts-dialog-title">Keyboard shortcuts</h2><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={20} /></button></div>
     <div className="shortcuts-list">{shortcuts.map(([keys, action]) => <div key={keys}><kbd>{keys}</kbd><span>{action}</span></div>)}</div>
     <div className="modal-actions"><button className="primary-button" onClick={onClose}>Done</button></div>
   </div></div>;
@@ -3235,11 +3508,10 @@ function GuestWelcomeModal({ accessMode, onClose }) {
         <span>{canEdit ? "Editing powers: unlocked ✨" : "Viewer mode: cozy & curious 👀"}</span>
       </div>
       <div className="guest-welcome-copy">
-        <p className="eyebrow">{canEdit ? "Oh hey, collaborator!" : "Oh hey, friendly visitor!"}</p>
         <h2 id="guest-welcome-title">Welcome to Christine’s canvas</h2>
         <p>{canEdit
           ? "You’ve got editing powers. Add ideas, draw questionable doodles, move things around, and leave comments."
-          : "You’re in viewer mode. Roam around, peek at every idea, and leave comments—the furniture stays put."}</p>
+          : "You’re in viewer mode. Roam around, peek at every idea, and leave comments. The furniture stays put."}</p>
         <div className="guest-welcome-tips">
           <div><kbd>?</kbd><span><strong>Meet your shortcuts</strong><small>Press ? anytime for the full cheat sheet.</small></span></div>
           <div><kbd>Space</kbd><span><strong>Glide around</strong><small>Hold Space and drag to roam the canvas.</small></span></div>
@@ -3249,7 +3521,7 @@ function GuestWelcomeModal({ accessMode, onClose }) {
         </div>
         <p className="guest-visibility-note">{canEdit
           ? "Tiny heads-up: anything you put here, Christine can see it. Yes, even that doodle. 👀"
-          : "Comments you leave are visible to Christine. Be brilliant—or at least entertaining. 👀"}</p>
+          : "Comments you leave are visible to Christine. Be brilliant, or at least entertaining. 👀"}</p>
         <div className="modal-actions">
           <button className="primary-button" autoFocus onClick={onClose}>{canEdit ? "Let’s make a tiny mess" : "Let me have a look"}</button>
         </div>
@@ -3261,7 +3533,7 @@ function GuestWelcomeModal({ accessMode, onClose }) {
 function ExportPanel({ scope, setScope, hasSelection, onClose, onExport }) {
   useModalKeyboard(onClose, () => onExport("pdf"));
   return <aside className="inspector export-panel" aria-labelledby="export-dialog-title">
-    <div className="modal-header"><div><p className="eyebrow">Download</p><h2 id="export-dialog-title">Export canvas</h2></div><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={20} /></button></div>
+    <div className="modal-header"><h2 id="export-dialog-title">Export canvas</h2><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={20} /></button></div>
     <div className="segmented"><button className={scope === "all" ? "active" : ""} onClick={() => setScope("all")}>Whole canvas</button><button disabled={!hasSelection} className={scope === "selected" ? "active" : ""} onClick={() => setScope("selected")}>Selected items</button></div>
     {!hasSelection && <p className="dialog-note">Select one or more nodes to enable a focused export.</p>}
     <div className="export-grid">
@@ -3286,17 +3558,24 @@ function ShareDialog({ document, url, publishing, ready: _ready, onToggle, onTog
   };
   useModalKeyboard(onClose, linkReady ? copy : onToggle);
   return <div className="modal-backdrop" onMouseDown={onClose}><div className="modal share-modal" role="dialog" aria-modal="true" aria-labelledby="share-dialog-title" onMouseDown={(e) => e.stopPropagation()}>
-    <div className="modal-header"><div><p className="eyebrow">Publish</p><h2 id="share-dialog-title">Share this canvas</h2></div><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={20} /></button></div>
+    <div className="modal-header"><h2 id="share-dialog-title">Share this canvas</h2><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={20} /></button></div>
     <div className="share-status"><span className={document.shared ? "live" : ""}><ShareNetwork size={21} /></span><div><strong>{publishing ? "Publishing shared link…" : document.shared ? "Anyone with the link can access" : "This canvas is private"}</strong><small>{document.guestEditable ? "Guests can edit this canvas." : "Guests can view and comment."}</small></div><button className={`switch ${document.shared ? "on" : ""}`} aria-label="Toggle shared link" disabled={publishing} onClick={onToggle}><i /></button></div>
     <div className={`share-status guest-edit-status ${!document.shared ? "disabled" : ""}`}><span className={document.guestEditable ? "live" : ""}><PencilIcon width="20" /></span><div><strong>Allow guest editing</strong><small>Anyone with the shared link can change canvas content.</small></div><button className={`switch ${document.guestEditable ? "on" : ""}`} aria-label="Toggle guest editing" disabled={!document.shared} onClick={onToggleGuestEditing}><i /></button></div>
     <div className={`copy-field ${!linkReady ? "disabled" : ""}`}><span>{url}</span><button disabled={!linkReady} onClick={copy}>{copied ? <Check size={18} /> : <Copy size={18} />}{copied ? "Copied" : "Copy"}</button></div>
   </div></div>;
 }
 
-function LoadingScreen({ message = "Loading…" }) {
+function LoadingScreen({ message = "Loading…", progress = 0, slow = false }) {
+  const percentage = Math.max(0, Math.min(100, Math.round(progress)));
   return <div className="app-loading" role="status" aria-live="polite">
     <Brand />
-    <div className="loading-card"><span><ArrowPathIcon width="24" /></span><strong>{message}</strong><small>Getting the latest version ready.</small></div>
+    <div className="loading-card">
+      <span><ArrowPathIcon width="24" /></span>
+      <strong>{message}</strong>
+      <div className="loading-progress" aria-label={`${percentage}% loaded`}><i><b style={{ width: `${percentage}%` }} /></i><em>{percentage}%</em></div>
+      <small>{slow ? "This canvas is larger than usual. We are still loading it safely." : "Getting the latest version ready."}</small>
+      {slow && <button type="button" className="secondary-button" onClick={() => window.location.reload()}>Retry loading</button>}
+    </div>
   </div>;
 }
 

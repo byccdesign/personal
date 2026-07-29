@@ -21,7 +21,21 @@ session_start();
 function reply(array $payload, int $status = 200): never
 {
     http_response_code($status);
-    echo json_encode($payload, JSON_UNESCAPED_SLASHES);
+    $json = json_encode($payload, JSON_UNESCAPED_SLASHES);
+    if (!is_string($json)) $json = '{"error":"Response encoding failed"}';
+    $acceptsGzip = str_contains(strtolower((string) ($_SERVER['HTTP_ACCEPT_ENCODING'] ?? '')), 'gzip');
+    if ($acceptsGzip && function_exists('gzencode') && strlen($json) > 1024) {
+        $compressed = gzencode($json, 6);
+        if (is_string($compressed)) {
+            header('Content-Encoding: gzip');
+            header('Vary: Accept-Encoding');
+            header('Content-Length: ' . strlen($compressed));
+            echo $compressed;
+            exit;
+        }
+    }
+    header('Content-Length: ' . strlen($json));
+    echo $json;
     exit;
 }
 
@@ -338,10 +352,6 @@ try {
         PDO::ATTR_EMULATE_PREPARES => false,
         ]
     );
-    $pdo->exec('CREATE TABLE IF NOT EXISTS mind_folders (id VARCHAR(96) PRIMARY KEY, name VARCHAR(120) NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
-    $pdo->exec('CREATE TABLE IF NOT EXISTS mind_document_sync (document_id VARCHAR(96) PRIMARY KEY, revision BIGINT UNSIGNED NOT NULL DEFAULT 0, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
-    $pdo->exec("CREATE TABLE IF NOT EXISTS mind_presence (document_id VARCHAR(96) NOT NULL, client_id VARCHAR(96) NOT NULL, display_name VARCHAR(80) NOT NULL, participant_role ENUM('owner','editor','viewer') NOT NULL DEFAULT 'viewer', last_seen TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (document_id, client_id), INDEX idx_mind_presence_seen (last_seen)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
-
     if ($action === 'login' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $payload = body();
         $valid = isset($config['app_password_hash']) && password_verify((string) ($payload['password'] ?? ''), (string) $config['app_password_hash']);

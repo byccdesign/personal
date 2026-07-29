@@ -7,6 +7,10 @@ RewriteEngine On
     Require all denied
 </FilesMatch>
 
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE application/json text/css application/javascript
+</IfModule>
+
 # Keep the PHP API and built assets reachable as real files.
 RewriteCond %{REQUEST_FILENAME} -f [OR]
 RewriteCond %{REQUEST_FILENAME} -d
