@@ -183,6 +183,9 @@ const X = adaptHeroIcon(XMarkIcon);
 const STORAGE_KEY = "mymind.documents.v1";
 const STORAGE_INDEX_KEY = "mymind.documentIndex.v2";
 const STORAGE_DOCUMENT_PREFIX = "mymind.document.v2.";
+const STORAGE_METADATA_KEY = "mymind.documentMetadata.v3";
+const DOCUMENT_CACHE_DB = "mymind-document-cache";
+const DOCUMENT_CACHE_STORE = "documents";
 const FOLDERS_KEY = "mymind.folders.v1";
 const ANNOTATION_TOKEN_KEY = "mymind.annotationTokens.v1";
 const PRESENCE_CLIENT_KEY = "mymind.presenceClient.v1";
@@ -679,58 +682,112 @@ function seedDocuments() {
   ];
 }
 
-function readLocalDocuments() {
-  try {
-    const index = JSON.parse(localStorage.getItem(STORAGE_INDEX_KEY) || "null");
-    if (Array.isArray(index)) {
-      const documents = index.map((id) => {
-        try { return JSON.parse(localStorage.getItem(`${STORAGE_DOCUMENT_PREFIX}${id}`) || "null"); }
-        catch { return null; }
-      }).filter(Boolean);
-      if (documents.length) return documents;
-    }
-    const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
-    if (Array.isArray(stored) && stored.length) {
-      writeLocalDocuments(stored);
-      return stored;
-    }
-  } catch {}
-  const seeded = seedDocuments();
-  writeLocalDocuments(seeded);
-  return seeded;
+function documentMetadata(document) {
+  return {
+    id: document.id,
+    title: document.title,
+    slug: document.slug,
+    shared: Boolean(document.shared),
+    guestEditable: Boolean(document.guestEditable),
+    folderId: document.folderId || null,
+    updatedAt: document.updatedAt,
+    revision: Number(document.revision || 0),
+  };
 }
 
-function writeLocalDocuments(documents) {
+function readLocalDocumentMetadata() {
   try {
-    const nextIds = documents.map((document) => document.id);
-    const previousIds = JSON.parse(localStorage.getItem(STORAGE_INDEX_KEY) || "[]");
-    documents.forEach((document) => localStorage.setItem(`${STORAGE_DOCUMENT_PREFIX}${document.id}`, JSON.stringify(document)));
-    if (Array.isArray(previousIds)) previousIds.filter((id) => !nextIds.includes(id)).forEach((id) => localStorage.removeItem(`${STORAGE_DOCUMENT_PREFIX}${id}`));
-    localStorage.setItem(STORAGE_INDEX_KEY, JSON.stringify(nextIds));
+    const stored = JSON.parse(localStorage.getItem(STORAGE_METADATA_KEY) || "[]");
+    return Array.isArray(stored) ? stored : [];
+  } catch { return []; }
+}
+
+function writeLocalDocumentMetadata(documents) {
+  try {
+    localStorage.setItem(STORAGE_METADATA_KEY, JSON.stringify(documents.map(documentMetadata)));
     return true;
-  }
-  catch { return false; }
+  } catch { return false; }
 }
 
-function writeLocalDocument(document) {
+function openDocumentCache() {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === "undefined") { reject(new Error("IndexedDB unavailable")); return; }
+    const request = indexedDB.open(DOCUMENT_CACHE_DB, 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains(DOCUMENT_CACHE_STORE)) {
+        request.result.createObjectStore(DOCUMENT_CACHE_STORE, { keyPath: "id" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("Could not open canvas cache"));
+  });
+}
+
+async function readLocalDocument(id) {
   try {
-    localStorage.setItem(`${STORAGE_DOCUMENT_PREFIX}${document.id}`, JSON.stringify(document));
-    const index = JSON.parse(localStorage.getItem(STORAGE_INDEX_KEY) || "[]");
-    const nextIndex = Array.isArray(index) ? index : [];
-    if (!nextIndex.includes(document.id)) localStorage.setItem(STORAGE_INDEX_KEY, JSON.stringify([document.id, ...nextIndex]));
+    const database = await openDocumentCache();
+    return await new Promise((resolve, reject) => {
+      const transaction = database.transaction(DOCUMENT_CACHE_STORE, "readonly");
+      const request = transaction.objectStore(DOCUMENT_CACHE_STORE).get(id);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error || new Error("Could not read canvas cache"));
+      transaction.oncomplete = () => database.close();
+    });
+  } catch { return null; }
+}
+
+async function writeLocalDocument(document) {
+  const metadata = readLocalDocumentMetadata();
+  const nextMetadata = metadata.some((item) => item.id === document.id)
+    ? metadata.map((item) => item.id === document.id ? documentMetadata(document) : item)
+    : [documentMetadata(document), ...metadata];
+  writeLocalDocumentMetadata(nextMetadata);
+  try {
+    const database = await openDocumentCache();
+    await new Promise((resolve, reject) => {
+      const transaction = database.transaction(DOCUMENT_CACHE_STORE, "readwrite");
+      transaction.objectStore(DOCUMENT_CACHE_STORE).put(document);
+      transaction.oncomplete = () => { database.close(); resolve(); };
+      transaction.onerror = () => reject(transaction.error || new Error("Could not cache canvas"));
+    });
+    localStorage.removeItem(`${STORAGE_DOCUMENT_PREFIX}${document.id}`);
     return true;
   } catch {
     return false;
   }
 }
 
-function clearLocalWorkspace() {
+async function removeLocalDocument(id) {
+  try {
+    localStorage.removeItem(`${STORAGE_DOCUMENT_PREFIX}${id}`);
+    const index = JSON.parse(localStorage.getItem(STORAGE_INDEX_KEY) || "[]");
+    if (Array.isArray(index)) localStorage.setItem(STORAGE_INDEX_KEY, JSON.stringify(index.filter((item) => item !== id)));
+    const database = await openDocumentCache();
+    await new Promise((resolve, reject) => {
+      const transaction = database.transaction(DOCUMENT_CACHE_STORE, "readwrite");
+      transaction.objectStore(DOCUMENT_CACHE_STORE).delete(id);
+      transaction.oncomplete = () => { database.close(); resolve(); };
+      transaction.onerror = () => reject(transaction.error || new Error("Could not remove cached canvas"));
+    });
+  } catch {
+    // Server deletion remains authoritative when browser storage is unavailable.
+  }
+}
+
+async function clearLocalWorkspace() {
   try {
     const index = JSON.parse(localStorage.getItem(STORAGE_INDEX_KEY) || "[]");
     if (Array.isArray(index)) index.forEach((id) => localStorage.removeItem(`${STORAGE_DOCUMENT_PREFIX}${id}`));
     localStorage.removeItem(STORAGE_INDEX_KEY);
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(STORAGE_METADATA_KEY);
     localStorage.removeItem(FOLDERS_KEY);
+    if (typeof indexedDB !== "undefined") {
+      await new Promise((resolve) => {
+        const request = indexedDB.deleteDatabase(DOCUMENT_CACHE_DB);
+        request.onsuccess = request.onerror = request.onblocked = () => resolve();
+      });
+    }
   } catch {
     // The server session is still invalidated even if browser storage is unavailable.
   }
@@ -787,6 +844,25 @@ async function apiRequest(action, body, { onProgress, signal } = {}) {
     throw error;
   }
   return payload;
+}
+
+async function fetchPrivateDocument(id, options = {}) {
+  const metadataResult = await apiRequest(`document-meta&id=${encodeURIComponent(id)}`, undefined, {
+    ...options,
+    onProgress: options.onProgress ? (progress) => options.onProgress(Math.round(progress * .2)) : undefined,
+  });
+  const metadata = metadataResult?.document;
+  if (!metadata) throw new Error("Canvas metadata unavailable");
+  const cached = await readLocalDocument(id);
+  if (cached && Number(cached.revision || 0) === Number(metadata.revision || 0)) {
+    options.onProgress?.(98);
+    return { ...cached, ...metadata };
+  }
+  const result = await apiRequest(`document&id=${encodeURIComponent(id)}`, undefined, {
+    ...options,
+    onProgress: options.onProgress ? (progress) => options.onProgress(Math.round(20 + progress * .78)) : undefined,
+  });
+  return result.document;
 }
 
 function pageSaveDocument(document) {
@@ -926,7 +1002,7 @@ function IconForNode({ name, size = 24 }) {
 }
 
 export function App() {
-  const [documents, setDocuments] = useState(() => readLocalDocuments());
+  const [documents, setDocuments] = useState(() => readLocalDocumentMetadata());
   const [folders, setFolders] = useState(() => readLocalFolders());
   const [route, setRoute] = useState(routeFromPath);
   const [newDialog, setNewDialog] = useState(false);
@@ -939,22 +1015,8 @@ export function App() {
 
   const acceptServerWorkspace = useCallback(async (data) => {
     const serverDocuments = Array.isArray(data.documents) ? data.documents : [];
-    const cachedDocuments = readLocalDocuments();
-    let nextDocuments = serverDocuments;
-    if (serverDocuments.length === 0 && cachedDocuments.length > 0) {
-      const restored = [];
-      for (const document of cachedDocuments) {
-        try {
-          const result = await apiRequest("save", { document });
-          restored.push({ ...document, revision: Number(result.revision || document.revision || 0) });
-        } catch {
-          break;
-        }
-      }
-      if (restored.length === cachedDocuments.length) nextDocuments = restored;
-    }
-    setDocuments(nextDocuments);
-    writeLocalDocuments(nextDocuments);
+    setDocuments(serverDocuments);
+    writeLocalDocumentMetadata(serverDocuments);
     if (Array.isArray(data.folders)) {
       setFolders(data.folders);
       writeLocalFolders(data.folders);
@@ -983,7 +1045,22 @@ export function App() {
             setDocuments((items) => items.some((item) => item.id === data.document.id) ? items.map((item) => item.id === data.document.id ? data.document : item) : [data.document, ...items]);
           }
         })
-      : apiRequest("list", undefined, { signal: controller.signal, onProgress: (progress) => active && setLoadProgress(progress) }).then(async (data) => {
+      : route.screen === "editor"
+        ? fetchPrivateDocument(route.id || "", { signal: controller.signal, onProgress: (progress) => active && setLoadProgress(progress) }).then((loadedDocument) => {
+          if (loadedDocument && active) {
+            setLoadProgress(98);
+            setDocuments((items) => {
+              const next = items.some((item) => item.id === loadedDocument.id)
+                ? items.map((item) => item.id === loadedDocument.id ? loadedDocument : item)
+                : [loadedDocument, ...items];
+              writeLocalDocumentMetadata(next);
+              return next;
+            });
+            void writeLocalDocument(loadedDocument);
+            setAuthRequired(false);
+          }
+        })
+        : apiRequest("list", undefined, { signal: controller.signal, onProgress: (progress) => active && setLoadProgress(progress) }).then(async (data) => {
           if (Array.isArray(data.documents) && active) {
             await acceptServerWorkspace(data);
             setLoadProgress(98);
@@ -993,9 +1070,12 @@ export function App() {
     load.catch((error) => {
       if (!active || error.name === "AbortError") return;
       if (route.publicView) setRouteError(error.status === 404 ? "not-found" : "unavailable");
-      else {
+      else if (error.status === 401) {
         setAuthRequired(true);
-        setRouteError(error.status === 401 ? null : "unavailable");
+        setRouteError(null);
+      } else {
+        setAuthRequired(false);
+        setRouteError(error.status === 404 ? "not-found" : "unavailable");
       }
     })
       .finally(() => {
@@ -1013,12 +1093,12 @@ export function App() {
       window.clearInterval(progressTimer);
       window.removeEventListener("popstate", onRoute);
     };
-  }, [acceptServerWorkspace, route.publicView, route.slug]);
+  }, [acceptServerWorkspace, route.id, route.publicView, route.screen, route.slug]);
 
   const commitDocuments = useCallback((updater) => {
     setDocuments((current) => {
       const next = typeof updater === "function" ? updater(current) : updater;
-      writeLocalDocuments(next);
+      writeLocalDocumentMetadata(next);
       return next;
     });
   }, []);
@@ -1037,10 +1117,8 @@ export function App() {
   };
 
   const deleteFolder = (folderId) => {
-    const affected = documents.filter((doc) => doc.folderId === folderId).map((doc) => ({ ...doc, folderId: null }));
     commitFolders((items) => items.filter((item) => item.id !== folderId));
     commitDocuments((items) => items.map((doc) => doc.folderId === folderId ? { ...doc, folderId: null } : doc));
-    affected.forEach((doc) => apiRequest("save", { document: doc }).catch(() => {}));
     apiRequest("folder-delete", { id: folderId }).catch(() => {});
   };
 
@@ -1049,17 +1127,19 @@ export function App() {
     const changed = current ? { ...current, folderId: folderId || null } : null;
     if (!changed) return;
     commitDocuments((items) => items.map((doc) => doc.id === documentId ? changed : doc));
-    if (changed) apiRequest("save", { document: changed }).catch(() => {});
+    apiRequest("document-folder", { id: documentId, folderId: folderId || null }).catch(() => {});
   };
 
-  const createDocument = (template) => {
+  const createDocument = async (template) => {
     const id = uid("canvas");
     const title = template === "mind" ? "Untitled mind map" : template === "process" ? "Untitled process" : "Untitled canvas";
     const graph = template === "mind" ? mindMapTemplate() : template === "process" ? processTemplate() : blankTemplate();
     const doc = { id, title, slug: `${slugify(title)}-${id.slice(-4)}`, shared: false, updatedAt: new Date().toISOString(), ...graph };
     commitDocuments((items) => [doc, ...items]);
-    apiRequest("save", { document: doc }).catch(() => {});
+    await writeLocalDocument(doc);
     setNewDialog(false);
+    try { await apiRequest("save", { document: doc }); }
+    catch { /* The editor can still open the locally cached draft. */ }
     navigate(`/editor/${id}`);
   };
 
@@ -1078,12 +1158,15 @@ export function App() {
       updatedAt: new Date().toISOString(),
     });
     commitDocuments((items) => [doc, ...items]);
-    apiRequest("save", { document: doc }).catch(() => {});
+    await writeLocalDocument(doc);
+    try { await apiRequest("save", { document: doc }); }
+    catch { /* Preserve the imported canvas locally if the API is temporarily unavailable. */ }
     navigate(`/editor/${id}`);
   };
 
   const deleteDocument = (id) => {
     commitDocuments((items) => items.filter((item) => item.id !== id));
+    void removeLocalDocument(id);
     apiRequest("delete", { id }).catch(() => {});
   };
 
@@ -1092,8 +1175,18 @@ export function App() {
   if (authRequired && !route.publicView) {
     return <Login onLogin={async (password) => {
       await apiRequest("login", { password });
-      const data = await apiRequest("list");
-      await acceptServerWorkspace(data);
+      if (route.screen === "editor") {
+        const loadedDocument = await fetchPrivateDocument(route.id || "");
+        if (loadedDocument) {
+          setDocuments((items) => items.some((item) => item.id === loadedDocument.id)
+            ? items.map((item) => item.id === loadedDocument.id ? loadedDocument : item)
+            : [loadedDocument, ...items]);
+          void writeLocalDocument(loadedDocument);
+        }
+      } else {
+        const data = await apiRequest("list");
+        await acceptServerWorkspace(data);
+      }
       setRouteError(null);
       setAuthRequired(false);
     }} serviceUnavailable={routeError === "unavailable"} />;
@@ -1103,7 +1196,7 @@ export function App() {
     return <Dashboard documents={documents} folders={folders} onNew={() => setNewDialog(true)} onImport={importDocument} onDelete={deleteDocument} onSaveFolder={saveFolder} onDeleteFolder={deleteFolder} onMoveDocument={moveDocument} onLogout={async () => {
       try { await apiRequest("logout", {}); } catch { /* Lock the local UI even if the network drops during logout. */ }
       finally {
-        clearLocalWorkspace();
+        await clearLocalWorkspace();
         setDocuments([]);
         setFolders([]);
         setAuthRequired(true);
@@ -1118,6 +1211,7 @@ export function App() {
     : documents.find((item) => item.id === route.id);
 
   if (route.publicView && routeError === "unavailable") return <ServiceUnavailable />;
+  if (!route.publicView && routeError === "unavailable") return <ServiceUnavailable />;
   if (!document) return <NotFound />;
 
   return <Editor
@@ -1137,12 +1231,19 @@ export function App() {
         ? { status: "conflict", revision: Number(error.payload?.currentRevision ?? baseRevision) }
         : { status: "failed", revision: baseRevision });
     }
-    const savedLocally = writeLocalDocument(next);
+    const localCache = writeLocalDocument(next);
     setDocuments((items) => items.some((item) => item.id === next.id) ? items.map((item) => item.id === next.id ? next : item) : [next, ...items]);
-    if (localOnly) return Promise.resolve({ status: savedLocally ? "local" : "failed", revision: baseRevision });
-    return persistCanvasPage(next, { baseRevision }).catch((error) => error.status === 409
-      ? { status: "conflict", revision: Number(error.payload?.currentRevision ?? baseRevision) }
-      : { status: savedLocally ? "local" : "failed", revision: baseRevision });
+    if (localOnly) return localCache.then((savedLocally) => ({ status: savedLocally ? "local" : "failed", revision: baseRevision }));
+    return persistCanvasPage(next, { baseRevision })
+      .then((result) => {
+        if (Number.isInteger(result.revision)) void writeLocalDocument({ ...next, revision: result.revision });
+        return result;
+      })
+      .catch(async (error) => {
+        if (error.status === 409) return { status: "conflict", revision: Number(error.payload?.currentRevision ?? baseRevision) };
+        const savedLocally = await localCache;
+        return { status: savedLocally ? "local" : "failed", revision: baseRevision };
+      });
   }}
   />;
 }

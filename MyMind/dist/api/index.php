@@ -199,6 +199,28 @@ function document_select_columns(): string
     return 'd.id, d.title, d.slug, d.is_shared, d.graph_json, d.updated_at, COALESCE(s.revision, 0) AS revision';
 }
 
+function document_list_select_columns(): string
+{
+    return 'd.id, d.title, d.slug, d.is_shared, d.updated_at, COALESCE(s.revision, 0) AS revision,
+        JSON_UNQUOTE(JSON_EXTRACT(d.graph_json, "$.folderId")) AS folder_id,
+        COALESCE(JSON_EXTRACT(d.graph_json, "$.guestEditable") + 0, 0) AS guest_editable';
+}
+
+function document_metadata_from_row(array $row): array
+{
+    $folderId = trim((string) ($row['folder_id'] ?? ''));
+    return [
+        'id' => (string) $row['id'],
+        'title' => (string) $row['title'],
+        'slug' => (string) $row['slug'],
+        'shared' => (bool) $row['is_shared'],
+        'guestEditable' => !empty($row['guest_editable']),
+        'folderId' => $folderId !== '' && strtolower($folderId) !== 'null' ? $folderId : null,
+        'updatedAt' => (string) $row['updated_at'],
+        'revision' => (int) ($row['revision'] ?? 0),
+    ];
+}
+
 function public_http_target(string $value): ?array
 {
     if (!filter_var($value, FILTER_VALIDATE_URL)) return null;
@@ -369,13 +391,25 @@ try {
         $row ? reply(['document' => document_from_row($row)]) : reply(['error' => 'Canvas not found'], 404);
     }
 
+    if ($action === 'document-meta' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+        if (empty($_SESSION['mymind_authenticated'])) reply(['error' => 'Authentication required'], 401);
+        $id = substr(trim((string) ($_GET['id'] ?? '')), 0, 96);
+        if ($id === '') reply(['error' => 'Missing canvas id'], 422);
+        $statement = $pdo->prepare('SELECT ' . document_list_select_columns() . ' FROM mind_documents d LEFT JOIN mind_document_sync s ON s.document_id = d.id WHERE d.id = ? LIMIT 1');
+        $statement->execute([$id]);
+        $row = $statement->fetch();
+        $row ? reply(['document' => document_metadata_from_row($row)]) : reply(['error' => 'Canvas not found'], 404);
+    }
+
     if ($action === 'document' && $_SERVER['REQUEST_METHOD'] === 'GET') {
         $authenticated = !empty($_SESSION['mymind_authenticated']);
         if ($authenticated) {
             $id = substr(trim((string) ($_GET['id'] ?? '')), 0, 96);
+            if ($id === '') reply(['error' => 'Missing canvas id'], 422);
             $statement = $pdo->prepare('SELECT ' . document_select_columns() . ' FROM mind_documents d LEFT JOIN mind_document_sync s ON s.document_id = d.id WHERE d.id = ? LIMIT 1');
             $statement->execute([$id]);
         } else {
+            if (trim((string) ($_GET['id'] ?? '')) !== '') reply(['error' => 'Authentication required'], 401);
             $slug = substr(trim((string) ($_GET['slug'] ?? '')), 0, 96);
             $statement = $pdo->prepare('SELECT ' . document_select_columns() . ' FROM mind_documents d LEFT JOIN mind_document_sync s ON s.document_id = d.id WHERE d.slug = ? AND d.is_shared = 1 LIMIT 1');
             $statement->execute([$slug]);
@@ -737,9 +771,9 @@ try {
     }
 
     if ($action === 'list' && $_SERVER['REQUEST_METHOD'] === 'GET') {
-        $rows = $pdo->query('SELECT ' . document_select_columns() . ' FROM mind_documents d LEFT JOIN mind_document_sync s ON s.document_id = d.id ORDER BY d.updated_at DESC')->fetchAll();
+        $rows = $pdo->query('SELECT ' . document_list_select_columns() . ' FROM mind_documents d LEFT JOIN mind_document_sync s ON s.document_id = d.id ORDER BY d.updated_at DESC')->fetchAll();
         $folders = $pdo->query('SELECT id, name FROM mind_folders ORDER BY name')->fetchAll();
-        reply(['documents' => array_map('document_from_row', $rows), 'folders' => $folders]);
+        reply(['documents' => array_map('document_metadata_from_row', $rows), 'folders' => $folders]);
     }
 
     if ($action === 'folder-save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -753,8 +787,52 @@ try {
     if ($action === 'folder-delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $id = substr(trim((string) (body()['id'] ?? '')), 0, 96);
         if ($id === '') reply(['error' => 'Missing folder id'], 422);
+        $pdo->beginTransaction();
+        $statement = $pdo->prepare('SELECT id, graph_json FROM mind_documents WHERE JSON_UNQUOTE(JSON_EXTRACT(graph_json, "$.folderId")) = ? FOR UPDATE');
+        $statement->execute([$id]);
+        $documents = $statement->fetchAll();
+        $update = $pdo->prepare('UPDATE mind_documents SET graph_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+        foreach ($documents as $document) {
+            $graph = json_decode((string) $document['graph_json'], true);
+            if (!is_array($graph)) $graph = [];
+            $graph['folderId'] = null;
+            $encoded = json_encode($graph, JSON_UNESCAPED_SLASHES);
+            if (!is_string($encoded)) { $pdo->rollBack(); reply(['error' => 'Could not update folder canvases'], 500); }
+            $update->execute([$encoded, (string) $document['id']]);
+            bump_revision($pdo, (string) $document['id']);
+        }
         $pdo->prepare('DELETE FROM mind_folders WHERE id = ?')->execute([$id]);
+        $pdo->commit();
         reply(['ok' => true]);
+    }
+
+    if ($action === 'document-folder' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $payload = body();
+        $id = substr(trim((string) ($payload['id'] ?? '')), 0, 96);
+        $folderId = isset($payload['folderId']) && trim((string) $payload['folderId']) !== ''
+            ? substr(trim((string) $payload['folderId']), 0, 96)
+            : null;
+        if ($id === '') reply(['error' => 'Missing canvas id'], 422);
+        if ($folderId !== null) {
+            $folderCheck = $pdo->prepare('SELECT 1 FROM mind_folders WHERE id = ? LIMIT 1');
+            $folderCheck->execute([$folderId]);
+            if (!$folderCheck->fetchColumn()) reply(['error' => 'Folder not found'], 404);
+        }
+        $pdo->beginTransaction();
+        $statement = $pdo->prepare('SELECT graph_json FROM mind_documents WHERE id = ? LIMIT 1 FOR UPDATE');
+        $statement->execute([$id]);
+        $row = $statement->fetch();
+        if (!$row) { $pdo->rollBack(); reply(['error' => 'Canvas not found'], 404); }
+        $graph = json_decode((string) $row['graph_json'], true);
+        if (!is_array($graph)) $graph = [];
+        $graph['folderId'] = $folderId;
+        $encoded = json_encode($graph, JSON_UNESCAPED_SLASHES);
+        if (!is_string($encoded)) { $pdo->rollBack(); reply(['error' => 'Could not move canvas'], 500); }
+        $statement = $pdo->prepare('UPDATE mind_documents SET graph_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+        $statement->execute([$encoded, $id]);
+        $revision = bump_revision($pdo, $id);
+        $pdo->commit();
+        reply(['ok' => true, 'revision' => $revision]);
     }
 
     if ($action === 'save' && $_SERVER['REQUEST_METHOD'] === 'POST') {
