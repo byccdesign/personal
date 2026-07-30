@@ -1371,7 +1371,13 @@ function Brand({ interactive = true }) {
 }
 
 function DocumentCard({ document, folders, onMove, onDelete }) {
-  const previewNodes = document.nodes.slice(0, 5);
+  // The dashboard list endpoint intentionally returns metadata only. Full graph
+  // data is fetched when a canvas opens, so cards must also render without it.
+  const nodes = Array.isArray(document.nodes) ? document.nodes : [];
+  const edges = Array.isArray(document.edges) ? document.edges : [];
+  const previewNodes = nodes.slice(0, 5);
+  const minNodeX = previewNodes.length ? Math.min(...previewNodes.map((node) => Number(node.x) || 0)) : 0;
+  const minNodeY = previewNodes.length ? Math.min(...previewNodes.map((node) => Number(node.y) || 0)) : 0;
   const [folderOpen, setFolderOpen] = useState(false);
   const folderPickerRef = useRef(null);
   const selectedFolder = folders.find((folder) => folder.id === document.folderId);
@@ -1391,20 +1397,18 @@ function DocumentCard({ document, folders, onMove, onDelete }) {
     <article className={`document-card ${folderOpen ? "folder-menu-open" : ""}`} onClick={() => navigate(`/editor/${document.id}`)}>
       <div className="document-preview">
         <svg className="preview-lines" viewBox="0 0 300 150" aria-hidden="true">
-          {document.edges.slice(0, 5).map((edge) => {
-            const source = document.nodes.find((node) => node.id === edge.source);
-            const target = document.nodes.find((node) => node.id === edge.target);
+          {edges.slice(0, 5).map((edge) => {
+            const source = nodes.find((node) => node.id === edge.source);
+            const target = nodes.find((node) => node.id === edge.target);
             if (!source || !target) return null;
-            const minX = Math.min(...document.nodes.map((node) => node.x));
-            const minY = Math.min(...document.nodes.map((node) => node.y));
-            const sx = 35 + (source.x - minX) * .24;
-            const sy = 30 + (source.y - minY) * .24;
-            const tx = 35 + (target.x - minX) * .24;
-            const ty = 30 + (target.y - minY) * .24;
+            const sx = 35 + ((Number(source.x) || 0) - minNodeX) * .24;
+            const sy = 30 + ((Number(source.y) || 0) - minNodeY) * .24;
+            const tx = 35 + ((Number(target.x) || 0) - minNodeX) * .24;
+            const ty = 30 + ((Number(target.y) || 0) - minNodeY) * .24;
             return <path key={edge.id} d={`M ${sx} ${sy} C ${(sx + tx) / 2} ${sy}, ${(sx + tx) / 2} ${ty}, ${tx} ${ty}`} />;
           })}
         </svg>
-        {previewNodes.map((node) => <span key={node.id} className={`preview-node tone-${node.color}`} style={{ left: `${24 + (node.x - Math.min(...document.nodes.map((item) => item.x))) * .24}px`, top: `${18 + (node.y - Math.min(...document.nodes.map((item) => item.y))) * .24}px` }} />)}
+        {previewNodes.map((node) => <span key={node.id} className={`preview-node tone-${node.color}`} style={{ left: `${24 + ((Number(node.x) || 0) - minNodeX) * .24}px`, top: `${18 + ((Number(node.y) || 0) - minNodeY) * .24}px` }} />)}
       </div>
       <div className="document-meta">
         <div><h2>{document.title}</h2><p>Updated {new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(document.updatedAt))}</p><div ref={folderPickerRef} className={`folder-picker ${folderOpen ? "open" : ""}`} onClick={(event) => event.stopPropagation()}><button type="button" className="folder-picker-trigger" aria-label={`Move ${document.title} to a folder`} aria-haspopup="listbox" aria-expanded={folderOpen} onClick={() => setFolderOpen((open) => !open)}><FolderOpen size={13} /><span>{selectedFolder?.name || "Unfiled"}</span><CaretDown size={11} /></button>{folderOpen && <div className="folder-picker-menu" role="listbox" aria-label={`Choose folder for ${document.title}`}><strong>Move to folder</strong><button role="option" aria-selected={!document.folderId} className={!document.folderId ? "selected" : ""} onClick={() => moveToFolder("")}><span className="folder-option-check">{!document.folderId && <Check size={13} />}</span><FolderOpen size={14} /><span>Unfiled</span></button>{folders.map((folder) => <button key={folder.id} role="option" aria-selected={document.folderId === folder.id} className={document.folderId === folder.id ? "selected" : ""} onClick={() => moveToFolder(folder.id)}><span className="folder-option-check">{document.folderId === folder.id && <Check size={13} />}</span><FolderOpen size={14} /><span>{folder.name}</span></button>)}</div>}</div></div>
