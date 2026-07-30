@@ -201,22 +201,33 @@ function document_select_columns(): string
 
 function document_list_select_columns(): string
 {
-    // Keep graph_json out of the response, but decode it in PHP for compatibility
-    // with legacy rows and MySQL/MariaDB versions that reject JSON_EXTRACT on LONGTEXT.
-    return 'd.id, d.title, d.slug, d.is_shared, d.graph_json, d.updated_at, COALESCE(s.revision, 0) AS revision';
+    // JSON_VALID prevents one malformed legacy row from failing the whole list,
+    // while keeping every full canvas body out of PHP memory and the response.
+    return 'd.id, d.title, d.slug, d.is_shared, d.updated_at, COALESCE(s.revision, 0) AS revision,
+        CASE
+            WHEN JSON_VALID(d.graph_json)
+            THEN JSON_UNQUOTE(JSON_EXTRACT(d.graph_json, "$.folderId"))
+            ELSE NULL
+        END AS folder_id,
+        CASE
+            WHEN JSON_VALID(d.graph_json)
+            THEN CASE
+                WHEN JSON_UNQUOTE(JSON_EXTRACT(d.graph_json, "$.guestEditable")) IN ("true", "1") THEN 1
+                ELSE 0
+            END
+            ELSE 0
+        END AS guest_editable';
 }
 
 function document_metadata_from_row(array $row): array
 {
-    $graph = json_decode((string) ($row['graph_json'] ?? ''), true);
-    if (!is_array($graph)) $graph = [];
-    $folderId = trim((string) ($graph['folderId'] ?? ''));
+    $folderId = trim((string) ($row['folder_id'] ?? ''));
     return [
         'id' => (string) $row['id'],
         'title' => (string) $row['title'],
         'slug' => (string) $row['slug'],
         'shared' => (bool) $row['is_shared'],
-        'guestEditable' => !empty($graph['guestEditable']),
+        'guestEditable' => !empty($row['guest_editable']),
         'folderId' => $folderId !== '' && strtolower($folderId) !== 'null' ? $folderId : null,
         'updatedAt' => (string) $row['updated_at'],
         'revision' => (int) ($row['revision'] ?? 0),
@@ -790,11 +801,18 @@ try {
         $id = substr(trim((string) (body()['id'] ?? '')), 0, 96);
         if ($id === '') reply(['error' => 'Missing folder id'], 422);
         $pdo->beginTransaction();
-        $statement = $pdo->query('SELECT id, graph_json FROM mind_documents FOR UPDATE');
-        $documents = array_values(array_filter($statement->fetchAll(), static function (array $document) use ($id): bool {
-            $graph = json_decode((string) ($document['graph_json'] ?? ''), true);
-            return is_array($graph) && (string) ($graph['folderId'] ?? '') === $id;
-        }));
+        $statement = $pdo->prepare(
+            'SELECT id, graph_json
+             FROM mind_documents
+             WHERE CASE
+                WHEN JSON_VALID(graph_json)
+                THEN JSON_UNQUOTE(JSON_EXTRACT(graph_json, "$.folderId"))
+                ELSE NULL
+             END = ?
+             FOR UPDATE'
+        );
+        $statement->execute([$id]);
+        $documents = $statement->fetchAll();
         $update = $pdo->prepare('UPDATE mind_documents SET graph_json = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
         foreach ($documents as $document) {
             $graph = json_decode((string) $document['graph_json'], true);
