@@ -1336,7 +1336,7 @@ function Dashboard({ documents, folders, onNew, onImport, onDelete, onSaveFolder
         </aside>
         <main className="dashboard">
           <section className="dashboard-heading">
-            <div><p className="eyebrow">Your visual workspace</p><h1>{selectedFolder === "all" ? "All canvases" : selectedFolder === "unfiled" ? "Unfiled" : folders.find((folder) => folder.id === selectedFolder)?.name || "Canvases"}</h1><p>Map ideas, explain systems, and keep every version in one calm place.</p></div>
+            <div><h1>{selectedFolder === "all" ? "All canvases" : selectedFolder === "unfiled" ? "Unfiled" : folders.find((folder) => folder.id === selectedFolder)?.name || "Canvases"}</h1></div>
             <div className="dashboard-heading-actions">
               <button className="secondary-button" disabled={importing} onClick={() => dashboardImportRef.current?.click()}><ArrowDownTrayIcon width="18" /> {importing ? "Importing…" : "Import .mymind"}</button>
               <input ref={dashboardImportRef} className="visually-hidden-input" type="file" accept=".mymind,application/vnd.mymind.canvas+json,application/json" onChange={async (event) => {
@@ -1478,6 +1478,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
   const [selectedAnnotationId, setSelectedAnnotationId] = useState(null);
   const [pendingAnnotation, setPendingAnnotation] = useState(null);
   const [annotationsVisible, setAnnotationsVisible] = useState(true);
+  const [commentsOpen, setCommentsOpen] = useState(false);
   const [pagesOpen, setPagesOpen] = useState(false);
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [feedback, setFeedback] = useState(null);
@@ -2838,6 +2839,21 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
   const selectedEdge = edgeSelection.length === 1 ? document.edges.find((edge) => edge.id === edgeSelection[0]) : null;
   const visibleParticipants = participants.filter((participant) => participant.clientId !== presenceClientRef.current);
   const selectedAnnotation = (document.annotations || []).find((annotation) => annotation.id === selectedAnnotationId) || null;
+  const commentItems = (document.pages || []).flatMap((page) => {
+    const annotations = page.id === document.activePageId ? (document.annotations || []) : (page.annotations || []);
+    return annotations.map((annotation) => ({ annotation, pageId: page.id, pageName: page.name }));
+  });
+  const focusComment = ({ annotation, pageId }) => {
+    if (pageId !== document.activePageId) switchPage(pageId);
+    const width = canvasRef.current?.clientWidth || 900;
+    const height = canvasRef.current?.clientHeight || 700;
+    setPan({ x: width / 2 - (Number(annotation.x) || 0) * zoom, y: height / 2 - (Number(annotation.y) || 0) * zoom });
+    setAnnotationsVisible(true);
+    setSelectedAnnotationId(annotation.id);
+    setSelection([]);
+    setEdgeSelection([]);
+    setDrawingSelection([]);
+  };
   const annotationPanelStyle = selectedAnnotation ? {
     left: Math.max(180, Math.min((canvasRef.current?.clientWidth || 900) - 180, pan.x + selectedAnnotation.x * zoom)),
     top: Math.max(16, Math.min((canvasRef.current?.clientHeight || 700) - 320, pan.y + selectedAnnotation.y * zoom + 14)),
@@ -2868,8 +2884,8 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
           {collaborationEnabled && visibleParticipants.slice(0, isPublicLink ? 3 : 2).map((participant, index) => <span key={participant.clientId} className={`avatar topbar-avatar is-${participant.role}`} style={{ background: participantAvatarColor(participant.clientId || participant.name, index + 1) }} aria-hidden="true"><UserCircle size={14} /></span>)}
         </span>}
         <span className="save-state"><span /> {publicView ? "View only" : isPublicLink ? `Guest · ${saveState}` : saveState}</span>
-        <button className={`icon-button comments-toggle ${annotationsVisible ? "active" : ""}`} aria-pressed={annotationsVisible} aria-label={annotationsVisible ? "Hide comments" : "Show comments"} title={annotationsVisible ? "Hide comments" : "Show comments"} onClick={() => setAnnotationsVisible((visible) => { if (visible) setSelectedAnnotationId(null); return !visible; })}><ChatCircleDots size={19} /></button>
-        {!publicView && <button className="secondary-button" onClick={() => setExportOpen(true)}><DownloadSimple size={17} /> Export <CaretDown size={13} /></button>}
+        <button className={`icon-button comments-toggle ${commentsOpen ? "active" : ""}`} aria-pressed={commentsOpen} aria-label={commentsOpen ? "Hide comments panel" : "Show comments panel"} title={commentsOpen ? "Hide comments panel" : "Show comments panel"} onClick={() => { setCommentsOpen((open) => !open); setExportOpen(false); setAnnotationsVisible(true); }}><ChatCircleDots size={19} />{commentItems.length > 0 && <span>{commentItems.length}</span>}</button>
+        {!publicView && <button className={`secondary-button ${exportOpen ? "active" : ""}`} aria-expanded={exportOpen} onClick={() => { setExportOpen((open) => !open); setCommentsOpen(false); }}><DownloadSimple size={17} /> Export <CaretDown size={13} /></button>}
         {!isPublicLink && <button className="primary-button" onClick={() => setShareOpen(true)}><ShareNetwork size={17} /> Share</button>}
         {isPublicLink && <span className="public-pill"><ShareNetwork size={15} /> {publicView ? "Shared canvas" : "Guest editing"}</span>}
       </div>
@@ -2983,6 +2999,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
         {mediaUpload && <MediaUploadStatus upload={mediaUpload} />}
       </main>
 
+      {commentsOpen && <CommentsPanel comments={commentItems} onSelect={focusComment} onClose={() => setCommentsOpen(false)} />}
       {exportOpen && <ExportPanel scope={exportScope} setScope={setExportScope} hasSelection={selection.length > 0 || drawingSelection.length > 0} onClose={() => setExportOpen(false)} onExport={exportDiagram} />}
     </div>
 
@@ -3636,10 +3653,11 @@ function GuestWelcomeModal({ accessMode, onClose }) {
 }
 
 function ExportPanel({ scope, setScope, hasSelection, onClose, onExport }) {
+  const [minimized, setMinimized] = useState(false);
   useModalKeyboard(onClose, () => onExport("pdf"));
-  return <aside className="inspector export-panel" aria-labelledby="export-dialog-title">
-    <div className="modal-header"><h2 id="export-dialog-title">Export canvas</h2><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={20} /></button></div>
-    <div className="segmented"><button className={scope === "all" ? "active" : ""} onClick={() => setScope("all")}>Whole canvas</button><button disabled={!hasSelection} className={scope === "selected" ? "active" : ""} onClick={() => setScope("selected")}>Selected items</button></div>
+  return <aside className={`inspector export-panel floating-side-panel ${minimized ? "minimized" : ""}`} aria-labelledby="export-dialog-title">
+    <div className="floating-panel-header"><h2 id="export-dialog-title">Export canvas</h2><div><button className="icon-button" aria-label={minimized ? "Expand export panel" : "Minimize export panel"} title={minimized ? "Expand" : "Minimize"} onClick={() => setMinimized((value) => !value)}><Minus size={17} /></button><button className="icon-button" aria-label="Close export panel" onClick={onClose}><X size={18} /></button></div></div>
+    {!minimized && <><div className="segmented"><button className={scope === "all" ? "active" : ""} onClick={() => setScope("all")}>Whole canvas</button><button disabled={!hasSelection} className={scope === "selected" ? "active" : ""} onClick={() => setScope("selected")}>Selected items</button></div>
     {!hasSelection && <p className="dialog-note">Select one or more nodes to enable a focused export.</p>}
     <div className="export-grid">
       <button onClick={() => onExport("mymind")}><FileText size={27} weight="duotone" /><span><strong>MyMind</strong><small>Reopen and keep editing</small></span></button>
@@ -3648,6 +3666,19 @@ function ExportPanel({ scope, setScope, hasSelection, onClose, onExport }) {
       <button onClick={() => onExport("png")}><Photo size={27} weight="duotone" /><span><strong>PNG</strong><small>Crisp raster image</small></span></button>
       <button onClick={() => onExport("gif")}><Play size={27} weight="duotone" /><span><strong>GIF</strong><small>Static GIF snapshot</small></span></button>
       <button onClick={() => onExport("svg")}><FileSvg size={27} weight="duotone" /><span><strong>SVG</strong><small>Editable vector</small></span></button>
+    </div></>}
+  </aside>;
+}
+
+function CommentsPanel({ comments, onSelect, onClose }) {
+  useModalKeyboard(onClose);
+  return <aside className="inspector comments-panel floating-side-panel" aria-labelledby="comments-panel-title">
+    <div className="floating-panel-header"><div><h2 id="comments-panel-title">Comments</h2><small>{comments.length} {comments.length === 1 ? "comment" : "comments"}</small></div><button className="icon-button" aria-label="Close comments panel" onClick={onClose}><X size={18} /></button></div>
+    <div className="comments-panel-list">
+      {comments.length ? comments.map(({ annotation, pageId, pageName }) => <article className="comments-panel-item" key={`${pageId}-${annotation.id}`}>
+        <button className="comment-jump" aria-label={`Go to comment ${annotation.number}`} title={`Go to comment ${annotation.number}`} onClick={() => onSelect({ annotation, pageId })}>{annotation.number}</button>
+        <div><div><strong>{annotation.author || "Guest"}</strong><small>{pageName || "Canvas"}</small></div><p>{annotation.comment}</p>{(annotation.replies || []).length > 0 && <span>{annotation.replies.length} {(annotation.replies || []).length === 1 ? "reply" : "replies"}</span>}</div>
+      </article>) : <div className="comments-panel-empty"><ChatCircleDots size={24} /><strong>No comments yet</strong><p>Use the comment tool to leave a note on the canvas.</p></div>}
     </div>
   </aside>;
 }
