@@ -1,86 +1,91 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
-  ArrowDownTrayIcon,
-  ArrowLeftIcon,
-  ArrowLongRightIcon,
-  ArrowPathIcon,
-  ArrowRightIcon,
-  ArrowUpIcon,
-  ArrowTopRightOnSquareIcon,
-  ArrowsRightLeftIcon,
-  AcademicCapIcon,
-  Bars3BottomLeftIcon,
-  Bars3BottomRightIcon,
-  Bars3CenterLeftIcon,
-  BellIcon,
-  BoltIcon,
-  BriefcaseIcon,
-  BuildingLibraryIcon,
-  BugAntIcon,
-  CameraIcon,
-  CalendarDaysIcon,
-  ChartBarIcon,
-  ChatBubbleLeftEllipsisIcon,
-  CheckIcon,
-  ChevronDownIcon,
-  CircleStackIcon,
-  CloudIcon,
-  CodeBracketIcon,
-  Cog6ToothIcon,
-  CubeIcon,
-  CurrencyDollarIcon,
-  CursorArrowRaysIcon,
-  CursorArrowRippleIcon,
-  DocumentDuplicateIcon,
-  DocumentTextIcon,
-  EyeSlashIcon,
-  EyeIcon,
-  EnvelopeIcon,
-  FlagIcon,
-  FolderOpenIcon,
-  GlobeAmericasIcon,
-  HandRaisedIcon,
-  HeartIcon,
-  HomeIcon,
-  H1Icon,
-  KeyIcon,
-  LightBulbIcon,
-  LinkIcon,
-  ListBulletIcon,
-  MagnifyingGlassMinusIcon,
-  MagnifyingGlassIcon,
-  MagnifyingGlassPlusIcon,
-  MapPinIcon,
-  MegaphoneIcon,
-  MinusIcon,
-  MusicalNoteIcon,
-  PhoneIcon,
-  PlusIcon,
-  PhotoIcon,
-  PencilIcon,
-  PauseIcon,
-  PlayIcon,
-  QuestionMarkCircleIcon,
-  RocketLaunchIcon,
-  ArrowRightStartOnRectangleIcon,
-  ShieldCheckIcon,
-  ShoppingCartIcon,
-  ShareIcon,
-  SparklesIcon,
-  Squares2X2Icon,
-  StopCircleIcon,
-  SwatchIcon,
-  StarIcon,
-  TagIcon,
-  TrashIcon,
-  TruckIcon,
-  UserCircleIcon,
-  UsersIcon,
-  ViewfinderCircleIcon,
-  WrenchScrewdriverIcon,
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
+  Download as ArrowDownTrayIcon,
+  ArrowLeft as ArrowLeftIcon,
+  MoveRight as ArrowLongRightIcon,
+  RefreshCw as ArrowPathIcon,
+  ArrowRight as ArrowRightIcon,
+  ArrowUp as ArrowUpIcon,
+  ExternalLink as ArrowTopRightOnSquareIcon,
+  GraduationCap as AcademicCapIcon,
+  AlignLeft as Bars3BottomLeftIcon,
+  AlignRight as Bars3BottomRightIcon,
+  AlignCenter as Bars3CenterLeftIcon,
+  Bell as BellIcon,
+  Zap as BoltIcon,
+  Briefcase as BriefcaseIcon,
+  Landmark as BuildingLibraryIcon,
+  Bug as BugAntIcon,
+  Camera as CameraIcon,
+  CalendarDays as CalendarDaysIcon,
+  BarChart3 as ChartBarIcon,
+  MessageCircle as ChatBubbleLeftEllipsisIcon,
+  Check as CheckIcon,
+  ChevronDown as ChevronDownIcon,
+  Database as CircleStackIcon,
+  Cloud as CloudIcon,
+  Code as CodeBracketIcon,
+  Settings as Cog6ToothIcon,
+  Box as CubeIcon,
+  DollarSign as CurrencyDollarIcon,
+  MousePointerClick as CursorArrowRaysIcon,
+  MousePointer2 as CursorArrowRippleIcon,
+  Copy as DocumentDuplicateIcon,
+  FileText as DocumentTextIcon,
+  EyeOff as EyeSlashIcon,
+  Eye as EyeIcon,
+  Mail as EnvelopeIcon,
+  Flag as FlagIcon,
+  FolderOpen as FolderOpenIcon,
+  Globe as GlobeAmericasIcon,
+  Hand as HandRaisedIcon,
+  Heart as HeartIcon,
+  Home as HomeIcon,
+  Heading1 as H1Icon,
+  Key as KeyIcon,
+  Lightbulb as LightBulbIcon,
+  Link as LinkIcon,
+  List as ListBulletIcon,
+  ZoomOut as MagnifyingGlassMinusIcon,
+  Search as MagnifyingGlassIcon,
+  ZoomIn as MagnifyingGlassPlusIcon,
+  MapPin as MapPinIcon,
+  Megaphone as MegaphoneIcon,
+  Minus as MinusIcon,
+  Music as MusicalNoteIcon,
+  Phone as PhoneIcon,
+  Plus as PlusIcon,
+  Image as PhotoIcon,
+  Pencil as PencilIcon,
+  Pause as PauseIcon,
+  Play as PlayIcon,
+  HelpCircle as QuestionMarkCircleIcon,
+  Rocket as RocketLaunchIcon,
+  LogOut as ArrowRightStartOnRectangleIcon,
+  ShieldCheck as ShieldCheckIcon,
+  ShoppingCart as ShoppingCartIcon,
+  Share2 as ShareIcon,
+  Sparkles as SparklesIcon,
+  LayoutGrid as Squares2X2Icon,
+  CircleStop as StopCircleIcon,
+  Palette as SwatchIcon,
+  Star as StarIcon,
+  Tag as TagIcon,
+  Trash2 as TrashIcon,
+  Truck as TruckIcon,
+  CircleUserRound as UserCircleIcon,
+  Users as UsersIcon,
+  Scan as ViewfinderCircleIcon,
+  Wrench as WrenchScrewdriverIcon,
+  X as XMarkIcon,
+  Undo2,
+  Redo2,
+  StickyNote,
+  Network,
+  Workflow,
+} from "lucide-react";
+import * as LucideIcons from "lucide-react";
 import * as HeroOutlineIcons from "@heroicons/react/24/outline";
 import { jsPDF } from "jspdf";
 import { getStroke } from "perfect-freehand";
@@ -91,8 +96,8 @@ function adaptHeroIcon(Icon) {
   };
 }
 
-const HERO_ICON_ENTRIES = Object.entries(HeroOutlineIcons)
-  .filter(([name, component]) => name.endsWith("Icon") && typeof component === "object")
+const HERO_ICON_ENTRIES = Object.entries(LucideIcons)
+  .filter(([name, component]) => name.endsWith("Icon") && name !== "Icon" && typeof component === "object")
   .sort(([a], [b]) => a.localeCompare(b));
 
 
@@ -134,7 +139,6 @@ const EyeSlash = adaptHeroIcon(EyeSlashIcon);
 const Eye = adaptHeroIcon(EyeIcon);
 const Envelope = adaptHeroIcon(EnvelopeIcon);
 const Flag = adaptHeroIcon(FlagIcon);
-const FlowArrow = adaptHeroIcon(ArrowsRightLeftIcon);
 const FolderOpen = adaptHeroIcon(FolderOpenIcon);
 const Hand = adaptHeroIcon(HandRaisedIcon);
 const Heart = adaptHeroIcon(HeartIcon);
@@ -504,6 +508,7 @@ function svgPathFromStroke(points = []) {
 function perfectDrawingPath(drawing, offsetX = 0, offsetY = 0) {
   const input = (drawing?.points || []).map((point) => [point.x - offsetX, point.y - offsetY, point.pressure ?? .5]);
   if (input.length < 2) return "";
+  const isHighlighter = drawing.mode === "highlighter";
   return svgPathFromStroke(getStroke(input, {
     size: drawing.width || 2.4,
     thinning: 0,
@@ -511,7 +516,14 @@ function perfectDrawingPath(drawing, offsetX = 0, offsetY = 0) {
     streamline: drawing.streamline ?? .65,
     simulatePressure: false,
     last: true,
+    start: { cap: !isHighlighter },
+    end: { cap: !isHighlighter },
   }));
+}
+
+function rangeFillStyle(value, min, max) {
+  const pct = ((value - min) / (max - min)) * 100;
+  return { backgroundImage: "linear-gradient(var(--primary), var(--primary))", backgroundSize: `${pct}% 100%` };
 }
 
 function snapDrawingPoint(start, point) {
@@ -1348,7 +1360,10 @@ function Dashboard({ documents, folders, onNew, onImport, onDelete, onSaveFolder
                 catch (error) { window.alert(error instanceof Error ? error.message : "MyMind could not import this canvas."); }
                 finally { setImporting(false); }
               }} />
-              <button className="primary-button" onClick={onNew}><Plus size={18} weight="bold" /> New canvas</button>
+              <div className="new-canvas-trigger">
+                <button className="primary-button" onClick={onNew}><Plus size={18} weight="bold" /> New canvas</button>
+                {dialog && <NewCanvasMenu onClose={closeDialog} onCreate={createDocument} />}
+              </div>
             </div>
           </section>
           <div className="dashboard-content">
@@ -1359,7 +1374,6 @@ function Dashboard({ documents, folders, onNew, onImport, onDelete, onSaveFolder
           </div>
         </main>
       </div>
-      {dialog && <TemplateDialog onClose={closeDialog} onCreate={createDocument} />}
       {confirmDelete && <ConfirmDialog title={confirmDelete.type === "folder" ? `Delete “${confirmDelete.item.name}”?` : `Delete “${confirmDelete.item.title}”?`} message={confirmDelete.type === "folder" ? "The folder will be deleted. Its canvases will remain available in All canvases." : "This canvas and its saved content will be permanently deleted."} confirmLabel={confirmDelete.type === "folder" ? "Delete folder" : "Delete canvas"} onClose={() => setConfirmDelete(null)} onConfirm={confirmDashboardDelete} />}
     </div>
   );
@@ -1419,18 +1433,16 @@ function DocumentCard({ document, folders, onMove, onDelete }) {
   );
 }
 
-function TemplateDialog({ onClose, onCreate }) {
+function NewCanvasMenu({ onClose, onCreate }) {
   useModalKeyboard(onClose, () => onCreate("blank"));
-  return <div className="modal-backdrop" onMouseDown={onClose}>
-    <div className="modal template-modal" role="dialog" aria-modal="true" aria-labelledby="template-dialog-title" onMouseDown={(e) => e.stopPropagation()}>
-      <div className="modal-header"><h2 id="template-dialog-title">Choose a starting point</h2><button className="icon-button" aria-label="Close dialog" onClick={onClose}><X size={20} /></button></div>
-      <div className="template-grid">
-        <button onClick={() => onCreate("blank")}><span className="template-icon"><Plus size={25} /></span><strong>Blank canvas</strong><small>Begin with one central idea</small></button>
-        <button onClick={() => onCreate("mind")}><span className="template-icon violet"><Brain size={25} /></span><strong>Mind map</strong><small>Branch thoughts from a core idea</small></button>
-        <button onClick={() => onCreate("process")}><span className="template-icon aqua"><FlowArrow size={25} /></span><strong>Process flow</strong><small>Explain a system step by step</small></button>
-      </div>
+  return <>
+    <div className="popover-backdrop" onMouseDown={onClose} />
+    <div className="new-canvas-menu" role="menu" aria-label="Choose a starting point" onMouseDown={(event) => event.stopPropagation()}>
+      <button role="menuitem" style={{ "--stagger": 0 }} onClick={() => onCreate("blank")}><StickyNote size={18} /><span>Blank Canvas</span></button>
+      <button role="menuitem" style={{ "--stagger": 1 }} onClick={() => onCreate("mind")}><Network size={18} /><span>Mind Map</span></button>
+      <button role="menuitem" style={{ "--stagger": 2 }} onClick={() => onCreate("process")}><Workflow size={18} /><span>Process Flow</span></button>
     </div>
-  </div>;
+  </>;
 }
 
 function ConfirmDialog({ title, message, confirmLabel, onClose, onConfirm }) {
@@ -1455,6 +1467,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
   const [penWidth, setPenWidth] = useState(2.4);
   const [penColor, setPenColor] = useState("#3f4652");
   const [penStreamline, setPenStreamline] = useState(.65);
+  const [penMode, setPenMode] = useState("pen");
   const [pan, setPan] = useState({ x: 80, y: 90 });
   const [zoom, setZoom] = useState(.9);
   const [tool, setTool] = useState("select");
@@ -2019,7 +2032,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     if (tool === "pen" && !publicView) {
       const bounds = canvasRef.current.getBoundingClientRect();
       const point = { x: (event.clientX - bounds.left - pan.x) / zoom, y: (event.clientY - bounds.top - pan.y) / zoom };
-      setDraftDrawing({ id: uid("drawing"), points: [{ ...point, pressure: event.pressure || .5 }], color: penColor, width: penWidth, streamline: penStreamline });
+      setDraftDrawing({ id: uid("drawing"), points: [{ ...point, pressure: event.pressure || .5 }], color: penColor, width: penWidth, streamline: penStreamline, mode: penMode });
       setSelection([]); setEdgeSelection([]); setDrawingSelection([]);
       event.currentTarget.setPointerCapture(event.pointerId);
       return;
@@ -2100,6 +2113,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     setPenWidth(drawing.width || 2.4);
     setPenColor(drawing.color || "#3f4652");
     setPenStreamline(drawing.streamline ?? .65);
+    setPenMode(drawing.mode || "pen");
     setEdgeSelection([]);
     setConnectionSource(null);
     if (event.shiftKey && drawingSelection.includes(drawing.id)) {
@@ -2351,6 +2365,20 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     setZoom(nextZoom);
   };
 
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const wheelHandler = (e) => {
+      // Prevent browser pinch-to-zoom (ctrl+touchpad) and handle it on the canvas
+      if (e.ctrlKey) {
+        e.preventDefault();
+        onWheel(e);
+      }
+    };
+    el.addEventListener("wheel", wheelHandler, { passive: false });
+    return () => el.removeEventListener("wheel", wheelHandler, { passive: false });
+  }, [canvasRef, zoom, pan]);
+
   const zoomAtCenter = useCallback((nextValue) => {
     const nextZoom = Math.min(2, Math.max(.35, nextValue));
     const width = canvasRef.current?.clientWidth || 900;
@@ -2448,6 +2476,16 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     setPenStreamline(streamline);
     if (!drawingSelection.length) return;
     updateDocument((doc) => ({ ...doc, drawings: (doc.drawings || []).map((drawing) => drawingSelection.includes(drawing.id) ? { ...drawing, streamline } : drawing) }));
+  };
+
+  const changeDrawingMode = (mode) => {
+    setPenMode(mode);
+    const width = mode === "highlighter" ? 14 : 2.4;
+    const color = mode === "highlighter" ? "#ffd84a" : "#3f4652";
+    setPenWidth(width);
+    setPenColor(color);
+    if (!drawingSelection.length) return;
+    updateDocument((doc) => ({ ...doc, drawings: (doc.drawings || []).map((drawing) => drawingSelection.includes(drawing.id) ? { ...drawing, mode, width, color } : drawing) }));
   };
 
   const changeStacking = useCallback((direction, target = null) => {
@@ -2587,6 +2625,11 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
       if (!modalOpen && !isTyping && (event.metaKey || event.ctrlKey) && (event.key === "+" || event.key === "=" || event.key === "-")) {
         event.preventDefault();
         zoomAtCenter(event.key === "-" ? zoom - .1 : zoom + .1);
+      }
+      if (!modalOpen && !isTyping && (event.metaKey || event.ctrlKey) && ["1", "5", "7"].includes(event.key)) {
+        event.preventDefault();
+        const m = { "1": 1, "5": .5, "7": .7 };
+        zoomAtCenter(m[event.key]);
       }
       if (!publicView && !modalOpen && !isTyping && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") { event.preventDefault(); duplicateSelection(); }
       if (!publicView && !modalOpen && !isTyping && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") {
@@ -2782,7 +2825,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
         return `<g transform="rotate(${node.rotation || 0} ${x + size.width / 2} ${y + size.height / 2})" fill="none" stroke="${tone.accent}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" ${node.lineStyle === "dashed" ? 'stroke-dasharray="9 7"' : ""}><line x1="${x + 4}" y1="${y + size.height / 2}" x2="${x + size.width - size.height * .36}" y2="${y + size.height / 2}"/><polyline points="${x + size.width - size.height * .68},${y + size.height * .18} ${x + size.width - size.height * .34},${y + size.height / 2} ${x + size.width - size.height * .68},${y + size.height * .82}"/></g>`;
       }
       if (node.type === "icon") {
-        const HeroIcon = HeroOutlineIcons[node.iconName] || HeroOutlineIcons.SparklesIcon;
+        const HeroIcon = LucideIcons[node.iconName] || HeroOutlineIcons[node.iconName] || LucideIcons.SparklesIcon;
         const iconMarkup = renderToStaticMarkup(<HeroIcon width={size.width} height={size.height} strokeWidth="1.7" color={tone.accent} />);
         return `<g transform="translate(${x} ${y})">${iconMarkup}</g>`;
       }
@@ -2960,7 +3003,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
         {tool === "connect" && <div className="mode-toast"><LinkNodes size={16} /> {connectionSource ? "Choose a destination node" : "Choose a starting node"}</div>}
         {tool === "annotate" && !pendingAnnotation && <div className="mode-toast"><ChatCircleDots size={16} /> Click anywhere to add an annotation</div>}
         {rotationFeedback !== null && <div className="mode-toast rotation-mode-toast"><ArrowsClockwise size={16} /> Rotating arrow <strong>{rotationFeedback}°</strong></div>}
-        {!publicView && (tool === "pen" || drawingSelection.length > 0) && <DrawingThicknessToolbar width={penWidth} color={penColor} streamline={penStreamline} selectionCount={drawingSelection.length} onChange={changeDrawingWidth} onColorChange={changeDrawingColor} onStreamlineChange={changeDrawingStreamline} onDelete={deleteSelection} />}
+        {!publicView && (tool === "pen" || drawingSelection.length > 0) && <DrawingThicknessToolbar width={penWidth} color={penColor} streamline={penStreamline} mode={penMode} selectionCount={drawingSelection.length} onChange={changeDrawingWidth} onColorChange={changeDrawingColor} onStreamlineChange={changeDrawingStreamline} onModeChange={changeDrawingMode} onDelete={deleteSelection} />}
         {!publicView && selectedNode && !selectedNode.type && !editingNode && <NodeStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} connectionCount={document.edges.filter((edge) => edge.source === selectedNode.id || edge.target === selectedNode.id).length} hiddenConnectionCount={document.edges.filter((edge) => (edge.source === selectedNode.id || edge.target === selectedNode.id) && edge.hidden).length} onHideConnections={() => { hideNodeConnections(selectedNode.id); setNodeToolbarMenu(null); }} onShowConnections={() => { showHiddenConnections(selectedNode.id); setNodeToolbarMenu(null); }} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
         {!publicView && selectedNode?.type === "text" && !editingNode && <TextStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
         {!publicView && selectedNode?.type === "image" && <ImageStyleToolbar node={selectedNode} style={imageToolbarStyle} popoverPlacement={imageToolbarBelow ? "below" : "above"} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
@@ -2983,16 +3026,22 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
           onBack={() => changeStacking("back", contextMenu)}
           onFront={() => changeStacking("front", contextMenu)}
         />}
-        <div className="zoom-controls">
-          {zoomMenuOpen && <div className="zoom-menu" role="menu" onPointerDown={(event) => event.stopPropagation()}>
-            <button role="menuitem" onClick={zoomToContent}><span>Zoom to content</span><kbd>1</kbd></button>
-            <button role="menuitem" disabled={!selectedBounds} onClick={() => zoomToBounds(selectedBounds)}><span>Zoom to selection</span><kbd>2</kbd></button>
-            {[.5, .7, 1, 1.5, 2].map((value) => <button key={value} role="menuitem" className={Math.abs(zoom - value) < .01 ? "active" : ""} onClick={() => { zoomAtCenter(value); setZoomMenuOpen(false); }}><span>{Math.round(value * 100)}%</span><kbd>{value === .5 ? "5" : value === .7 ? "7" : value === 1 ? "0" : ""}</kbd></button>)}
+        <div className="canvas-floating-controls">
+          {!publicView && <div className="undo-redo-controls" role="toolbar" aria-label="Undo and redo">
+            <button aria-label="Undo" title="Undo · ⌘Z" disabled={!historyRef.current.past.length} onClick={() => applyHistory("undo")}><Undo2 size={18} /></button>
+            <button aria-label="Redo" title="Redo · ⌘⇧Z" disabled={!historyRef.current.future.length} onClick={() => applyHistory("redo")}><Redo2 size={18} /></button>
           </div>}
-          <button aria-label="Zoom out" title="Zoom out · ⌘−" onClick={() => zoomAtCenter(zoom - .1)}><MagnifyingGlassMinus size={18} /></button>
-          <button className="zoom-value-button" aria-haspopup="menu" aria-expanded={zoomMenuOpen} onClick={() => setZoomMenuOpen((open) => !open)}>{Math.round(zoom * 100)}%</button>
-          <button aria-label="Zoom in" title="Zoom in · ⌘+" onClick={() => zoomAtCenter(zoom + .1)}><MagnifyingGlassPlus size={18} /></button>
-          <button title="Reset view" onClick={() => { setPan({ x: 80, y: 90 }); setZoom(.9); }}><ArrowsClockwise size={18} /></button>
+          <div className="zoom-controls">
+            {zoomMenuOpen && <div className="zoom-menu" role="menu" onPointerDown={(event) => event.stopPropagation()}>
+              <button role="menuitem" onClick={zoomToContent}><span>Zoom to content</span><kbd>1</kbd></button>
+              <button role="menuitem" disabled={!selectedBounds} onClick={() => zoomToBounds(selectedBounds)}><span>Zoom to selection</span><kbd>2</kbd></button>
+              {[.5, .7, 1, 1.5, 2].map((value) => <button key={value} role="menuitem" className={Math.abs(zoom - value) < .01 ? "active" : ""} onClick={() => { zoomAtCenter(value); setZoomMenuOpen(false); }}><span>{Math.round(value * 100)}%</span><kbd>{value === .5 ? "5" : value === .7 ? "7" : value === 1 ? "0" : ""}</kbd></button>)}
+            </div>}
+            <button aria-label="Zoom out" title="Zoom out · ⌘−" onClick={() => zoomAtCenter(zoom - .1)}><MagnifyingGlassMinus size={18} /></button>
+            <button className="zoom-value-button" aria-haspopup="menu" aria-expanded={zoomMenuOpen} onClick={() => setZoomMenuOpen((open) => !open)}>{Math.round(zoom * 100)}%</button>
+            <button aria-label="Zoom in" title="Zoom in · ⌘+" onClick={() => zoomAtCenter(zoom + .1)}><MagnifyingGlassPlus size={18} /></button>
+            <button title="Reset view" onClick={() => { setPan({ x: 80, y: 90 }); setZoom(.9); }}><ArrowsClockwise size={18} /></button>
+          </div>
         </div>
         <div className="canvas-hint">D draws · Shift straightens · Hold Space + drag to pan</div>
         {feedback && <CanvasFeedback key={feedback.id} feedback={feedback} />}
@@ -3054,7 +3103,7 @@ function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, conne
   const size = nodeDimensions(node);
   return <article className={`canvas-node ${node.type ? `node-type-${node.type}` : ""} ${node.isSvg ? "is-svg" : ""} ${node.cropAspect && node.cropAspect !== "original" ? "is-cropped" : ""} ${node.shape ? `shape-${node.shape}` : ""} ${selected ? "selected" : ""} ${connecting ? "connecting" : ""} ${dropTarget ? "connection-drop-target" : ""} ${editing ? "editing" : ""}`} role="button" tabIndex="0" data-node-id={node.id} aria-label={`${node.label}. ${node.subtitle || ""}. Press Enter to select, then Tab to add a connected node.`} style={{ left: node.x, top: node.y, width: size.width, height: size.height, zIndex: node.stackLevel === "front" ? 12 : node.stackLevel === "back" ? 1 : undefined, transform: node.type === "arrow" ? `rotate(${node.rotation || 0}deg)` : undefined, "--node-accent": tone.accent, "--node-soft": tone.soft, "--shape-fill": tone.accent, "--shape-text": shapeColors.text, "--shape-muted": shapeColors.muted, "--text-size": `${node.fontSize || 24}px`, "--text-background": node.textBackground || "transparent", "--text-align": node.textAlign || "left" }} onPointerDown={(event) => onPointerDown(event, node)} onContextMenu={onContextMenu} onKeyDown={editing ? undefined : onKeyDown} onDoubleClick={(event) => { event.stopPropagation(); onEdit(); }}>
     {node.type === "image" && (node.isGif || node.mimeType === "image/gif" ? <GifImageNode node={node} /> : <span className="image-node-viewport"><img src={node.imageData} alt={node.label || "Canvas image"} draggable="false" style={{ objectPosition: "50% 50%", transform: `scale(${node.cropZoom || 1})` }} /></span>)}
-    {node.type === "icon" && (() => { const HeroIcon = HeroOutlineIcons[node.iconName] || HeroOutlineIcons.SparklesIcon; return <HeroIcon className="standalone-icon" aria-hidden="true" />; })()}
+    {node.type === "icon" && (() => { const HeroIcon = LucideIcons[node.iconName] || HeroOutlineIcons[node.iconName] || LucideIcons.SparklesIcon; return <HeroIcon className="standalone-icon" aria-hidden="true" />; })()}
     {node.type === "arrow" && (() => {
       const size = nodeDimensions(node);
       return <svg className={`arrow-shape ${node.lineStyle === "dashed" ? "dashed" : ""}`} viewBox={`0 0 ${size.width} ${size.height}`} aria-hidden="true" style={{ "--arrow-stroke": Math.max(2, size.height / 14.7) }}><line x1="4" y1={size.height / 2} x2={size.width - size.height * .36} y2={size.height / 2} /><polyline points={`${size.width - size.height * .68},${size.height * .18} ${size.width - size.height * .34},${size.height / 2} ${size.width - size.height * .68},${size.height * .82}`} /></svg>;
@@ -3211,7 +3260,7 @@ function PagesPanel({ pages, activePageId, open, canManage, onToggle, onSwitch, 
         </div>)}
       </div>
     </section>}
-    <button className={`pages-trigger ${open ? "active" : ""}`} aria-expanded={open} aria-label={`Pages · ${activePage?.name || "Page 1"}`} title={`Pages · ${activePage?.name || "Page 1"}`} onClick={onToggle}><FileText size={20} /><span>{activePage?.name || "Page 1"}</span><strong>{pages.length}</strong><CaretDown size={12} /></button>
+    <button className={`pages-trigger ${open ? "active" : ""}`} aria-expanded={open} aria-label={`Pages · ${activePage?.name || "Page 1"}`} title={`Pages · ${activePage?.name || "Page 1"}`} onClick={onToggle}><FileText size={20} /><span>{activePage?.name || "Page 1"}</span><CaretDown size={12} /></button>
   </div>;
 }
 
@@ -3228,7 +3277,8 @@ function CanvasEdge({ edge, source, target, selected, reconnecting, panning, onS
 function DrawingStroke({ drawing, selected, passive, onSelect, onContextMenu }) {
   const centerPath = drawingPath(drawing.points);
   const outlinePath = perfectDrawingPath(drawing);
-  return <g className={`drawing-stroke ${selected ? "selected" : ""}`} onPointerDown={(event) => { if (passive || event.button === 2) return; event.stopPropagation(); onSelect?.(event); }} onContextMenu={onContextMenu}><path className="drawing-hit" d={centerPath} /><path className="drawing-line" d={outlinePath} style={{ fill: drawing.color || "#3f4652" }} /></g>;
+  const isHighlighter = drawing.mode === "highlighter";
+  return <g className={`drawing-stroke ${selected ? "selected" : ""}`} onPointerDown={(event) => { if (passive || event.button === 2) return; event.stopPropagation(); onSelect?.(event); }} onContextMenu={onContextMenu}><path className="drawing-hit" d={centerPath} /><path className="drawing-line" d={outlinePath} style={{ fill: drawing.color || "#3f4652", mixBlendMode: isHighlighter ? "multiply" : undefined, opacity: isHighlighter ? 0.45 : 1 }} /></g>;
 }
 
 function CanvasContextMenu({ menu, canGroup, canUngroup, canRotate, onGroup, onUngroup, onRotate, onDelete, onExport, onBack, onFront }) {
@@ -3250,8 +3300,8 @@ function IconBrowser({ onSelect, onClose }) {
     const needle = query.trim().toLowerCase();
     return needle ? HERO_ICON_ENTRIES.filter(([name]) => name.toLowerCase().includes(needle)) : HERO_ICON_ENTRIES;
   }, [query]);
-  return <aside className="icon-browser" aria-label="Heroicons browser">
-    <div className="icon-browser-head"><div><strong>Icons</strong><small>{icons.length} Heroicons</small></div><button aria-label="Close icon browser" onClick={onClose}><X size={16} /></button></div>
+  return <aside className="icon-browser" aria-label="Icon browser">
+    <div className="icon-browser-head"><div><strong>Icons</strong><small>{icons.length} icons</small></div><button aria-label="Close icon browser" onClick={onClose}><X size={16} /></button></div>
     <label className="icon-browser-search"><MagnifyingGlassIcon width="16" /><input autoFocus value={query} placeholder="Search icons" onChange={(event) => setQuery(event.target.value)} /></label>
     <div className={`icon-grid ${query.trim() ? "is-filtered" : ""}`}>{icons.map(([name, HeroIcon]) => <button key={name} title={name.replace(/Icon$/, "").replace(/([a-z])([A-Z])/g, "$1 $2")} aria-label={`Add ${name}`} onClick={() => onSelect(name)}><HeroIcon width="21" /></button>)}</div>
     {!icons.length && <p className="icon-empty">No icons match “{query}”.</p>}
@@ -3265,7 +3315,7 @@ function HeroIconReplacementPicker({ currentIcon, onSelect }) {
     return needle ? HERO_ICON_ENTRIES.filter(([name]) => name.toLowerCase().includes(needle)) : HERO_ICON_ENTRIES;
   }, [query]);
   return <div className="icon-replacement-picker">
-    <label className="icon-browser-search"><MagnifyingGlassIcon width="16" /><input autoFocus value={query} placeholder="Search Heroicons" onChange={(event) => setQuery(event.target.value)} /></label>
+    <label className="icon-browser-search"><MagnifyingGlassIcon width="16" /><input autoFocus value={query} placeholder="Search icons" onChange={(event) => setQuery(event.target.value)} /></label>
     <div className="replacement-icon-grid">{icons.map(([name, HeroIcon]) => <button key={name} className={name === currentIcon ? "selected" : ""} title={name.replace(/Icon$/, "").replace(/([a-z])([A-Z])/g, "$1 $2")} aria-label={`Replace with ${name}`} onClick={() => onSelect(name)}><HeroIcon width="20" /></button>)}</div>
     {!icons.length && <p className="icon-empty">No icons match “{query}”.</p>}
   </div>;
@@ -3309,15 +3359,60 @@ function MediaUploadStatus({ upload }) {
   </div>;
 }
 
-function DrawingThicknessToolbar({ width, color, streamline, selectionCount, onChange, onColorChange, onStreamlineChange, onDelete }) {
-  const widths = [1.5, 2.4, 4, 7];
-  const colors = ["#3f4652", "#5367ef", "#e05252", "#2fa86f", "#d79524"];
+function PenToolIcon() {
+  return <svg width="30" height="88" viewBox="0 0 30 88" fill="none" aria-hidden="true" style={{ display: "block", overflow: "visible" }}>
+    <defs>
+      <linearGradient id="b-r2" x1="0" x2="30" y1="0" y2="0" gradientUnits="userSpaceOnUse">
+        <stop offset="0.167" stopColor="var(--studio-1)" /><stop offset="0.21" stopColor="var(--studio-2)" /><stop offset="0.33" stopColor="var(--studio-3)" /><stop offset="0.44" stopColor="var(--studio-4)" /><stop offset="0.58" stopColor="var(--studio-5)" /><stop offset="0.71" stopColor="var(--studio-6)" /><stop offset="0.765" stopColor="var(--studio-7)" /><stop offset="0.805" stopColor="var(--studio-8)" /><stop offset="0.833" stopColor="var(--studio-1)" />
+      </linearGradient>
+      <linearGradient id="t-r2" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0" stopColor="#000" stopOpacity="0.16" /><stop offset="0.07" stopColor="#000" stopOpacity="0.02" /><stop offset="0.2" stopColor="#fff" stopOpacity="0.18" /><stop offset="0.33" stopColor="#fff" stopOpacity="0.05" /><stop offset="0.52" stopColor="#000" stopOpacity="0" /><stop offset="0.72" stopColor="#000" stopOpacity="0.08" /><stop offset="0.87" stopColor="#000" stopOpacity="0.15" /><stop offset="0.95" stopColor="#fff" stopOpacity="0.05" /><stop offset="1" stopColor="#000" stopOpacity="0.14" />
+      </linearGradient>
+    </defs>
+    <path d="M5 32.5a1.5 1.5 0 0 1 1.5-1.5h17a1.5 1.5 0 0 1 1.5 1.5V88H5Z" fill="url(#b-r2)" />
+    <path d="M5 32.6h20v5H5Z" fill="#111111" />
+    <path d="M5 32.6h20v5H5Z" fill="url(#t-r2)" />
+    <path d="M5.3 32.9h19.4v4.4H5.3Z" fill="none" stroke="rgba(0,0,0,0.1)" strokeWidth="0.4" />
+    <path d="M15 4 19.4 25H10.6Z" fill="#111111" />
+    <path d="M15 4 19.4 25H10.6Z" fill="url(#t-r2)" />
+    <path d="M15 4 19.4 25H10.6Z" fill="none" stroke="rgba(0,0,0,0.1)" strokeWidth="0.4" />
+    <path d="M5 33.6V30L9.4 21.4h11.2L25 30V33.6Z" fill="var(--tool-collar)" />
+    <path d="M5 33.6V30L9.4 21.4h11.2L25 30V33.6Z" fill="url(#t-r2)" />
+  </svg>;
+}
+
+function HighlighterToolIcon() {
+  return <svg width="30" height="88" viewBox="0 0 30 88" fill="none" aria-hidden="true" style={{ display: "block", overflow: "visible" }}>
+    <defs>
+      <linearGradient id="b-r5" x1="0" x2="30" y1="0" y2="0" gradientUnits="userSpaceOnUse">
+        <stop offset="0.167" stopColor="var(--studio-1)" /><stop offset="0.21" stopColor="var(--studio-2)" /><stop offset="0.33" stopColor="var(--studio-3)" /><stop offset="0.44" stopColor="var(--studio-4)" /><stop offset="0.58" stopColor="var(--studio-5)" /><stop offset="0.71" stopColor="var(--studio-6)" /><stop offset="0.765" stopColor="var(--studio-7)" /><stop offset="0.805" stopColor="var(--studio-8)" /><stop offset="0.833" stopColor="var(--studio-1)" />
+      </linearGradient>
+      <linearGradient id="t-r5" x1="0" x2="1" y1="0" y2="0">
+        <stop offset="0" stopColor="#000" stopOpacity="0.16" /><stop offset="0.07" stopColor="#000" stopOpacity="0.02" /><stop offset="0.2" stopColor="#fff" stopOpacity="0.18" /><stop offset="0.33" stopColor="#fff" stopOpacity="0.05" /><stop offset="0.52" stopColor="#000" stopOpacity="0" /><stop offset="0.72" stopColor="#000" stopOpacity="0.08" /><stop offset="0.87" stopColor="#000" stopOpacity="0.15" /><stop offset="0.95" stopColor="#fff" stopOpacity="0.05" /><stop offset="1" stopColor="#000" stopOpacity="0.14" />
+      </linearGradient>
+    </defs>
+    <path d="M5 32.5a1.5 1.5 0 0 1 1.5-1.5h17a1.5 1.5 0 0 1 1.5 1.5V88H5Z" fill="url(#b-r5)" />
+    <path d="M5 32.6h20v5H5Z" fill="#fff01f" />
+    <path d="M5 32.6h20v5H5Z" fill="url(#t-r5)" />
+    <path d="M5.3 32.9h19.4v4.4H5.3Z" fill="none" stroke="rgba(0,0,0,0.1)" strokeWidth="0.4" />
+    <path d="M8.4 24V12.6a1.2 1.2 0 0 1 .8-1.1l11.2-4.1a1.2 1.2 0 0 1 1.2 1.1V24Z" fill="#fff01f" />
+    <path d="M8.4 24V12.6a1.2 1.2 0 0 1 .8-1.1l11.2-4.1a1.2 1.2 0 0 1 1.2 1.1V24Z" fill="url(#t-r5)" />
+    <path d="M5 33.6V30L8.2 22h13.6L25 30V33.6Z" fill="var(--tool-collar)" />
+    <path d="M5 33.6V30L8.2 22h13.6L25 30V33.6Z" fill="url(#t-r5)" />
+  </svg>;
+}
+
+function DrawingThicknessToolbar({ width, color, streamline, mode = "pen", selectionCount, onChange, onColorChange, onStreamlineChange, onModeChange, onDelete }) {
+  const widths = mode === "highlighter" ? [6, 10, 16, 24] : [1.5, 2.4, 4, 7];
+  const colors = mode === "highlighter" ? ["#ffd84a", "#7ee787", "#7ec8e3", "#ff8fc7", "#c9a4f5"] : ["#3f4652", "#5367ef", "#e05252", "#2fa86f", "#d79524"];
   return <div className="drawing-thickness-toolbar" role="toolbar" aria-label="Drawing style" onPointerDown={(event) => event.stopPropagation()}>
-    <span>{selectionCount ? `${selectionCount} ${selectionCount === 1 ? "stroke" : "strokes"}` : "Pen thickness"}</span>
-    <div>{widths.map((value) => <button key={value} className={width === value ? "selected" : ""} aria-label={`${value} pixel stroke`} title={`${value}px`} onClick={() => onChange(value)}><i style={{ height: value }} /></button>)}</div>
-    <strong>{width}px</strong>
-    <div className="drawing-color-options">{colors.map((value) => <button key={value} className={color === value ? "selected" : ""} aria-label={`Use ${value} pen colour`} title={value} onClick={() => onColorChange(value)}><i style={{ background: value }} /></button>)}<label className="drawing-custom-color" title="Custom pen colour" style={{ "--pen-color": color }}><Palette size={15} /><input aria-label="Custom pen colour" type="color" value={color} onChange={(event) => onColorChange(event.target.value)} /></label></div>
-    <label className="drawing-range">Streamline <span>{Math.round(streamline * 100)}%</span><input type="range" min="0" max="1" step=".05" value={streamline} onChange={(event) => onStreamlineChange(Number(event.target.value))} /></label>
+    <div className="drawing-mode-toggle">
+      <button className={mode === "pen" ? "selected" : ""} aria-pressed={mode === "pen"} title="Pen" onClick={() => onModeChange && onModeChange("pen")}><PenToolIcon /></button>
+      <button className={mode === "highlighter" ? "selected" : ""} aria-pressed={mode === "highlighter"} title="Highlighter" onClick={() => onModeChange && onModeChange("highlighter")}><HighlighterToolIcon /></button>
+    </div>
+    <div>{widths.map((value) => <button key={value} className={width === value ? "selected" : ""} aria-label={`${value} pixel stroke`} title={`${value}px`} onClick={() => onChange(value)}><i style={{ height: mode === "highlighter" ? Math.min(value, 10) : value }} /></button>)}</div>
+    <div className="drawing-color-options">{colors.map((value) => <button key={value} className={color === value ? "selected" : ""} aria-label={`Use ${value} ${mode === "highlighter" ? "highlighter" : "pen"} colour`} title={value} onClick={() => onColorChange(value)}><i style={{ background: value }} /></button>)}<label className="drawing-custom-color" title={`Custom ${mode === "highlighter" ? "highlighter" : "pen"} colour`} style={{ "--pen-color": color }}><Palette size={15} /><input aria-label={`Custom ${mode === "highlighter" ? "highlighter" : "pen"} colour`} type="color" value={color} onChange={(event) => onColorChange(event.target.value)} /></label></div>
+    <label className="drawing-range">Streamline <span>{Math.round(streamline * 100)}%</span><input type="range" min="0" max="1" step=".05" value={streamline} style={rangeFillStyle(streamline, 0, 1)} onChange={(event) => onStreamlineChange(Number(event.target.value))} /></label>
     <button className="drawing-delete" disabled={!selectionCount} aria-label="Delete selected drawing" title={selectionCount ? "Delete selected drawing" : "Select a drawing to delete"} onClick={onDelete}><Trash size={17} /></button>
   </div>;
 }
@@ -3374,7 +3469,7 @@ function TextStyleToolbar({ node, style, openMenu, setOpenMenu, onChange, onDele
   const tone = toneForNode(node);
   const backgrounds = [["#ffffff", "White"], ["#111318", "Black"], ["#fff3c4", "Yellow"], ["#eafafb", "Aqua"], ["#eef1ff", "Blue"], ["#f3efff", "Violet"]];
   return <div className="node-style-toolbar text-style-toolbar" style={style} role="toolbar" aria-label="Text formatting" onPointerDown={(event) => event.stopPropagation()}>
-    <div className="node-toolbar-item"><button aria-label="Change text colour" className={openMenu === "text-colour" ? "active" : ""} onClick={() => setOpenMenu(openMenu === "text-colour" ? null : "text-colour")}><span className="toolbar-colour-dot" style={{ background: tone.accent }} /><CaretDown size={11} /></button>{openMenu === "text-colour" && <div className="node-toolbar-popover colour-popover"><strong>Text colour</strong><ColorControl node={node} tone={tone} onChange={onChange} /></div>}</div>
+    <div className="node-toolbar-item"><button aria-label="Change text colour" className={openMenu === "text-colour" ? "active" : ""} onClick={() => setOpenMenu(openMenu === "text-colour" ? null : "text-colour")}><span className="toolbar-colour-dot" style={{ background: tone.accent }} /><CaretDown size={11} /></button>{openMenu === "text-colour" && <div className="node-toolbar-popover colour-popover"><ColorControl node={node} tone={tone} onChange={onChange} /></div>}</div>
     <span className="node-toolbar-divider" />
     {[["left", TextBlock], ["center", TextAlignCenter], ["right", TextAlignRight]].map(([alignment, AlignmentIcon]) => <button key={alignment} className={(node.textAlign || "left") === alignment ? "active" : ""} aria-label={`Align text ${alignment}`} title={`${alignment[0].toUpperCase()}${alignment.slice(1)} align`} onClick={() => onChange({ textAlign: alignment })}><AlignmentIcon size={17} /></button>)}
     <span className="node-toolbar-divider" />
@@ -3392,9 +3487,9 @@ function TextStyleToolbar({ node, style, openMenu, setOpenMenu, onChange, onDele
 function ImageStyleToolbar({ node, style, popoverPlacement, openMenu, setOpenMenu, onChange, onDelete }) {
   const toggle = (menu) => setOpenMenu((current) => current === menu ? null : menu);
   return <div className={`node-style-toolbar image-style-toolbar popovers-${popoverPlacement}`} style={style} role="toolbar" aria-label="Image formatting" onPointerDown={(event) => event.stopPropagation()}>
-    <div className="node-toolbar-item"><button className={openMenu === "image-details" ? "active" : ""} aria-label="Image details" onClick={() => toggle("image-details")}><Photo size={18} /><CaretDown size={11} /></button>{openMenu === "image-details" && <div className="node-toolbar-popover image-details-popover"><strong>Image</strong><label>Alternative text<input value={node.label || ""} onChange={(event) => onChange({ label: event.target.value })} /></label><label>Width <span>{node.width || 280}px</span><input type="range" min="120" max="900" step="10" value={node.width || 280} onChange={(event) => onChange({ width: Number(event.target.value) })} /></label>{node.isSvg && <p>SVG · transparent vector</p>}</div>}</div>
+    <div className="node-toolbar-item"><button className={openMenu === "image-details" ? "active" : ""} aria-label="Image details" onClick={() => toggle("image-details")}><Photo size={18} /><CaretDown size={11} /></button>{openMenu === "image-details" && <div className="node-toolbar-popover image-details-popover"><strong>Image</strong><label>Alternative text<input value={node.label || ""} onChange={(event) => onChange({ label: event.target.value })} /></label><label>Width <span>{node.width || 280}px</span><input type="range" min="120" max="900" step="10" value={node.width || 280} style={rangeFillStyle(node.width || 280, 120, 900)} onChange={(event) => onChange({ width: Number(event.target.value) })} /></label>{node.isSvg && <p>SVG · transparent vector</p>}</div>}</div>
     <span className="node-toolbar-divider" />
-    <div className="node-toolbar-item"><button className={openMenu === "crop" ? "active" : ""} aria-label="Crop image" onClick={() => toggle("crop")}><Viewfinder size={18} /><span>Crop</span></button>{openMenu === "crop" && <div className="node-toolbar-popover crop-popover"><strong>Crop image</strong><div className="crop-aspects">{[["original", "Original"], ["square", "1:1"], ["4:3", "4:3"], ["16:9", "16:9"]].map(([value, label]) => <button key={value} className={(node.cropAspect || "original") === value ? "selected" : ""} onClick={() => onChange({ cropAspect: value })}>{label}</button>)}</div><label>Zoom <span>{Math.round((node.cropZoom || 1) * 100)}%</span><input type="range" min="1" max="3" step=".05" value={node.cropZoom || 1} onChange={(event) => onChange({ cropZoom: Number(event.target.value) })} /></label><button className="crop-reset" onClick={() => onChange({ cropAspect: "original", cropZoom: 1 })}>Reset crop</button></div>}</div>
+    <div className="node-toolbar-item"><button className={openMenu === "crop" ? "active" : ""} aria-label="Crop image" onClick={() => toggle("crop")}><Viewfinder size={18} /><span>Crop</span></button>{openMenu === "crop" && <div className="node-toolbar-popover crop-popover"><strong>Crop image</strong><div className="crop-aspects">{[["original", "Original"], ["square", "1:1"], ["4:3", "4:3"], ["16:9", "16:9"]].map(([value, label]) => <button key={value} className={(node.cropAspect || "original") === value ? "selected" : ""} onClick={() => onChange({ cropAspect: value })}>{label}</button>)}</div><label>Zoom <span>{Math.round((node.cropZoom || 1) * 100)}%</span><input type="range" min="1" max="3" step=".05" value={node.cropZoom || 1} style={rangeFillStyle(node.cropZoom || 1, 1, 3)} onChange={(event) => onChange({ cropZoom: Number(event.target.value) })} /></label><button className="crop-reset" onClick={() => onChange({ cropAspect: "original", cropZoom: 1 })}>Reset crop</button></div>}</div>
     <span className="node-toolbar-divider" />
     <button className="toolbar-delete" aria-label="Delete image" onClick={onDelete}><Trash size={17} /></button>
   </div>;
@@ -3403,14 +3498,14 @@ function ImageStyleToolbar({ node, style, popoverPlacement, openMenu, setOpenMen
 function IconStyleToolbar({ node, style, openMenu, setOpenMenu, onChange, onDelete }) {
   const tone = toneForNode(node);
   const size = Math.round(node.width || 64);
-  const CurrentIcon = HeroOutlineIcons[node.iconName] || CubeIcon;
+  const CurrentIcon = LucideIcons[node.iconName] || HeroOutlineIcons[node.iconName] || CubeIcon;
   const toggle = (menu) => setOpenMenu((current) => current === menu ? null : menu);
   return <div className="node-style-toolbar icon-style-toolbar" style={style} role="toolbar" aria-label="Icon formatting" onPointerDown={(event) => event.stopPropagation()}>
     <div className="node-toolbar-item"><button className={openMenu === "icon-colour" ? "active" : ""} aria-label="Icon colour" onClick={() => toggle("icon-colour")}><span className="toolbar-colour-dot" style={{ background: tone.accent }} /><CaretDown size={11} /></button>{openMenu === "icon-colour" && <div className="node-toolbar-popover colour-popover"><ColorControl node={node} tone={tone} onChange={onChange} /></div>}</div>
     <span className="node-toolbar-divider" />
     <div className="node-toolbar-item"><button className={openMenu === "icon-replace" ? "active" : ""} aria-label="Replace icon" onClick={() => toggle("icon-replace")}><CurrentIcon width="17" /><CaretDown size={11} /></button>{openMenu === "icon-replace" && <div className="node-toolbar-popover icon-replace-popover"><HeroIconReplacementPicker currentIcon={node.iconName} onSelect={(iconName) => { onChange({ iconName }); setOpenMenu(null); }} /></div>}</div>
     <span className="node-toolbar-divider" />
-    <div className="node-toolbar-item"><button className={openMenu === "icon-size" ? "active" : ""} aria-label={`Icon size ${size} pixels`} onClick={() => toggle("icon-size")}><Cube size={17} /><span>{size}px</span><CaretDown size={11} /></button>{openMenu === "icon-size" && <div className="node-toolbar-popover icon-size-popover"><strong>Icon size</strong><label><span>{size}px</span><input type="range" min="32" max="320" step="4" value={size} onChange={(event) => { const nextSize = Number(event.target.value); onChange({ width: nextSize, height: nextSize }); }} /></label></div>}</div>
+    <div className="node-toolbar-item"><button className={openMenu === "icon-size" ? "active" : ""} aria-label={`Icon size ${size} pixels`} onClick={() => toggle("icon-size")}><Cube size={17} /><span>{size}px</span><CaretDown size={11} /></button>{openMenu === "icon-size" && <div className="node-toolbar-popover icon-size-popover"><strong>Icon size</strong><label><span>{size}px</span><input type="range" min="32" max="320" step="4" value={size} style={rangeFillStyle(size, 32, 320)} onChange={(event) => { const nextSize = Number(event.target.value); onChange({ width: nextSize, height: nextSize }); }} /></label></div>}</div>
     <span className="node-toolbar-divider" />
     <button className="toolbar-delete" aria-label="Delete icon" onClick={onDelete}><Trash size={17} /></button>
   </div>;
@@ -3449,7 +3544,7 @@ function NodeStyleToolbar({ node, style, openMenu, setOpenMenu, connectionCount,
   return <div className="node-style-toolbar" role="toolbar" aria-label="Selected node styling" style={style} onPointerDown={(event) => event.stopPropagation()}>
     <div className="node-toolbar-item">
       <button className={openMenu === "colour" ? "active" : ""} aria-label="Change node colour" aria-expanded={openMenu === "colour"} onClick={() => toggleMenu("colour")}><i className="toolbar-colour-dot" style={{ background: tone.accent }} /><CaretDown size={11} /></button>
-      {openMenu === "colour" && <div className="node-toolbar-popover colour-popover"><strong>Colour</strong><div className="color-options">{Object.keys(palette).map((color) => <button key={color} aria-label={`Use ${color}`} className={!node.customColor && node.color === color ? "selected" : ""} style={{ background: palette[color].accent }} onClick={() => { onChange({ color, customColor: null }); setOpenMenu(null); }} />)}<span className={`custom-color ${node.customColor ? "selected" : ""}`} title="Choose a custom colour" style={{ "--custom-color": node.customColor || tone.accent }}><Palette size={15} /><input aria-label="Custom colour" type="color" value={node.customColor || tone.accent} onChange={(event) => onChange({ color: "custom", customColor: event.target.value })} /></span></div></div>}
+      {openMenu === "colour" && <div className="node-toolbar-popover colour-popover"><div className="color-options">{Object.keys(palette).map((color) => <button key={color} aria-label={`Use ${color}`} className={!node.customColor && node.color === color ? "selected" : ""} style={{ background: palette[color].accent }} onClick={() => { onChange({ color, customColor: null }); setOpenMenu(null); }} />)}<span className={`custom-color ${node.customColor ? "selected" : ""}`} title="Choose a custom colour" style={{ "--custom-color": node.customColor || tone.accent }}><Palette size={15} /><input aria-label="Custom colour" type="color" value={node.customColor || tone.accent} onChange={(event) => onChange({ color: "custom", customColor: event.target.value })} /></span></div></div>}
     </div>
     <span className="node-toolbar-divider" />
     <div className="node-toolbar-item">
@@ -3477,7 +3572,7 @@ function NodeInspector({ node, onChange, connectionCount, hiddenConnectionCount,
   if (node.type === "image") return <aside className="inspector">
     <div className="inspector-heading"><div><p className="eyebrow">Selected image</p><h2>Screenshot</h2></div><span className="inspector-node-icon" style={{ "--node-accent": "#5367ef", "--node-soft": "#edf0ff" }}><Photo size={20} /></span></div>
     <label>Alternative text<input value={node.label || ""} onChange={(event) => onChange({ label: event.target.value })} placeholder="Describe this image" /></label>
-    <div className="inspector-field"><span>Width</span><input className="size-range" type="range" min="180" max="640" step="10" value={node.width || 280} onChange={(event) => onChange({ width: Number(event.target.value), height: null })} /><small>{node.width || 280}px</small></div>
+    <div className="inspector-field"><span>Width</span><input className="size-range" type="range" min="180" max="640" step="10" value={node.width || 280} style={rangeFillStyle(node.width || 280, 180, 640)} onChange={(event) => onChange({ width: Number(event.target.value), height: null })} /><small>{node.width || 280}px</small></div>
     {connectionControls}
     <p className="inspector-help">Paste an image from your clipboard or drag another image onto the canvas at any time.</p>
   </aside>;
@@ -3653,11 +3748,10 @@ function GuestWelcomeModal({ accessMode, onClose }) {
 }
 
 function ExportPanel({ scope, setScope, hasSelection, onClose, onExport }) {
-  const [minimized, setMinimized] = useState(false);
   useModalKeyboard(onClose, () => onExport("pdf"));
-  return <aside className={`inspector export-panel floating-side-panel ${minimized ? "minimized" : ""}`} aria-labelledby="export-dialog-title">
-    <div className="floating-panel-header"><h2 id="export-dialog-title">Export canvas</h2><div><button className="icon-button" aria-label={minimized ? "Expand export panel" : "Minimize export panel"} title={minimized ? "Expand" : "Minimize"} onClick={() => setMinimized((value) => !value)}><Minus size={17} /></button><button className="icon-button" aria-label="Close export panel" onClick={onClose}><X size={18} /></button></div></div>
-    {!minimized && <><div className="segmented"><button className={scope === "all" ? "active" : ""} onClick={() => setScope("all")}>Whole canvas</button><button disabled={!hasSelection} className={scope === "selected" ? "active" : ""} onClick={() => setScope("selected")}>Selected items</button></div>
+  return <aside className="inspector export-panel floating-side-panel" aria-labelledby="export-dialog-title">
+    <div className="floating-panel-header"><h2 id="export-dialog-title">Export canvas</h2><div><button className="icon-button" aria-label="Close export panel" onClick={onClose}><X size={18} /></button></div></div>
+    <div className="segmented"><button className={scope === "all" ? "active" : ""} onClick={() => setScope("all")}>Whole canvas</button><button disabled={!hasSelection} className={scope === "selected" ? "active" : ""} onClick={() => setScope("selected")}>Selected items</button></div>
     {!hasSelection && <p className="dialog-note">Select one or more nodes to enable a focused export.</p>}
     <div className="export-grid">
       <button onClick={() => onExport("mymind")}><FileText size={27} weight="duotone" /><span><strong>MyMind</strong><small>Reopen and keep editing</small></span></button>
@@ -3666,7 +3760,7 @@ function ExportPanel({ scope, setScope, hasSelection, onClose, onExport }) {
       <button onClick={() => onExport("png")}><Photo size={27} weight="duotone" /><span><strong>PNG</strong><small>Crisp raster image</small></span></button>
       <button onClick={() => onExport("gif")}><Play size={27} weight="duotone" /><span><strong>GIF</strong><small>Static GIF snapshot</small></span></button>
       <button onClick={() => onExport("svg")}><FileSvg size={27} weight="duotone" /><span><strong>SVG</strong><small>Editable vector</small></span></button>
-    </div></>}
+    </div>
   </aside>;
 }
 
