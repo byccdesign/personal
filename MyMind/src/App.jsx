@@ -84,11 +84,18 @@ import {
   StickyNote,
   Network,
   Workflow,
+  Search,
+  ArrowUpToLine,
+  ArrowDownToLine,
+  Group,
+  Ungroup,
 } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import * as HeroOutlineIcons from "@heroicons/react/24/outline";
 import { jsPDF } from "jspdf";
 import { getStroke } from "perfect-freehand";
+import penIcon from "./assets/pen.png";
+import highlighterIcon from "./assets/highlighter.png";
 
 function adaptHeroIcon(Icon) {
   return function HeroIconAdapter({ size = 24, weight: _weight, ...props }) {
@@ -1481,6 +1488,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
   const [exportScope, setExportScope] = useState("all");
   const [shareOpen, setShareOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [imageSourceOpen, setImageSourceOpen] = useState(false);
   const [saveState, setSaveState] = useState("Saved");
@@ -1699,6 +1707,27 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
 
   const nodeMap = useMemo(() => Object.fromEntries(document.nodes.map((node) => [node.id, node])), [document.nodes]);
   const collapsedNodeIds = useMemo(() => new Set(document.edges.filter((edge) => edge.hidden && edge.hiddenNodeId).map((edge) => edge.hiddenNodeId)), [document.edges]);
+  const [vanishingNodeIds, setVanishingNodeIds] = useState(() => new Set());
+  const [vanishingEdgeIds, setVanishingEdgeIds] = useState(() => new Set());
+  const prevCollapsedNodeIdsRef = useRef(new Set());
+  const prevHiddenEdgeIdsRef = useRef(new Set());
+  useEffect(() => {
+    const previousNodeIds = prevCollapsedNodeIdsRef.current;
+    const newlyHiddenNodeIds = [...collapsedNodeIds].filter((id) => !previousNodeIds.has(id));
+    prevCollapsedNodeIdsRef.current = collapsedNodeIds;
+    const hiddenEdgeIds = new Set(document.edges.filter((edge) => edge.hidden).map((edge) => edge.id));
+    const previousEdgeIds = prevHiddenEdgeIdsRef.current;
+    const newlyHiddenEdgeIds = [...hiddenEdgeIds].filter((id) => !previousEdgeIds.has(id));
+    prevHiddenEdgeIdsRef.current = hiddenEdgeIds;
+    if (!newlyHiddenNodeIds.length && !newlyHiddenEdgeIds.length) return;
+    if (newlyHiddenNodeIds.length) setVanishingNodeIds((current) => new Set([...current, ...newlyHiddenNodeIds]));
+    if (newlyHiddenEdgeIds.length) setVanishingEdgeIds((current) => new Set([...current, ...newlyHiddenEdgeIds]));
+    const timer = setTimeout(() => {
+      if (newlyHiddenNodeIds.length) setVanishingNodeIds((current) => { const next = new Set(current); newlyHiddenNodeIds.forEach((id) => next.delete(id)); return next; });
+      if (newlyHiddenEdgeIds.length) setVanishingEdgeIds((current) => { const next = new Set(current); newlyHiddenEdgeIds.forEach((id) => next.delete(id)); return next; });
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [collapsedNodeIds, document.edges]);
   const selectedBounds = useMemo(() => selectedElementsBounds(
     document.nodes.filter((node) => selection.includes(node.id) && !collapsedNodeIds.has(node.id)),
     (document.drawings || []).filter((drawing) => drawingSelection.includes(drawing.id)),
@@ -2592,6 +2621,15 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
 
   useEffect(() => {
     const onKey = (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setPagesOpen(false);
+        setNodeMenu(false);
+        setZoomMenuOpen(false);
+        setCommandPaletteOpen((open) => !open);
+        return;
+      }
+      if (commandPaletteOpen) return;
       if ((event.key === "Backspace" || event.key === "Delete") && !["INPUT", "TEXTAREA"].includes(window.document.activeElement?.tagName)) deleteSelection();
       if ((event.metaKey || event.ctrlKey) && event.key === "0") { event.preventDefault(); setPan({ x: 80, y: 90 }); setZoom(.9); }
       const modalOpen = editingNode || editingEdge || exportOpen || shareOpen || shortcutsOpen || linkOpen || imageSourceOpen || pendingAnnotation;
@@ -2685,7 +2723,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [addArrowShape, addConnectedNode, addNode, addTextNode, applyHistory, changeStacking, connectionSource, deleteSelection, document.nodes, duplicateSelection, editingEdge, editingNode, exportOpen, groupSelection, imageSourceOpen, linkOpen, pendingAnnotation, publicView, selection, shareOpen, shortcutsOpen, tool, ungroupSelection, zoom, zoomAtCenter]);
+  }, [addArrowShape, addConnectedNode, addNode, addTextNode, applyHistory, changeStacking, commandPaletteOpen, connectionSource, deleteSelection, document.nodes, duplicateSelection, editingEdge, editingNode, exportOpen, groupSelection, imageSourceOpen, linkOpen, pendingAnnotation, publicView, selection, shareOpen, shortcutsOpen, tool, ungroupSelection, zoom, zoomAtCenter]);
 
   useEffect(() => {
     const dismissFloatingPanels = (event) => {
@@ -2742,7 +2780,7 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
   const toggleShare = () => updateDocument((doc) => doc.shared ? { ...doc, shared: false, guestEditable: false } : { ...doc, shared: true }, { immediate: true });
   const toggleGuestEditing = () => updateDocument((doc) => ({ ...doc, guestEditable: !doc.guestEditable }), { immediate: true });
 
-  const exportDiagram = (format, scopeOverride = null) => {
+  const exportDiagram = async (format, scopeOverride = null) => {
     if (format === "mymind") {
       const portable = syncActivePage({ ...document, shared: false, guestEditable: false, folderId: null });
       downloadBlob(new Blob([JSON.stringify({ type: "mymind-canvas", version: 1, exportedAt: new Date().toISOString(), document: portable })], { type: "application/vnd.mymind.canvas+json" }), `${slugify(document.title)}.mymind`);
@@ -2755,6 +2793,11 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
     const availableNodes = document.nodes.filter((node) => !collapsedNodeIds.has(node.id));
     const nodes = selectedMode ? availableNodes.filter((node) => ids.has(node.id)) : availableNodes;
     const drawings = selectedMode ? (document.drawings || []).filter((drawing) => drawingSelection.includes(drawing.id)) : (document.drawings || []);
+    const inlineImageData = {};
+    await Promise.all(nodes.filter((node) => node.type === "image" && node.imageData && !node.imageData.startsWith("data:")).map(async (node) => {
+      try { inlineImageData[node.id] = await toDataUri(node.imageData); }
+      catch { inlineImageData[node.id] = null; }
+    }));
     const visibleEdges = document.edges.filter((edge) => !edge.hidden && !collapsedNodeIds.has(edge.source) && !collapsedNodeIds.has(edge.target));
     const edges = selectedMode ? visibleEdges.filter((edge) => ids.has(edge.source) && ids.has(edge.target)) : visibleEdges;
     if (!nodes.length && !drawings.length) return;
@@ -2817,8 +2860,10 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
       const x = node.x - bounds.minX, y = node.y - bounds.minY;
       const size = nodeDimensions(node);
       if (node.type === "image") {
+        const href = node.id in inlineImageData ? inlineImageData[node.id] : node.imageData;
+        if (!href) return "";
         const fit = node.cropAspect && node.cropAspect !== "original" ? "slice" : "meet";
-        return `<image href="${node.imageData}" x="${x}" y="${y}" width="${size.width}" height="${size.height}" preserveAspectRatio="xMidYMid ${fit}"/>`;
+        return `<image href="${href}" x="${x}" y="${y}" width="${size.width}" height="${size.height}" preserveAspectRatio="xMidYMid ${fit}"/>`;
       }
       if (node.type === "arrow") {
         const strokeWidth = Math.max(2, size.height / 14.7);
@@ -2915,7 +2960,48 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
 
   if (!initialDocument && isPublicLink) return <NotFound />;
 
+  const hasSelection = selection.length > 0 || drawingSelection.length > 0 || edgeSelection.length > 0;
+  const commandPaletteCommands = publicView ? [
+    { id: "zoom-in", label: "Zoom in", icon: MagnifyingGlassPlus, shortcut: "⌘+", run: () => zoomAtCenter(zoom + .1) },
+    { id: "zoom-out", label: "Zoom out", icon: MagnifyingGlassMinus, shortcut: "⌘−", run: () => zoomAtCenter(zoom - .1) },
+    { id: "zoom-reset", label: "Reset zoom to 100%", icon: MagnifyingGlass, shortcut: "⌘1", run: () => zoomAtCenter(1) },
+    { id: "zoom-content", label: "Zoom to content", icon: Viewfinder, run: zoomToContent },
+    { id: "shortcuts", label: "Keyboard shortcuts", icon: HelpCircle, shortcut: "?", run: () => setShortcutsOpen(true) },
+  ] : [
+    { id: "add-idea", label: "Add idea node", icon: Lightbulb, shortcut: "N", run: () => addNode("idea") },
+    { id: "add-text", label: "Add text", icon: TextBlock, shortcut: "T", run: () => addTextNode() },
+    { id: "add-image", label: "Add image", icon: Photo, shortcut: "P", run: () => setImageSourceOpen(true) },
+    { id: "add-link", label: "Add link", icon: LinkSimple, shortcut: "K", run: () => setLinkOpen(true) },
+    { id: "add-arrow", label: "Add arrow", icon: ArrowLine, shortcut: "S", run: () => addArrowShape() },
+    { id: "add-icon", label: "Add icon", icon: Cube, shortcut: "I", run: () => setIconBrowserOpen(true) },
+    { id: "tool-select", label: "Select tool", icon: CursorClick, shortcut: "V", run: () => { setTool("select"); setConnectionSource(null); } },
+    { id: "tool-hand", label: "Pan tool", icon: Hand, shortcut: "H", run: () => { setTool("hand"); setConnectionSource(null); } },
+    { id: "tool-connect", label: "Connect tool", icon: LinkNodes, shortcut: "L", run: () => { setTool("connect"); setConnectionSource(null); } },
+    { id: "tool-draw", label: "Draw tool", icon: Pen, shortcut: "D", run: () => { setTool("pen"); setConnectionSource(null); } },
+    { id: "tool-comment", label: "Add comment", icon: ChatCircleDots, shortcut: "A", run: () => setTool("annotate") },
+    { id: "undo", label: "Undo", icon: Undo2, shortcut: "⌘Z", run: () => applyHistory("undo") },
+    { id: "redo", label: "Redo", icon: Redo2, shortcut: "⌘⇧Z", run: () => applyHistory("redo") },
+    { id: "zoom-in", label: "Zoom in", icon: MagnifyingGlassPlus, shortcut: "⌘+", run: () => zoomAtCenter(zoom + .1) },
+    { id: "zoom-out", label: "Zoom out", icon: MagnifyingGlassMinus, shortcut: "⌘−", run: () => zoomAtCenter(zoom - .1) },
+    { id: "zoom-reset", label: "Reset zoom to 100%", icon: MagnifyingGlass, shortcut: "⌘1", run: () => zoomAtCenter(1) },
+    { id: "zoom-content", label: "Zoom to content", icon: Viewfinder, run: zoomToContent },
+    ...(hasSelection ? [
+      { id: "duplicate", label: "Duplicate selection", icon: Copy, shortcut: "⌘D", run: duplicateSelection },
+      { id: "group", label: "Group selection", icon: Group, shortcut: "⌘G", run: () => groupSelection() },
+      { id: "ungroup", label: "Ungroup selection", icon: Ungroup, shortcut: "⌘⇧G", run: () => ungroupSelection() },
+      { id: "front", label: "Bring to front", icon: ArrowUpToLine, shortcut: "⌘]", run: () => changeStacking("front") },
+      { id: "back", label: "Send to back", icon: ArrowDownToLine, shortcut: "⌘[", run: () => changeStacking("back") },
+      { id: "delete", label: "Delete selection", icon: Trash, shortcut: "⌫", run: deleteSelection },
+    ] : []),
+    { id: "toggle-comments", label: commentsOpen ? "Hide comments panel" : "Show comments panel", icon: ChatCircleDots, run: () => setCommentsOpen((open) => !open) },
+    { id: "export", label: "Export canvas", icon: DownloadSimple, run: () => setExportOpen(true) },
+    { id: "share", label: "Share canvas", icon: ShareNetwork, run: () => setShareOpen(true) },
+    { id: "shortcuts", label: "Keyboard shortcuts", icon: HelpCircle, shortcut: "?", run: () => setShortcutsOpen(true) },
+    { id: "back-to-dashboard", label: "Back to all canvases", icon: ArrowLeft, run: () => navigate("/") },
+  ];
+
   return <div className={`app-shell editor-shell ${isPublicLink ? "is-public" : ""}`}>
+    {commandPaletteOpen && <CommandPalette commands={commandPaletteCommands} onClose={() => setCommandPaletteOpen(false)} />}
     <header className="topbar editor-topbar">
       <div className="editor-title-row">
         {!isPublicLink && <button className="editor-back-button" aria-label="Back to dashboard" onClick={() => navigate("/")}><ArrowLeft size={16} /></button>}
@@ -2986,12 +3072,12 @@ function Editor({ initialDocument, publicView: isPublicLink, onSave, onFetchRemo
             <defs><marker id="canvas-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 Z" /></marker><marker id="preview-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#5367ef" /></marker><marker id="canvas-circle" markerWidth="9" markerHeight="9" refX="4.5" refY="4.5" orient="auto"><circle cx="4.5" cy="4.5" r="3.2" /></marker></defs>
             {connectionSource && connectionPreview && nodeMap[connectionSource.nodeId] && <path className="connection-preview" d={connectionPreviewPath(nodeMap[connectionSource.nodeId], connectionSource.port, connectionPreview)} markerEnd="url(#preview-arrow)" />}
             {reconnectPreview && (() => { const edge = document.edges.find((item) => item.id === reconnectPreview.edgeId); const source = edge && nodeMap[edge.source]; const target = edge && nodeMap[edge.target]; return edge && source && target ? <path className="connection-preview reconnect-preview" d={reconnectPreviewPath(edge, source, target, reconnectPreview.side, reconnectPreview.point)} markerEnd="url(#preview-arrow)" /> : null; })()}
-            {document.edges.filter((edge) => !edge.hidden && !collapsedNodeIds.has(edge.source) && !collapsedNodeIds.has(edge.target)).map((edge) => <CanvasEdge key={edge.id} edge={edge} source={nodeMap[edge.source]} target={nodeMap[edge.target]} selected={edgeSelection.includes(edge.id)} reconnecting={reconnectPreview?.edgeId === edge.id} panning={spaceHeld || tool === "hand" || tool === "pen"} onSelect={() => { if (publicView) return; setEditingEdge(null); setEdgeToolbarMenu(null); setEdgeSelection([edge.id]); setDrawingSelection([]); setSelection([]); setConnectionSource(null); setTool("select"); }} onEdit={() => { if (publicView) return; setEdgeSelection([edge.id]); setEdgeToolbarMenu(null); setEditingEdge(edge.id); }} onReconnect={(side, event) => startReconnect(edge, side, event)} />)}
+            {document.edges.filter((edge) => (!edge.hidden && !collapsedNodeIds.has(edge.source) && !collapsedNodeIds.has(edge.target)) || vanishingEdgeIds.has(edge.id)).map((edge) => <CanvasEdge key={edge.id} edge={edge} source={nodeMap[edge.source]} target={nodeMap[edge.target]} selected={edgeSelection.includes(edge.id)} reconnecting={reconnectPreview?.edgeId === edge.id} panning={spaceHeld || tool === "hand" || tool === "pen"} hiding={edge.hidden} onSelect={() => { if (publicView) return; setEditingEdge(null); setEdgeToolbarMenu(null); setEdgeSelection([edge.id]); setDrawingSelection([]); setSelection([]); setConnectionSource(null); setTool("select"); }} onEdit={() => { if (publicView) return; setEdgeSelection([edge.id]); setEdgeToolbarMenu(null); setEditingEdge(edge.id); }} onReconnect={(side, event) => startReconnect(edge, side, event)} />)}
           </svg>
           <svg className="drawing-layer drawing-layer-back" width="4000" height="2400" viewBox="-1000 -600 4000 2400">
             {(document.drawings || []).filter((drawing) => drawing.stackLevel === "back").map((drawing) => <DrawingStroke key={drawing.id} drawing={drawing} selected={drawingSelection.includes(drawing.id)} passive={spaceHeld || tool !== "select"} onSelect={(event) => onDrawingPointerDown(event, drawing)} onContextMenu={(event) => openDrawingContextMenu(event, drawing)} />)}
           </svg>
-          {document.nodes.filter((node) => !collapsedNodeIds.has(node.id)).map((node) => <CanvasNode key={node.id} node={node} hiddenConnectionCount={document.edges.filter((edge) => (edge.source === node.id || edge.target === node.id) && edge.hidden).length} onShowHidden={() => showHiddenConnections(node.id)} selected={selection.includes(node.id)} connecting={connectionSource?.nodeId === node.id} dropTarget={connectionTargetId === node.id} editing={editingNode === node.id} onEdit={() => { if (!publicView && !["image", "arrow", "icon"].includes(node.type)) { setNodeToolbarMenu(null); setEditingNode(node.id); } }} onSaveEdit={(patch) => { const fitted = node.type === "text" && node.textFit !== "free" ? fittedTextDimensions(patch.label, node.fontSize || 24) : {}; updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, ...patch, ...fitted } : item) })); setEditingNode(null); }} onCancelEdit={() => setEditingNode(null)} onPointerDown={onNodePointerDown} onContextMenu={(event) => openNodeContextMenu(event, node)} onKeyDown={(event) => { if (!publicView && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setSelection([node.id]); setEdgeSelection([]); setDrawingSelection([]); } }} />)}
+          {document.nodes.filter((node) => !collapsedNodeIds.has(node.id) || vanishingNodeIds.has(node.id)).map((node) => <CanvasNode key={node.id} node={node} hiding={collapsedNodeIds.has(node.id)} hiddenConnectionCount={document.edges.filter((edge) => (edge.source === node.id || edge.target === node.id) && edge.hidden).length} onShowHidden={() => showHiddenConnections(node.id)} selected={selection.includes(node.id)} connecting={connectionSource?.nodeId === node.id} dropTarget={connectionTargetId === node.id} editing={editingNode === node.id} onEdit={() => { if (!publicView && !["image", "arrow", "icon"].includes(node.type)) { setNodeToolbarMenu(null); setEditingNode(node.id); } }} onSaveEdit={(patch) => { const fitted = node.type === "text" && node.textFit !== "free" ? fittedTextDimensions(patch.label, node.fontSize || 24) : {}; updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, ...patch, ...fitted } : item) })); setEditingNode(null); }} onCancelEdit={() => setEditingNode(null)} onPointerDown={onNodePointerDown} onContextMenu={(event) => openNodeContextMenu(event, node)} onKeyDown={(event) => { if (!publicView && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setSelection([node.id]); setEdgeSelection([]); setDrawingSelection([]); } }} />)}
           <svg className="drawing-layer" width="4000" height="2400" viewBox="-1000 -600 4000 2400">
             {(document.drawings || []).filter((drawing) => drawing.stackLevel !== "back").map((drawing) => <DrawingStroke key={drawing.id} drawing={drawing} selected={drawingSelection.includes(drawing.id)} passive={spaceHeld || tool !== "select"} onSelect={(event) => onDrawingPointerDown(event, drawing)} onContextMenu={(event) => openDrawingContextMenu(event, drawing)} />)}
             {draftDrawing && <DrawingStroke drawing={draftDrawing} passive />}
@@ -3097,11 +3183,11 @@ function LinkThumbnail({ node }) {
   }} />;
 }
 
-function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, connecting, dropTarget, editing, onEdit, onSaveEdit, onCancelEdit, onPointerDown, onContextMenu, onKeyDown }) {
+function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, connecting, dropTarget, editing, hiding, onEdit, onSaveEdit, onCancelEdit, onPointerDown, onContextMenu, onKeyDown }) {
   const tone = toneForNode(node);
   const shapeColors = accessibleShapeColors(tone.accent);
   const size = nodeDimensions(node);
-  return <article className={`canvas-node ${node.type ? `node-type-${node.type}` : ""} ${node.isSvg ? "is-svg" : ""} ${node.cropAspect && node.cropAspect !== "original" ? "is-cropped" : ""} ${node.shape ? `shape-${node.shape}` : ""} ${selected ? "selected" : ""} ${connecting ? "connecting" : ""} ${dropTarget ? "connection-drop-target" : ""} ${editing ? "editing" : ""}`} role="button" tabIndex="0" data-node-id={node.id} aria-label={`${node.label}. ${node.subtitle || ""}. Press Enter to select, then Tab to add a connected node.`} style={{ left: node.x, top: node.y, width: size.width, height: size.height, zIndex: node.stackLevel === "front" ? 12 : node.stackLevel === "back" ? 1 : undefined, transform: node.type === "arrow" ? `rotate(${node.rotation || 0}deg)` : undefined, "--node-accent": tone.accent, "--node-soft": tone.soft, "--shape-fill": tone.accent, "--shape-text": shapeColors.text, "--shape-muted": shapeColors.muted, "--text-size": `${node.fontSize || 24}px`, "--text-background": node.textBackground || "transparent", "--text-align": node.textAlign || "left" }} onPointerDown={(event) => onPointerDown(event, node)} onContextMenu={onContextMenu} onKeyDown={editing ? undefined : onKeyDown} onDoubleClick={(event) => { event.stopPropagation(); onEdit(); }}>
+  return <article className={`canvas-node ${node.type ? `node-type-${node.type}` : ""} ${node.isSvg ? "is-svg" : ""} ${node.cropAspect && node.cropAspect !== "original" ? "is-cropped" : ""} ${node.shape ? `shape-${node.shape}` : ""} ${selected ? "selected" : ""} ${connecting ? "connecting" : ""} ${dropTarget ? "connection-drop-target" : ""} ${editing ? "editing" : ""} ${hiding ? "is-vanishing" : ""}`} role="button" tabIndex="0" data-node-id={node.id} aria-label={`${node.label}. ${node.subtitle || ""}. Press Enter to select, then Tab to add a connected node.`} style={{ left: node.x, top: node.y, width: size.width, height: size.height, zIndex: node.stackLevel === "front" ? 12 : node.stackLevel === "back" ? 1 : undefined, transform: node.type === "arrow" ? `rotate(${node.rotation || 0}deg)` : undefined, "--node-accent": tone.accent, "--node-soft": tone.soft, "--shape-fill": tone.accent, "--shape-text": shapeColors.text, "--shape-muted": shapeColors.muted, "--text-size": `${node.fontSize || 24}px`, "--text-background": node.textBackground || "transparent", "--text-align": node.textAlign || "left" }} onPointerDown={(event) => onPointerDown(event, node)} onContextMenu={onContextMenu} onKeyDown={editing ? undefined : onKeyDown} onDoubleClick={(event) => { event.stopPropagation(); onEdit(); }}>
     {node.type === "image" && (node.isGif || node.mimeType === "image/gif" ? <GifImageNode node={node} /> : <span className="image-node-viewport"><img src={node.imageData} alt={node.label || "Canvas image"} draggable="false" style={{ objectPosition: "50% 50%", transform: `scale(${node.cropZoom || 1})` }} /></span>)}
     {node.type === "icon" && (() => { const HeroIcon = LucideIcons[node.iconName] || HeroOutlineIcons[node.iconName] || LucideIcons.SparklesIcon; return <HeroIcon className="standalone-icon" aria-hidden="true" />; })()}
     {node.type === "arrow" && (() => {
@@ -3264,11 +3350,11 @@ function PagesPanel({ pages, activePageId, open, canManage, onToggle, onSwitch, 
   </div>;
 }
 
-function CanvasEdge({ edge, source, target, selected, reconnecting, panning, onSelect, onEdit, onReconnect }) {
+function CanvasEdge({ edge, source, target, selected, reconnecting, panning, hiding, onSelect, onEdit, onReconnect }) {
   if (!source || !target) return null;
   const geometry = edgeGeometry(edge, source, target);
   const markerFor = (shape) => shape === "arrow" ? "url(#canvas-arrow)" : shape === "circle" ? "url(#canvas-circle)" : undefined;
-  return <g className={`canvas-edge ${edge.lineStyle === "dashed" ? "dashed" : ""} ${selected ? "selected" : ""} ${reconnecting ? "reconnecting" : ""}`} onPointerDown={(event) => { if (panning) return; event.stopPropagation(); onSelect(); }} onDoubleClick={(event) => { if (panning) return; event.stopPropagation(); onEdit(); }}><path className="edge-hit" d={geometry.path} /><path className="edge-line" d={geometry.path} markerStart={markerFor(edgeEndpoint(edge, "start"))} markerEnd={markerFor(edgeEndpoint(edge, "end"))} /><text x={geometry.labelX} y={geometry.labelY} textAnchor="middle">{edge.label}</text>{selected && <>
+  return <g className={`canvas-edge ${edge.lineStyle === "dashed" ? "dashed" : ""} ${selected ? "selected" : ""} ${reconnecting ? "reconnecting" : ""} ${hiding ? "is-vanishing" : ""}`} onPointerDown={(event) => { if (panning) return; event.stopPropagation(); onSelect(); }} onDoubleClick={(event) => { if (panning) return; event.stopPropagation(); onEdit(); }}><path className="edge-hit" d={geometry.path} /><path className="edge-line" d={geometry.path} markerStart={markerFor(edgeEndpoint(edge, "start"))} markerEnd={markerFor(edgeEndpoint(edge, "end"))} /><text x={geometry.labelX} y={geometry.labelY} textAnchor="middle">{edge.label}</text>{selected && <>
     <circle className="edge-reconnect-handle" cx={geometry.startX} cy={geometry.startY} r="6" onPointerDown={(event) => { event.stopPropagation(); onReconnect("source", event); }}><title>Reconnect start node</title></circle>
     <circle className="edge-reconnect-handle" cx={geometry.endX} cy={geometry.endY} r="6" onPointerDown={(event) => { event.stopPropagation(); onReconnect("target", event); }}><title>Reconnect end node</title></circle>
   </>}</g>;
@@ -3360,46 +3446,11 @@ function MediaUploadStatus({ upload }) {
 }
 
 function PenToolIcon() {
-  return <svg width="30" height="88" viewBox="0 0 30 88" fill="none" aria-hidden="true" style={{ display: "block", overflow: "visible" }}>
-    <defs>
-      <linearGradient id="b-r2" x1="0" x2="30" y1="0" y2="0" gradientUnits="userSpaceOnUse">
-        <stop offset="0.167" stopColor="var(--studio-1)" /><stop offset="0.21" stopColor="var(--studio-2)" /><stop offset="0.33" stopColor="var(--studio-3)" /><stop offset="0.44" stopColor="var(--studio-4)" /><stop offset="0.58" stopColor="var(--studio-5)" /><stop offset="0.71" stopColor="var(--studio-6)" /><stop offset="0.765" stopColor="var(--studio-7)" /><stop offset="0.805" stopColor="var(--studio-8)" /><stop offset="0.833" stopColor="var(--studio-1)" />
-      </linearGradient>
-      <linearGradient id="t-r2" x1="0" x2="1" y1="0" y2="0">
-        <stop offset="0" stopColor="#000" stopOpacity="0.16" /><stop offset="0.07" stopColor="#000" stopOpacity="0.02" /><stop offset="0.2" stopColor="#fff" stopOpacity="0.18" /><stop offset="0.33" stopColor="#fff" stopOpacity="0.05" /><stop offset="0.52" stopColor="#000" stopOpacity="0" /><stop offset="0.72" stopColor="#000" stopOpacity="0.08" /><stop offset="0.87" stopColor="#000" stopOpacity="0.15" /><stop offset="0.95" stopColor="#fff" stopOpacity="0.05" /><stop offset="1" stopColor="#000" stopOpacity="0.14" />
-      </linearGradient>
-    </defs>
-    <path d="M5 32.5a1.5 1.5 0 0 1 1.5-1.5h17a1.5 1.5 0 0 1 1.5 1.5V88H5Z" fill="url(#b-r2)" />
-    <path d="M5 32.6h20v5H5Z" fill="#111111" />
-    <path d="M5 32.6h20v5H5Z" fill="url(#t-r2)" />
-    <path d="M5.3 32.9h19.4v4.4H5.3Z" fill="none" stroke="rgba(0,0,0,0.1)" strokeWidth="0.4" />
-    <path d="M15 4 19.4 25H10.6Z" fill="#111111" />
-    <path d="M15 4 19.4 25H10.6Z" fill="url(#t-r2)" />
-    <path d="M15 4 19.4 25H10.6Z" fill="none" stroke="rgba(0,0,0,0.1)" strokeWidth="0.4" />
-    <path d="M5 33.6V30L9.4 21.4h11.2L25 30V33.6Z" fill="var(--tool-collar)" />
-    <path d="M5 33.6V30L9.4 21.4h11.2L25 30V33.6Z" fill="url(#t-r2)" />
-  </svg>;
+  return <img src={penIcon} alt="" aria-hidden="true" draggable="false" />;
 }
 
 function HighlighterToolIcon() {
-  return <svg width="30" height="88" viewBox="0 0 30 88" fill="none" aria-hidden="true" style={{ display: "block", overflow: "visible" }}>
-    <defs>
-      <linearGradient id="b-r5" x1="0" x2="30" y1="0" y2="0" gradientUnits="userSpaceOnUse">
-        <stop offset="0.167" stopColor="var(--studio-1)" /><stop offset="0.21" stopColor="var(--studio-2)" /><stop offset="0.33" stopColor="var(--studio-3)" /><stop offset="0.44" stopColor="var(--studio-4)" /><stop offset="0.58" stopColor="var(--studio-5)" /><stop offset="0.71" stopColor="var(--studio-6)" /><stop offset="0.765" stopColor="var(--studio-7)" /><stop offset="0.805" stopColor="var(--studio-8)" /><stop offset="0.833" stopColor="var(--studio-1)" />
-      </linearGradient>
-      <linearGradient id="t-r5" x1="0" x2="1" y1="0" y2="0">
-        <stop offset="0" stopColor="#000" stopOpacity="0.16" /><stop offset="0.07" stopColor="#000" stopOpacity="0.02" /><stop offset="0.2" stopColor="#fff" stopOpacity="0.18" /><stop offset="0.33" stopColor="#fff" stopOpacity="0.05" /><stop offset="0.52" stopColor="#000" stopOpacity="0" /><stop offset="0.72" stopColor="#000" stopOpacity="0.08" /><stop offset="0.87" stopColor="#000" stopOpacity="0.15" /><stop offset="0.95" stopColor="#fff" stopOpacity="0.05" /><stop offset="1" stopColor="#000" stopOpacity="0.14" />
-      </linearGradient>
-    </defs>
-    <path d="M5 32.5a1.5 1.5 0 0 1 1.5-1.5h17a1.5 1.5 0 0 1 1.5 1.5V88H5Z" fill="url(#b-r5)" />
-    <path d="M5 32.6h20v5H5Z" fill="#fff01f" />
-    <path d="M5 32.6h20v5H5Z" fill="url(#t-r5)" />
-    <path d="M5.3 32.9h19.4v4.4H5.3Z" fill="none" stroke="rgba(0,0,0,0.1)" strokeWidth="0.4" />
-    <path d="M8.4 24V12.6a1.2 1.2 0 0 1 .8-1.1l11.2-4.1a1.2 1.2 0 0 1 1.2 1.1V24Z" fill="#fff01f" />
-    <path d="M8.4 24V12.6a1.2 1.2 0 0 1 .8-1.1l11.2-4.1a1.2 1.2 0 0 1 1.2 1.1V24Z" fill="url(#t-r5)" />
-    <path d="M5 33.6V30L8.2 22h13.6L25 30V33.6Z" fill="var(--tool-collar)" />
-    <path d="M5 33.6V30L8.2 22h13.6L25 30V33.6Z" fill="url(#t-r5)" />
-  </svg>;
+  return <img src={highlighterIcon} alt="" aria-hidden="true" draggable="false" />;
 }
 
 function DrawingThicknessToolbar({ width, color, streamline, mode = "pen", selectionCount, onChange, onColorChange, onStreamlineChange, onModeChange, onDelete }) {
@@ -3497,15 +3548,12 @@ function ImageStyleToolbar({ node, style, popoverPlacement, openMenu, setOpenMen
 
 function IconStyleToolbar({ node, style, openMenu, setOpenMenu, onChange, onDelete }) {
   const tone = toneForNode(node);
-  const size = Math.round(node.width || 64);
   const CurrentIcon = LucideIcons[node.iconName] || HeroOutlineIcons[node.iconName] || CubeIcon;
   const toggle = (menu) => setOpenMenu((current) => current === menu ? null : menu);
   return <div className="node-style-toolbar icon-style-toolbar" style={style} role="toolbar" aria-label="Icon formatting" onPointerDown={(event) => event.stopPropagation()}>
     <div className="node-toolbar-item"><button className={openMenu === "icon-colour" ? "active" : ""} aria-label="Icon colour" onClick={() => toggle("icon-colour")}><span className="toolbar-colour-dot" style={{ background: tone.accent }} /><CaretDown size={11} /></button>{openMenu === "icon-colour" && <div className="node-toolbar-popover colour-popover"><ColorControl node={node} tone={tone} onChange={onChange} /></div>}</div>
     <span className="node-toolbar-divider" />
     <div className="node-toolbar-item"><button className={openMenu === "icon-replace" ? "active" : ""} aria-label="Replace icon" onClick={() => toggle("icon-replace")}><CurrentIcon width="17" /><CaretDown size={11} /></button>{openMenu === "icon-replace" && <div className="node-toolbar-popover icon-replace-popover"><HeroIconReplacementPicker currentIcon={node.iconName} onSelect={(iconName) => { onChange({ iconName }); setOpenMenu(null); }} /></div>}</div>
-    <span className="node-toolbar-divider" />
-    <div className="node-toolbar-item"><button className={openMenu === "icon-size" ? "active" : ""} aria-label={`Icon size ${size} pixels`} onClick={() => toggle("icon-size")}><Cube size={17} /><span>{size}px</span><CaretDown size={11} /></button>{openMenu === "icon-size" && <div className="node-toolbar-popover icon-size-popover"><strong>Icon size</strong><label><span>{size}px</span><input type="range" min="32" max="320" step="4" value={size} style={rangeFillStyle(size, 32, 320)} onChange={(event) => { const nextSize = Number(event.target.value); onChange({ width: nextSize, height: nextSize }); }} /></label></div>}</div>
     <span className="node-toolbar-divider" />
     <button className="toolbar-delete" aria-label="Delete icon" onClick={onDelete}><Trash size={17} /></button>
   </div>;
@@ -3674,6 +3722,44 @@ function LinkDialog({ onClose, onAdd }) {
   </form></div>;
 }
 
+function CommandPalette({ commands, onClose }) {
+  const [query, setQuery] = useState("");
+  const [activeIndex, setActiveIndex] = useState(0);
+  const inputRef = useRef(null);
+  useModalKeyboard(onClose);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+  const results = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return needle ? commands.filter((command) => command.label.toLowerCase().includes(needle)) : commands;
+  }, [commands, query]);
+  useEffect(() => { setActiveIndex(0); }, [results.length, query]);
+  const run = (command) => {
+    if (!command) return;
+    onClose();
+    command.run();
+  };
+  return <div className="popover-backdrop command-palette-backdrop" onMouseDown={onClose}>
+    <div className="command-palette" role="dialog" aria-modal="true" aria-label="Command palette" onMouseDown={(event) => event.stopPropagation()}>
+      <label className="command-palette-search">
+        <MagnifyingGlass size={22} />
+        <input ref={inputRef} value={query} placeholder="Search command" aria-label="Search command" autoComplete="off" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => {
+          if (event.key === "ArrowDown") { event.preventDefault(); setActiveIndex((index) => Math.min(index + 1, results.length - 1)); }
+          else if (event.key === "ArrowUp") { event.preventDefault(); setActiveIndex((index) => Math.max(index - 1, 0)); }
+          else if (event.key === "Enter") { event.preventDefault(); run(results[activeIndex]); }
+        }} />
+      </label>
+      {results.length > 0 && <div className="command-palette-results" role="listbox">
+        {results.map((command, index) => <button key={command.id} type="button" role="option" aria-selected={index === activeIndex} className={index === activeIndex ? "active" : ""} onMouseEnter={() => setActiveIndex(index)} onClick={() => run(command)}>
+          <command.icon size={17} />
+          <span>{command.label}</span>
+          {command.shortcut && <kbd>{command.shortcut}</kbd>}
+        </button>)}
+      </div>}
+      {!results.length && <p className="command-palette-empty">No matching commands</p>}
+    </div>
+  </div>;
+}
+
 function ShortcutsDialog({ onClose }) {
   useModalKeyboard(onClose, onClose);
   const shortcuts = [
@@ -3817,6 +3903,18 @@ function ServiceUnavailable() {
   return <div className="not-found"><Brand /><div><span><Database size={28} /></span><h1>Canvas is temporarily unavailable</h1><p>The shared canvas could not be loaded from the server. Your link may still be valid—please try again.</p><button className="primary-button" onClick={() => window.location.reload()}>Try again</button></div></div>;
 }
 
+function toDataUri(url) {
+  return fetch(url, { mode: "cors" }).then((response) => {
+    if (!response.ok) throw new Error("Image request failed");
+    return response.blob();
+  }).then((blob) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error("Could not read image data"));
+    reader.readAsDataURL(blob);
+  }));
+}
+
 function downloadBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
   const anchor = window.document.createElement("a");
@@ -3830,35 +3928,39 @@ function rasterizeSvg(svg, width, height, format, filename) {
   const source = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
   const image = new Image();
   image.onload = () => {
-    const canvas = window.document.createElement("canvas");
-    const maxPixels = 16000000;
-    const maxDimension = format === "gif" ? 1600 : 4096;
-    const scale = Math.min(2, maxDimension / Math.max(width, height), Math.sqrt(maxPixels / Math.max(1, width * height)));
-    canvas.width = Math.max(1, Math.round(width * scale));
-    canvas.height = Math.max(1, Math.round(height * scale));
-    const context = canvas.getContext("2d");
-    context.fillStyle = "#f7f8fb";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(image, 0, 0, canvas.width, canvas.height);
-    const jpg = canvas.toDataURL("image/jpeg", .94);
-    if (format === "jpg") {
-      const anchor = window.document.createElement("a");
-      anchor.href = jpg;
-      anchor.download = `${filename}.jpg`;
-      anchor.click();
-    } else if (format === "png") {
-      canvas.toBlob((blob) => blob && downloadBlob(blob, `${filename}.png`), "image/png");
-    } else if (format === "gif") {
-      const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-      downloadBlob(encodeStaticGif(pixels, canvas.width, canvas.height), `${filename}.gif`);
-    } else {
-      const landscape = width >= height;
-      const pageScale = Math.min(1, 14400 / Math.max(width, height));
-      const pageWidth = Math.max(1, width * pageScale);
-      const pageHeight = Math.max(1, height * pageScale);
-      const pdf = new jsPDF({ orientation: landscape ? "landscape" : "portrait", unit: "pt", format: [pageWidth, pageHeight] });
-      pdf.addImage(jpg, "JPEG", 0, 0, pageWidth, pageHeight);
-      pdf.save(`${filename}.pdf`);
+    try {
+      const canvas = window.document.createElement("canvas");
+      const maxPixels = 16000000;
+      const maxDimension = format === "gif" ? 1600 : 4096;
+      const scale = Math.min(2, maxDimension / Math.max(width, height), Math.sqrt(maxPixels / Math.max(1, width * height)));
+      canvas.width = Math.max(1, Math.round(width * scale));
+      canvas.height = Math.max(1, Math.round(height * scale));
+      const context = canvas.getContext("2d");
+      context.fillStyle = "#f7f8fb";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const jpg = canvas.toDataURL("image/jpeg", .94);
+      if (format === "jpg") {
+        const anchor = window.document.createElement("a");
+        anchor.href = jpg;
+        anchor.download = `${filename}.jpg`;
+        anchor.click();
+      } else if (format === "png") {
+        canvas.toBlob((blob) => blob && downloadBlob(blob, `${filename}.png`), "image/png");
+      } else if (format === "gif") {
+        const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+        downloadBlob(encodeStaticGif(pixels, canvas.width, canvas.height), `${filename}.gif`);
+      } else {
+        const landscape = width >= height;
+        const pageScale = Math.min(1, 14400 / Math.max(width, height));
+        const pageWidth = Math.max(1, width * pageScale);
+        const pageHeight = Math.max(1, height * pageScale);
+        const pdf = new jsPDF({ orientation: landscape ? "landscape" : "portrait", unit: "pt", format: [pageWidth, pageHeight] });
+        pdf.addImage(jpg, "JPEG", 0, 0, pageWidth, pageHeight);
+        pdf.save(`${filename}.pdf`);
+      }
+    } catch {
+      window.alert("MyMind could not finish this export. An image on the canvas may be blocking it — try removing images added by URL and export again.");
     }
     URL.revokeObjectURL(source);
   };
