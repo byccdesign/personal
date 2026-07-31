@@ -611,14 +611,14 @@ button { cursor: pointer; }
 .command-palette-search svg { flex: 0 0 auto; color: #4e5664; opacity: .8; }
 .command-palette-search input { width: 100%; border: 0; outline: 0; background: transparent; color: #4e5664; font-size: 16px; font-weight: 500; letter-spacing: -.5px; }
 .command-palette-search input::placeholder { color: #4e5664; opacity: .8; }
-.command-palette-results { max-height: min(360px, 50vh); overflow-y: auto; display: flex; flex-direction: column; gap: 16px; padding: 14px; background: #ffffffe3; border-radius: 24px; box-shadow: 0 14px 40px rgba(35,42,59,.18); scrollbar-width: thin; scrollbar-color: #d3d7e0 transparent; }
-.command-palette-results::-webkit-scrollbar { width: 6px; }
+.command-palette-results { max-height: min(360px, 50vh); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 14px; background: #ffffffe3; border-radius: 24px; box-shadow: 0 14px 40px rgba(35,42,59,.18); scrollbar-width: thin; scrollbar-color: #d3d7e0 transparent; }
+.command-palette-results::-webkit-scrollbar { width: 10px; }
 .command-palette-results::-webkit-scrollbar-track { background: transparent; }
-.command-palette-results::-webkit-scrollbar-thumb { background: #d3d7e0; border-radius: 999px; }
-.command-palette-results button { display: flex; align-items: center; gap: 12px; height: 42px; padding: 0 14px; color: #454d5a; text-align: left; background: transparent; border: 0; border-radius: 12px; font-size: 13px; font-weight: 600; }
+.command-palette-results::-webkit-scrollbar-thumb { background: #d3d7e0; border-radius: 999px; border: 3px solid transparent; background-clip: padding-box; }
+.command-palette-results button { display: flex; align-items: center; gap: 12px; height: 42px; padding: 8px; color: #454d5a; text-align: left; background: transparent; border: 0; border-radius: 12px; font-size: 13px; font-weight: 600; }
 .command-palette-results button svg { color: #737b89; flex: 0 0 auto; }
 .command-palette-results button span { flex: 1; }
-.command-palette-results button.active, .command-palette-results button:hover { color: #4659d5; background: #eef1ff; }
+.command-palette-results button.active, .command-palette-results button:hover { color: #4659d5; background: #eef1ff; padding: 8px; }
 .command-palette-results button.active svg, .command-palette-results button:hover svg { color: #4659d5; }
 .command-palette-results button kbd { padding: 3px 7px; color: #8a92a0; background: #f1f2f5; border-radius: 6px; font-family: "Inter", sans-serif; font-size: 10px; font-weight: 700; }
 .command-palette-empty { margin: 0; padding: 20px; color: var(--muted); text-align: center; background: rgba(255,255,255,.85); border-radius: 20px; font-size: 12px; backdrop-filter: blur(24px) saturate(180%); -webkit-backdrop-filter: blur(24px) saturate(180%); }
