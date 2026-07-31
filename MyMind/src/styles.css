@@ -335,7 +335,7 @@ button { cursor: pointer; }
 .mode-toast { position: absolute; top: 65px; left: 50%; z-index: 10; display: flex; align-items: center; gap: 7px; padding: 9px 13px; transform: translateX(-50%); color: #4e5fd4; background: #fff; border: 1px solid #dce0f2; border-radius: 999px; box-shadow: 0 8px 24px rgba(40,48,70,.1); font-size: 12px; font-weight: 600; }
 .drawing-selection-count { position: absolute; top: 65px; left: 50%; z-index: 10; padding: 9px 13px; transform: translateX(-50%); color: #4e5fd4; background: #fff; border: 1px solid #dce0f2; border-radius: 999px; box-shadow: 0 8px 24px rgba(40,48,70,.1); font-size: 12px; font-weight: 650; }
 .drawing-thickness-toolbar { position: absolute; bottom: 20px; left: 50%; z-index: 25; min-height: 44px; max-width: calc(100% - 150px); display: flex; align-items: center; gap: 9px; padding: 6px 10px; transform: translateX(-50%); color: #69717e; background: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(243,243,247,0.95) 100%); border: 1px solid rgba(220,225,233,0.9); border-radius: 8px; box-shadow: 0 10px 28px rgba(36,43,61,.10); font-size: 11px; font-weight: 650; }
-.drawing-thickness-toolbar > div { display: flex; align-items: center; gap: 6px; padding-left: 8px; border-left: 1px solid #f0f2f6; }
+.drawing-thickness-toolbar > div { display: flex; align-items: center; gap: 6px; padding-left: 8px; }
 .drawing-mode-toggle button { width: 35px; height: 36px; align-items: flex-start; overflow: hidden; border-radius: 8px; }
 .drawing-mode-toggle button.selected, .drawing-mode-toggle button.selected:hover { background: transparent; }
 .drawing-mode-toggle img { width: 35px; height: auto; display: block; transform-origin: top center; transform: translateY(0) scale(.94); opacity: .7; transition: transform .24s cubic-bezier(.34,1.56,.64,1), opacity .2s ease; }
@@ -347,6 +347,11 @@ button { cursor: pointer; }
 .drawing-thickness-toolbar .drawing-delete:hover:not(:disabled) { color: #cf4d4d; background: #fff0f0; }
 .drawing-thickness-toolbar button i { width: 20px; min-height: 1.5px; display: block; background: #454d5a; border-radius: 999px; }
 .drawing-thickness-toolbar button.selected i { background: var(--primary); }
+.stroke-width-slider { position: relative; width: 84px; height: 24px; flex: 0 0 auto; display: flex; align-items: center; }
+.stroke-width-slider::before { content: ""; position: absolute; inset: 0; background: var(--primary); clip-path: polygon(0% 42%, 100% 6%, 100% 94%, 0% 58%); pointer-events: none; }
+.stroke-width-slider input[type="range"] { position: relative; width: 100%; background: transparent; }
+.stroke-width-slider input[type="range"]::-webkit-slider-thumb { background: #fff; }
+.stroke-width-slider input[type="range"]::-moz-range-thumb { background: #fff; }
 .drawing-thickness-toolbar strong { min-width: 34px; color: #59616e; font-size: 9px; font-weight: 700; }
 .drawing-thickness-toolbar .drawing-color-options { gap: 5px; padding-left: 10px; }
 .drawing-thickness-toolbar .drawing-color-options button { width: 24px; height: 30px; padding: 5px; }
@@ -595,7 +600,7 @@ button { cursor: pointer; }
 .new-canvas-trigger { position: relative; }
 .popover-backdrop { position: fixed; inset: 0; z-index: 59; background: transparent; }
 .new-canvas-menu { position: absolute; top: calc(100% + 10px); right: 0; z-index: 60; display: flex; flex-direction: column; gap: 10px; }
-.new-canvas-menu button { display: flex; align-items: center; gap: 8px; padding: 8px 10px; color: #334; text-align: left; white-space: nowrap; background: #fff; border: 1px solid #dddde8; border-radius: 9999px; box-shadow: 0 4px 2px rgba(219,218,218,.25); font-size: 12px; font-weight: 500; animation: new-canvas-item-in .22s cubic-bezier(.34,1.56,.64,1) both; animation-delay: calc(var(--stagger, 0) * 55ms); }
+.new-canvas-menu button { display: flex; align-items: center; gap: 8px; padding: 8px 16px; color: #334; text-align: left; white-space: nowrap; background: #fff; border: 1px solid #dddde8; border-radius: 9999px; box-shadow: 0 4px 2px rgba(219,218,218,.25); font-size: 12px; font-weight: 500; animation: new-canvas-item-in .22s cubic-bezier(.34,1.56,.64,1) both; animation-delay: calc(var(--stagger, 0) * 55ms); }
 .new-canvas-menu button:hover { border-color: #c8cff6; background: #f7f8ff; }
 @keyframes new-canvas-item-in { from { opacity: 0; transform: translateY(-8px) scale(.94); } to { opacity: 1; transform: translateY(0) scale(1); } }
 

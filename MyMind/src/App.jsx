@@ -3454,14 +3454,15 @@ function HighlighterToolIcon() {
 }
 
 function DrawingThicknessToolbar({ width, color, streamline, mode = "pen", selectionCount, onChange, onColorChange, onStreamlineChange, onModeChange, onDelete }) {
-  const widths = mode === "highlighter" ? [6, 10, 16, 24] : [1.5, 2.4, 4, 7];
   const colors = mode === "highlighter" ? ["#ffd84a", "#7ee787", "#7ec8e3", "#ff8fc7", "#c9a4f5"] : ["#3f4652", "#5367ef", "#e05252", "#2fa86f", "#d79524"];
+  const minWidth = mode === "highlighter" ? 6 : 1.5;
+  const maxWidth = mode === "highlighter" ? 24 : 7;
   return <div className="drawing-thickness-toolbar" role="toolbar" aria-label="Drawing style" onPointerDown={(event) => event.stopPropagation()}>
     <div className="drawing-mode-toggle">
       <button className={mode === "pen" ? "selected" : ""} aria-pressed={mode === "pen"} title="Pen" onClick={() => onModeChange && onModeChange("pen")}><PenToolIcon /></button>
       <button className={mode === "highlighter" ? "selected" : ""} aria-pressed={mode === "highlighter"} title="Highlighter" onClick={() => onModeChange && onModeChange("highlighter")}><HighlighterToolIcon /></button>
     </div>
-    <div>{widths.map((value) => <button key={value} className={width === value ? "selected" : ""} aria-label={`${value} pixel stroke`} title={`${value}px`} onClick={() => onChange(value)}><i style={{ height: mode === "highlighter" ? Math.min(value, 10) : value }} /></button>)}</div>
+    <div className="stroke-width-slider" title={`${width}px`}><input type="range" min={minWidth} max={maxWidth} step=".1" value={width} aria-label="Stroke width" onChange={(event) => onChange(Number(event.target.value))} /></div>
     <div className="drawing-color-options">{colors.map((value) => <button key={value} className={color === value ? "selected" : ""} aria-label={`Use ${value} ${mode === "highlighter" ? "highlighter" : "pen"} colour`} title={value} onClick={() => onColorChange(value)}><i style={{ background: value }} /></button>)}<label className="drawing-custom-color" title={`Custom ${mode === "highlighter" ? "highlighter" : "pen"} colour`} style={{ "--pen-color": color }}><Palette size={15} /><input aria-label={`Custom ${mode === "highlighter" ? "highlighter" : "pen"} colour`} type="color" value={color} onChange={(event) => onColorChange(event.target.value)} /></label></div>
     <label className="drawing-range">Streamline <span>{Math.round(streamline * 100)}%</span><input type="range" min="0" max="1" step=".05" value={streamline} style={rangeFillStyle(streamline, 0, 1)} onChange={(event) => onStreamlineChange(Number(event.target.value))} /></label>
     <button className="drawing-delete" disabled={!selectionCount} aria-label="Delete selected drawing" title={selectionCount ? "Delete selected drawing" : "Select a drawing to delete"} onClick={onDelete}><Trash size={17} /></button>
