@@ -1276,7 +1276,6 @@ function Login({ onLogin, serviceUnavailable = false }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   return <div className="login-page">
-    <Brand />
     <form className="login-card" onSubmit={async (event) => {
       event.preventDefault();
       setBusy(true);
@@ -1285,14 +1284,12 @@ function Login({ onLogin, serviceUnavailable = false }) {
       catch (loginError) { setError(loginError?.status === 401 ? "That password didn’t work. Please try again." : "MyMind could not reach its database. Please try again in a moment."); }
       finally { setBusy(false); }
     }}>
-      <span className="login-icon"><Brain size={27} weight="duotone" /></span>
-      <p className="eyebrow">Private workspace</p>
-      <h1>Welcome back</h1>
-      <p>Enter your MyMind password to open the dashboard.</p>
+      <span className="login-icon"><LucideIcons.Lock size={31} strokeWidth={1.7} /></span>
       {serviceUnavailable && <div className="login-warning">The workspace is locked because its database is currently unavailable.</div>}
-      <label>Password<input type="password" autoFocus autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label>
-      {error && <div className="login-error">{error}</div>}
-      <button className="primary-button" disabled={busy || !password}>{busy ? "Opening…" : "Open MyMind"}</button>
+      <label className="sr-only" htmlFor="mymind-password">Password</label>
+      <input id="mymind-password" type="password" autoFocus autoComplete="current-password" placeholder="••••••••" aria-describedby={error ? "login-error" : undefined} value={password} onChange={(event) => setPassword(event.target.value)} />
+      {error && <div className="login-error" id="login-error" role="alert">{error}</div>}
+      <button className="primary-button" type="submit" disabled={busy || !password}>{busy ? "Logging in…" : "Log in"}</button>
     </form>
   </div>;
 }
