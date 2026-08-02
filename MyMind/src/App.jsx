@@ -1513,7 +1513,11 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
   const [participants, setParticipants] = useState([]);
   const [zoomMenuOpen, setZoomMenuOpen] = useState(false);
   const [iconBrowserOpen, setIconBrowserOpen] = useState(false);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
+  const [mobileInsertOpen, setMobileInsertOpen] = useState(false);
   const canvasRef = useRef(null);
+  const touchPointersRef = useRef(new Map());
+  const pinchRef = useRef(null);
   const imageInputRef = useRef(null);
   const dragRef = useRef(null);
   const saveTimer = useRef(null);
@@ -2081,6 +2085,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
   };
 
   const onCanvasPointerDown = (event) => {
+    if (pinchRef.current) return;
     setContextMenu(null);
     setPagesOpen(false);
     setNodeMenu(false);
@@ -2124,6 +2129,26 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     setEdgeSelection([]);
     setDrawingSelection([]);
     setSelectedAnnotationId(null);
+  };
+
+  const onCanvasPointerDownCapture = (event) => {
+    if (event.pointerType !== "touch") return;
+    touchPointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (touchPointersRef.current.size !== 2) return;
+    const [first, second] = [...touchPointersRef.current.values()];
+    const rect = canvasRef.current.getBoundingClientRect();
+    const midpoint = { x: (first.x + second.x) / 2 - rect.left, y: (first.y + second.y) / 2 - rect.top };
+    pinchRef.current = {
+      distance: Math.max(1, Math.hypot(second.x - first.x, second.y - first.y)),
+      zoom,
+      worldX: (midpoint.x - pan.x) / zoom,
+      worldY: (midpoint.y - pan.y) / zoom,
+    };
+    dragRef.current = null;
+    setDraftDrawing(null);
+    setMarquee(null);
+    for (const pointerId of touchPointersRef.current.keys()) canvasRef.current.setPointerCapture?.(pointerId);
+    event.preventDefault();
   };
 
   const onNodePointerDown = (event, node) => {
@@ -2244,6 +2269,20 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
   };
 
   const onPointerMove = (event) => {
+    if (event.pointerType === "touch" && touchPointersRef.current.has(event.pointerId)) {
+      touchPointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pinchRef.current && touchPointersRef.current.size >= 2) {
+        const [first, second] = [...touchPointersRef.current.values()];
+        const rect = canvasRef.current.getBoundingClientRect();
+        const midpoint = { x: (first.x + second.x) / 2 - rect.left, y: (first.y + second.y) / 2 - rect.top };
+        const distance = Math.max(1, Math.hypot(second.x - first.x, second.y - first.y));
+        const nextZoom = Math.min(1.8, Math.max(.35, pinchRef.current.zoom * distance / pinchRef.current.distance));
+        setZoom(nextZoom);
+        setPan({ x: midpoint.x - pinchRef.current.worldX * nextZoom, y: midpoint.y - pinchRef.current.worldY * nextZoom });
+        event.preventDefault();
+        return;
+      }
+    }
     if (dragRef.current?.type === "element-rotate") {
       const drag = dragRef.current;
       const bounds = canvasRef.current.getBoundingClientRect();
@@ -2372,6 +2411,17 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
   };
 
   const endDrag = (event) => {
+    if (event?.pointerType === "touch") {
+      const wasPinching = Boolean(pinchRef.current);
+      touchPointersRef.current.delete(event.pointerId);
+      if (wasPinching) {
+        pinchRef.current = null;
+        dragRef.current = null;
+        setDraftDrawing(null);
+        setMarquee(null);
+        return;
+      }
+    }
     const drag = dragRef.current;
     if (drag?.type === "element-rotate") {
       setRotationFeedback(null);
@@ -2704,6 +2754,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
         setTool("select");
       }
       if (event.key === "Escape" && tool === "annotate" && !pendingAnnotation) setTool("select");
+      if (event.key === "Escape" && tool === "pen" && !modalOpen) setTool("select");
       if (event.key === "Escape") {
         setContextMenu(null);
         setRotationModeId(null);
@@ -2711,6 +2762,9 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
         setPagesOpen(false);
         setNodeMenu(false);
         setShapeMenuOpen(false);
+        setIconBrowserOpen(false);
+        setMobileToolsOpen(false);
+        setMobileInsertOpen(false);
       }
       const isTyping = ["INPUT", "TEXTAREA", "SELECT"].includes(activeTag) || window.document.activeElement?.isContentEditable;
       if (!publicView && !modalOpen && !isTyping && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
@@ -2795,10 +2849,13 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       if (pagesOpen && !target?.closest(".pages-control")) setPagesOpen(false);
       if (nodeMenu && !target?.closest(".toolbar-popover-wrap")) setNodeMenu(false);
       if (shapeMenuOpen && !target?.closest(".shape-tool-wrap")) setShapeMenuOpen(false);
+      if (iconBrowserOpen && !target?.closest('.icon-browser, button[aria-label="Add Heroicon"]')) setIconBrowserOpen(false);
+      if (mobileToolsOpen && !target?.closest(".mobile-tool-selector")) setMobileToolsOpen(false);
+      if (mobileInsertOpen && !target?.closest(".mobile-tool-selector, .mobile-insert-sheet")) setMobileInsertOpen(false);
     };
     window.document.addEventListener("pointerdown", dismissFloatingPanels, true);
     return () => window.document.removeEventListener("pointerdown", dismissFloatingPanels, true);
-  }, [nodeMenu, pagesOpen, pendingAnnotation, selectedAnnotationId, shapeMenuOpen]);
+  }, [iconBrowserOpen, mobileInsertOpen, mobileToolsOpen, nodeMenu, pagesOpen, pendingAnnotation, selectedAnnotationId, shapeMenuOpen]);
 
   useEffect(() => {
     const onCopy = (event) => {
@@ -3077,6 +3134,31 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     ...(!isPublicLink ? [{ id: "back-to-dashboard", label: "Back to all canvases", icon: ArrowLeft, run: () => navigate("/") }] : []),
   ];
 
+  const MobileActiveToolIcon = { select: CursorClick, hand: Hand, connect: LinkNodes, pen: Pen, annotate: ChatCircleDots }[tool] || CursorClick;
+  const chooseMobileTool = (nextTool) => {
+    setPagesOpen(false);
+    setConnectionSource(null);
+    setTool(nextTool);
+    setMobileToolsOpen(false);
+    setMobileInsertOpen(false);
+  };
+  const mobileToolItems = publicView ? [
+    { label: "Pointer", Icon: CursorClick, active: tool === "select", run: () => chooseMobileTool("select") },
+    { label: "Hand", Icon: Hand, active: tool === "hand", run: () => chooseMobileTool("hand") },
+    { label: "Comment", Icon: ChatCircleDots, active: tool === "annotate", run: () => chooseMobileTool("annotate") },
+    { label: "Pages", Icon: FileText, active: pagesOpen, run: () => { setPagesOpen((open) => !open); setMobileToolsOpen(false); } },
+    { label: "Help", Icon: HelpCircle, run: () => { setShortcutsOpen(true); setMobileToolsOpen(false); } },
+  ] : [
+    { label: "Pointer", Icon: CursorClick, active: tool === "select", run: () => chooseMobileTool("select") },
+    { label: "Hand", Icon: Hand, active: tool === "hand", run: () => chooseMobileTool("hand") },
+    { label: "Connect", Icon: LinkNodes, active: tool === "connect", run: () => chooseMobileTool("connect") },
+    { label: "Draw", Icon: Pen, active: tool === "pen", run: () => chooseMobileTool("pen") },
+    { label: "Comment", Icon: ChatCircleDots, active: tool === "annotate", run: () => chooseMobileTool("annotate") },
+    { label: "Idea", Icon: Plus, run: () => { addNode("idea"); setMobileToolsOpen(false); } },
+    { label: "Shapes", Icon: LucideIcons.Shapes, run: () => { setMobileInsertOpen(true); setMobileToolsOpen(false); } },
+    { label: "Insert", Icon: Cube, run: () => { setMobileInsertOpen(true); setMobileToolsOpen(false); } },
+  ];
+
   return <div className={`app-shell editor-shell ${isPublicLink ? "is-public" : ""} ${embedMode ? "is-embed" : ""}`}>
     {commandPaletteOpen && <CommandPalette commands={commandPaletteCommands} onClose={() => setCommandPaletteOpen(false)} />}
     {!embedMode && <header className="topbar editor-topbar">
@@ -3151,7 +3233,37 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
         <button title="Keyboard shortcuts · ?" aria-label="Keyboard shortcuts" onClick={() => setShortcutsOpen(true)}><HelpCircle size={20} /></button>
       </aside>}
 
-      <main ref={canvasRef} className={`canvas ${tool === "hand" || spaceHeld ? "is-panning" : ""} ${tool === "pen" ? "is-drawing" : ""} ${tool === "annotate" ? "is-annotating" : ""}`} onPointerDown={onCanvasPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag} onWheel={onWheel} onDragOver={(event) => { if (Array.from(event.dataTransfer?.items || []).some((item) => item.type.startsWith("image/"))) event.preventDefault(); }} onDrop={(event) => { const file = Array.from(event.dataTransfer?.files || []).find((item) => item.type.startsWith("image/")); if (file) { event.preventDefault(); addImageFile(file, { x: event.clientX, y: event.clientY }); } }}>
+      {!embedMode && <div className={`mobile-tool-selector ${mobileToolsOpen ? "open" : ""}`}>
+        {mobileToolsOpen && <button className="mobile-tool-scrim" aria-label="Close tool selector" onClick={() => setMobileToolsOpen(false)} />}
+        <div className="mobile-tool-wheel" role="toolbar" aria-label="Canvas tools">
+          {mobileToolsOpen && mobileToolItems.map(({ label, Icon, active, run }, index) => {
+            const angle = -90 + index * (360 / mobileToolItems.length);
+            const radius = 86;
+            const left = 118 + Math.cos(angle * Math.PI / 180) * radius;
+            const top = 118 + Math.sin(angle * Math.PI / 180) * radius;
+            return <button key={label} className={`mobile-radial-tool ${active ? "active" : ""}`} style={{ left, top, animationDelay: `${index * 12}ms` }} aria-label={label} onClick={run}><Icon size={20} /><span>{label}</span></button>;
+          })}
+          <button className="mobile-tool-hub" aria-expanded={mobileToolsOpen} aria-label={mobileToolsOpen ? "Close canvas tools" : `Open canvas tools. Current tool: ${tool}`} onClick={() => { setMobileInsertOpen(false); setMobileToolsOpen((open) => !open); }}><MobileActiveToolIcon size={25} /><span>{tool === "pen" ? "Draw" : tool === "annotate" ? "Comment" : tool === "connect" ? "Connect" : tool === "hand" ? "Hand" : "Pointer"}</span></button>
+        </div>
+        <PagesPanel pages={document.pages} activePageId={document.activePageId} open={pagesOpen} canManage={!publicView} onToggle={() => setPagesOpen((open) => !open)} onSwitch={switchPage} onAdd={addPage} onRename={renamePage} onDelete={deletePage} />
+      </div>}
+
+      {!publicView && mobileInsertOpen && <aside className="mobile-insert-sheet" aria-label="Insert canvas element">
+        <div><strong>Insert</strong><button aria-label="Close insert tools" onClick={() => setMobileInsertOpen(false)}><X size={18} /></button></div>
+        <section>
+          <button onClick={() => { setPagesOpen(true); setMobileInsertOpen(false); }}><FileText size={20} /><span>Pages</span></button>
+          <button onClick={() => { addTextNode(); setMobileInsertOpen(false); }}><HeadingOne size={20} /><span>Text</span></button>
+          <button onClick={() => { setIconBrowserOpen(true); setMobileInsertOpen(false); }}><Cube size={20} /><span>Icon</span></button>
+          <button onClick={() => { setImageSourceOpen(true); setMobileInsertOpen(false); }}><Photo size={20} /><span>Picture</span></button>
+          <button onClick={() => { setLinkOpen(true); setMobileInsertOpen(false); }}><LinkSimple size={20} /><span>Link</span></button>
+          <button onClick={() => { addArrowShape(); setMobileInsertOpen(false); }}><ArrowLine size={20} /><span>Arrow</span></button>
+          <button onClick={() => { addBasicShape("rectangle"); setMobileInsertOpen(false); }}><LucideIcons.RectangleHorizontal size={20} /><span>Rectangle</span></button>
+          <button onClick={() => { addBasicShape("circle"); setMobileInsertOpen(false); }}><LucideIcons.Circle size={20} /><span>Circle</span></button>
+          <button onClick={() => { setShortcutsOpen(true); setMobileInsertOpen(false); }}><HelpCircle size={20} /><span>Help</span></button>
+        </section>
+      </aside>}
+
+      <main ref={canvasRef} className={`canvas ${tool === "hand" || spaceHeld ? "is-panning" : ""} ${tool === "pen" ? "is-drawing" : ""} ${tool === "annotate" ? "is-annotating" : ""}`} onPointerDownCapture={onCanvasPointerDownCapture} onPointerDown={onCanvasPointerDown} onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag} onWheel={onWheel} onDragOver={(event) => { if (Array.from(event.dataTransfer?.items || []).some((item) => item.type.startsWith("image/"))) event.preventDefault(); }} onDrop={(event) => { const file = Array.from(event.dataTransfer?.files || []).find((item) => item.type.startsWith("image/")); if (file) { event.preventDefault(); addImageFile(file, { x: event.clientX, y: event.clientY }); } }}>
         <div className="canvas-grid" style={{ backgroundPosition: `${pan.x}px ${pan.y}px`, backgroundSize: `${24 * zoom}px ${24 * zoom}px` }} />
         <div className="world" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` }}>
           <svg className="edge-layer" width="4000" height="2400" viewBox="-1000 -600 4000 2400">
@@ -3968,7 +4080,6 @@ function GuestWelcomeModal({ accessMode, onClose }) {
     <section className="modal guest-welcome-modal" role="dialog" aria-modal="true" aria-labelledby="guest-welcome-title">
       <div className="guest-welcome-art">
         <img src={`${APP_BASE}assets/mymind-cloud-welcome.webp`} alt="A fuzzy blue cloud mascot waving hello" />
-        <span>{canEdit ? "Editing powers: unlocked ✨" : "Viewer mode: cozy & curious 👀"}</span>
       </div>
       <div className="guest-welcome-copy">
         <h2 id="guest-welcome-title">Welcome to Christine’s canvas</h2>
@@ -3982,9 +4093,7 @@ function GuestWelcomeModal({ accessMode, onClose }) {
             ? <div><kbd>D</kbd><span><strong>Doodle freely</strong><small>Pick the pen, then turn thoughts into squiggles.</small></span></div>
             : <div><kbd>A</kbd><span><strong>Leave a tiny note</strong><small>Add a comment wherever a thought pops up.</small></span></div>}
         </div>
-        <p className="guest-visibility-note">{canEdit
-          ? "Tiny heads-up: anything you put here, Christine can see it. Yes, even that doodle. 👀"
-          : "Comments you leave are visible to Christine. Be brilliant, or at least entertaining. 👀"}</p>
+        <p className="guest-visibility-note">Anything you put here, Christine can see it. Yes, even that doodle. 👀</p>
         <div className="modal-actions">
           <button className="primary-button" autoFocus onClick={onClose}>{canEdit ? "Let’s make a tiny mess" : "Let me have a look"}</button>
         </div>
