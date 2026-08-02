@@ -311,7 +311,6 @@ if ($action === 'youtube-thumbnail' && $_SERVER['REQUEST_METHOD'] === 'GET') {
         $image = curl_exec($handle);
         $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
         $contentType = strtolower((string) curl_getinfo($handle, CURLINFO_CONTENT_TYPE));
-        curl_close($handle);
         if ($status === 200 && is_string($image) && $image !== '' && str_starts_with($contentType, 'image/') && strlen($image) <= 5 * 1024 * 1024) {
             header('Content-Type: ' . $contentType);
             header('Cache-Control: public, max-age=86400, stale-while-revalidate=604800');
@@ -347,7 +346,6 @@ if ($action === 'link-preview' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     curl_exec($handle);
     $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
     $contentType = strtolower((string) curl_getinfo($handle, CURLINFO_CONTENT_TYPE));
-    curl_close($handle);
     if ($status < 200 || $status >= 300 || $html === '' || ($contentType !== '' && !str_contains($contentType, 'html'))) reply(['error' => 'Preview unavailable'], 422);
 
     libxml_use_internal_errors(true);
@@ -365,6 +363,54 @@ if ($action === 'link-preview' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         'image' => $image,
         'icon' => $icon,
     ]);
+}
+
+if ($action === 'embed-check' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $payload = body();
+    $target = public_http_target(trim((string) ($payload['url'] ?? '')));
+    if (!$target) reply(['error' => 'Invalid or private URL'], 422);
+    if (!function_exists('curl_init')) reply(['embeddable' => true, 'status' => 'unknown']);
+
+    $headers = [];
+    $handle = curl_init($target['url']);
+    curl_setopt_array($handle, [
+        CURLOPT_NOBODY => true,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_CONNECTTIMEOUT => 4,
+        CURLOPT_TIMEOUT => 8,
+        CURLOPT_USERAGENT => 'MyMind Embed Check/1.0',
+        CURLOPT_RESOLVE => [$target['host'] . ':' . $target['port'] . ':' . $target['ip']],
+        CURLOPT_HEADERFUNCTION => static function ($curl, string $line) use (&$headers): int {
+            $separator = strpos($line, ':');
+            if ($separator !== false) {
+                $name = strtolower(trim(substr($line, 0, $separator)));
+                $value = trim(substr($line, $separator + 1));
+                if ($name !== '') $headers[$name][] = $value;
+            }
+            return strlen($line);
+        },
+    ]);
+    $completed = curl_exec($handle);
+    $status = (int) curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+    if ($completed === false || $status === 405 || $status === 501 || $status === 0) {
+        reply(['embeddable' => true, 'status' => 'unknown']);
+    }
+
+    $frameOptions = strtolower(implode(';', $headers['x-frame-options'] ?? []));
+    $contentSecurityPolicy = strtolower(implode(';', $headers['content-security-policy'] ?? []));
+    $blockedByFrameOptions = str_contains($frameOptions, 'deny') || str_contains($frameOptions, 'sameorigin');
+    $blockedByCsp = preg_match("/(?:^|;)\\s*frame-ancestors\\s+(?:'none'|'self')\\s*(?:;|$)/i", $contentSecurityPolicy) === 1;
+    $blockedByResponse = in_array($status, [401, 403, 451], true);
+
+    if ($blockedByFrameOptions || $blockedByCsp || $blockedByResponse) {
+        reply([
+            'embeddable' => false,
+            'status' => 'blocked',
+            'message' => 'This website does not allow its pages to be displayed inside another site.',
+        ]);
+    }
+
+    reply(['embeddable' => true, 'status' => 'allowed']);
 }
 
 $configPath = __DIR__ . '/config.php';

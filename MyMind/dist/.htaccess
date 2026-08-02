@@ -17,6 +17,7 @@ RewriteEngine On
     </FilesMatch>
     <FilesMatch "^index\.html$">
         Header set Cache-Control "no-cache, must-revalidate"
+        Header set Content-Security-Policy "frame-ancestors 'self' https://christine-uy.com https://www.christine-uy.com"
     </FilesMatch>
 </IfModule>
 
