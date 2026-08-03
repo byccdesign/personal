@@ -96,6 +96,7 @@ import { jsPDF } from "jspdf";
 import { getStroke } from "perfect-freehand";
 import penIcon from "./assets/pen.png";
 import highlighterIcon from "./assets/highlighter.png";
+import commandSparkle from "./assets/command-sparkle.svg";
 
 function adaptHeroIcon(Icon) {
   return function HeroIconAdapter({ size = 24, weight: _weight, ...props }) {
@@ -332,6 +333,7 @@ function fittedTextDimensions(label, fontSize = 24) {
 function nodeDimensions(node) {
   if (node?.type === "icon") return { width: node.width || 64, height: node.height || node.width || 64 };
   if (node?.type === "basic-shape") return { width: node.width || 180, height: node.height || 120 };
+  if (node?.type === "code") return { width: node.width || 360, height: node.height || 220 };
   if (node?.type === "link") return { width: node.width || (node.linkDisplay === "embed" ? 560 : 300), height: node.height || (node.linkDisplay === "embed" ? 340 : 196) };
   if (node?.type === "image") {
     const width = node.width || 280;
@@ -1771,6 +1773,22 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     setEditingNode(node.id);
   }, [pan.x, pan.y, updateDocument, zoom]);
 
+  const addCodeNode = useCallback(() => {
+    const viewportWidth = (canvasRef.current?.clientWidth || 420) / zoom;
+    const width = Math.min(360, Math.max(260, viewportWidth - 48));
+    const height = 220;
+    const x = (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - width / 2;
+    const y = (canvasRef.current?.clientHeight / 2 - pan.y) / zoom - height / 2;
+    const node = { id: uid("code"), type: "code", x, y, width, height, label: "// Add your code here", language: "Code", color: "slate" };
+    updateDocument((doc) => ({ ...doc, nodes: [...doc.nodes, node] }));
+    setSelection([node.id]);
+    setDrawingSelection([]);
+    setEdgeSelection([]);
+    setNodeMenu(false);
+    setTool("select");
+    setEditingNode(node.id);
+  }, [pan.x, pan.y, updateDocument, zoom]);
+
   const addIconNode = useCallback((iconName) => {
     const width = 64;
     const x = (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - width / 2;
@@ -2086,6 +2104,12 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
 
   const onCanvasPointerDown = (event) => {
     if (pinchRef.current) return;
+    if (nodeToolbarMenu || edgeToolbarMenu) {
+      setNodeToolbarMenu(null);
+      setEdgeToolbarMenu(null);
+      event.preventDefault();
+      return;
+    }
     setContextMenu(null);
     setPagesOpen(false);
     setNodeMenu(false);
@@ -2223,7 +2247,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
   };
 
   const startElementResize = (corner, event) => {
-    const node = selection.length === 1 ? document.nodes.find((item) => item.id === selection[0] && ["image", "text", "arrow", "icon", "link", "basic-shape"].includes(item.type)) : null;
+    const node = selection.length === 1 ? document.nodes.find((item) => item.id === selection[0] && ["image", "text", "code", "arrow", "icon", "link", "basic-shape"].includes(item.type)) : null;
     if (!node) return;
     event.preventDefault();
     event.stopPropagation();
@@ -2330,12 +2354,14 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
         x = drag.signX < 0 ? drag.anchorX - width : drag.anchorX;
         y = drag.signY < 0 ? drag.anchorY - height : drag.anchorY;
       } else {
-        width = Math.max(80, Math.min(1600, extentX));
-        height = Math.max(40, Math.min(1200, extentY));
+        const minimumWidth = drag.elementType === "code" ? 220 : 80;
+        const minimumHeight = drag.elementType === "code" ? 120 : 40;
+        width = Math.max(minimumWidth, Math.min(1600, extentX));
+        height = Math.max(minimumHeight, Math.min(1200, extentY));
         x = drag.signX < 0 ? drag.anchorX - width : drag.anchorX;
         y = drag.signY < 0 ? drag.anchorY - height : drag.anchorY;
       }
-      updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === drag.id ? { ...node, x, y, width, ...(["text", "arrow", "icon", "link", "basic-shape"].includes(drag.elementType) ? { height } : {}), ...(drag.elementType === "text" ? { textFit: "free" } : {}) } : node) }));
+      updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === drag.id ? { ...node, x, y, width, ...(["text", "code", "arrow", "icon", "link", "basic-shape"].includes(drag.elementType) ? { height } : {}), ...(drag.elementType === "text" ? { textFit: "free" } : {}) } : node) }));
       return;
     }
     if (draftDrawing) {
@@ -2546,6 +2572,23 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     return () => cancelAnimationFrame(frame);
   }, [embedMode, document.activePageId, zoomToContent]);
 
+  useEffect(() => {
+    const onNumberZoom = (event) => {
+      if (tool !== "select" || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      if (!["0", "1", "2", "5", "7"].includes(event.key)) return;
+      const activeElement = window.document.activeElement;
+      const isTyping = ["INPUT", "TEXTAREA", "SELECT"].includes(activeElement?.tagName) || activeElement?.isContentEditable;
+      const overlayOpen = commandPaletteOpen || editingNode || editingEdge || exportOpen || shareOpen || shortcutsOpen || linkOpen || imageSourceOpen || pendingAnnotation || guestWelcomeOpen;
+      if (isTyping || overlayOpen) return;
+      event.preventDefault();
+      if (event.key === "1") zoomToContent();
+      else if (event.key === "2") { if (selectedBounds) zoomToBounds(selectedBounds); }
+      else zoomAtCenter({ "0": 1, "5": .5, "7": .7 }[event.key]);
+    };
+    window.addEventListener("keydown", onNumberZoom);
+    return () => window.removeEventListener("keydown", onNumberZoom);
+  }, [commandPaletteOpen, editingEdge, editingNode, exportOpen, guestWelcomeOpen, imageSourceOpen, linkOpen, pendingAnnotation, selectedBounds, shareOpen, shortcutsOpen, tool, zoomAtCenter, zoomToBounds, zoomToContent]);
+
   const deleteSelection = useCallback(() => {
     if ((!selection.length && !edgeSelection.length && !drawingSelection.length) || publicView) return;
     const count = selection.length + edgeSelection.length + drawingSelection.length;
@@ -2740,6 +2783,12 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
         return;
       }
       if (commandPaletteOpen) return;
+      if (event.key === "Escape" && (nodeToolbarMenu || edgeToolbarMenu)) {
+        event.preventDefault();
+        setNodeToolbarMenu(null);
+        setEdgeToolbarMenu(null);
+        return;
+      }
       if ((event.key === "Backspace" || event.key === "Delete") && !["INPUT", "TEXTAREA"].includes(window.document.activeElement?.tagName)) deleteSelection();
       if ((event.metaKey || event.ctrlKey) && event.key === "0") { event.preventDefault(); setPan({ x: 80, y: 90 }); setZoom(.9); }
       const modalOpen = editingNode || editingEdge || exportOpen || shareOpen || shortcutsOpen || linkOpen || imageSourceOpen || pendingAnnotation;
@@ -2839,7 +2888,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [addArrowShape, addConnectedNode, addNode, addTextNode, applyHistory, changeStacking, commandPaletteOpen, connectionSource, deleteSelection, document.nodes, duplicateSelection, editingEdge, editingNode, exportOpen, groupSelection, imageSourceOpen, linkOpen, pendingAnnotation, publicView, selection, shareOpen, shortcutsOpen, tool, ungroupSelection, zoom, zoomAtCenter]);
+  }, [addArrowShape, addConnectedNode, addNode, addTextNode, applyHistory, changeStacking, commandPaletteOpen, connectionSource, deleteSelection, document.nodes, duplicateSelection, edgeToolbarMenu, editingEdge, editingNode, exportOpen, groupSelection, imageSourceOpen, linkOpen, nodeToolbarMenu, pendingAnnotation, publicView, selection, shareOpen, shortcutsOpen, tool, ungroupSelection, zoom, zoomAtCenter]);
 
   useEffect(() => {
     const dismissFloatingPanels = (event) => {
@@ -2852,10 +2901,12 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       if (iconBrowserOpen && !target?.closest('.icon-browser, button[aria-label="Add Heroicon"]')) setIconBrowserOpen(false);
       if (mobileToolsOpen && !target?.closest(".mobile-tool-selector")) setMobileToolsOpen(false);
       if (mobileInsertOpen && !target?.closest(".mobile-tool-selector, .mobile-insert-sheet")) setMobileInsertOpen(false);
+      if (nodeToolbarMenu && !target?.closest(".node-style-toolbar")) setNodeToolbarMenu(null);
+      if (edgeToolbarMenu && !target?.closest(".edge-style-toolbar")) setEdgeToolbarMenu(null);
     };
     window.document.addEventListener("pointerdown", dismissFloatingPanels, true);
     return () => window.document.removeEventListener("pointerdown", dismissFloatingPanels, true);
-  }, [iconBrowserOpen, mobileInsertOpen, mobileToolsOpen, nodeMenu, pagesOpen, pendingAnnotation, selectedAnnotationId, shapeMenuOpen]);
+  }, [edgeToolbarMenu, iconBrowserOpen, mobileInsertOpen, mobileToolsOpen, nodeMenu, nodeToolbarMenu, pagesOpen, pendingAnnotation, selectedAnnotationId, shapeMenuOpen]);
 
   useEffect(() => {
     const onCopy = (event) => {
@@ -3004,6 +3055,10 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
         const iconMarkup = renderToStaticMarkup(<HeroIcon width={size.width} height={size.height} strokeWidth="1.7" color={tone.accent} />);
         return `<g transform="translate(${x} ${y})">${iconMarkup}</g>`;
       }
+      if (node.type === "code") {
+        const visibleLines = String(node.label || "").split("\n").slice(0, Math.max(1, Math.floor((size.height - 48) / 17)));
+        return `<g><rect x="${x}" y="${y}" width="${size.width}" height="${size.height}" rx="12" fill="#20232a"/><path d="M${x} ${y + 34}H${x + size.width}" stroke="#3a3f4a"/><text x="${x + 13}" y="${y + 22}" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="10" font-weight="700" fill="#aeb8c6">${escape(node.language || "Code")}</text><text xml:space="preserve" font-family="ui-monospace,SFMono-Regular,Menlo,monospace" font-size="12" fill="#eef0f6">${svgLines(visibleLines, x + 14, y + 54, 17)}</text></g>`;
+      }
       if (node.type === "text") {
         const fontSize = node.fontSize || 24;
         const lines = wrapSvgText(node.label, Math.max(8, Math.floor((size.width - 20) / (fontSize * .58))));
@@ -3099,6 +3154,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     { id: "shortcuts", label: "Keyboard shortcuts", icon: HelpCircle, shortcut: "?", run: () => setShortcutsOpen(true) },
   ] : [
     { id: "add-idea", label: "Add idea node", icon: Lightbulb, shortcut: "N", run: () => addNode("idea") },
+    { id: "add-code", label: "Add code block", icon: Code, run: addCodeNode },
     { id: "add-text", label: "Add text", icon: TextBlock, shortcut: "T", run: () => addTextNode() },
     { id: "add-image", label: "Add image", icon: Photo, shortcut: "P", run: () => setImageSourceOpen(true) },
     { id: "add-link", label: "Add link", icon: LinkSimple, shortcut: "K", run: () => setLinkOpen(true) },
@@ -3197,6 +3253,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
             <button onClick={() => addNode("person")}><span className="menu-node blue"><UserCircle size={18} /></span><span><strong>Person</strong><small>Role or audience</small></span></button>
             <button onClick={() => addNode("process")}><span className="menu-node aqua"><CirclesFour size={18} /></span><span><strong>Process</strong><small>Step or system</small></span></button>
             <button onClick={() => addNode("outcome")}><span className="menu-node amber"><Check size={18} /></span><span><strong>Outcome</strong><small>Result or decision</small></span></button>
+            <button onClick={addCodeNode}><span className="menu-node slate"><Code size={18} /></span><span><strong>Code block</strong><small>Write or paste code</small></span></button>
             <div className="node-menu-divider"><span>Flowchart</span></div>
             <button onClick={() => addNode("terminator")}><span className="menu-node violet"><Flag size={18} /></span><span><strong>Start / End</strong><small>Beginning or end</small></span></button>
             <button onClick={() => addNode("decision")}><span className="menu-node amber"><Check size={18} /></span><span><strong>Decision</strong><small>Branch the flow</small></span></button>
@@ -3253,6 +3310,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
         <section>
           <button onClick={() => { setPagesOpen(true); setMobileInsertOpen(false); }}><FileText size={20} /><span>Pages</span></button>
           <button onClick={() => { addTextNode(); setMobileInsertOpen(false); }}><HeadingOne size={20} /><span>Text</span></button>
+          <button onClick={() => { addCodeNode(); setMobileInsertOpen(false); }}><Code size={20} /><span>Code</span></button>
           <button onClick={() => { setIconBrowserOpen(true); setMobileInsertOpen(false); }}><Cube size={20} /><span>Icon</span></button>
           <button onClick={() => { setImageSourceOpen(true); setMobileInsertOpen(false); }}><Photo size={20} /><span>Picture</span></button>
           <button onClick={() => { setLinkOpen(true); setMobileInsertOpen(false); }}><LinkSimple size={20} /><span>Link</span></button>
@@ -3281,7 +3339,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
             {draftDrawing && <DrawingStroke drawing={draftDrawing} passive />}
           </svg>
           {!publicView && marquee && <SelectionMarquee bounds={marquee} zoom={zoom} />}
-          {!publicView && selectedBounds && <SelectionFrame bounds={selectedBounds} zoom={zoom} count={selection.length + drawingSelection.length} resizable={["image", "text", "icon", "arrow", "link", "basic-shape"].includes(selectedNode?.type) && rotationModeId !== selectedNode?.id} rotatable={["arrow", "basic-shape"].includes(selectedNode?.type) && rotationModeId === selectedNode.id} horizontalHandles={selectedNode?.type === "basic-shape" && selectedNode.shapeKind === "rectangle" && rotationModeId !== selectedNode.id} rotation={selectedNode?.rotation || 0} resizeLabel={selectedNode?.type || "element"} rotateLabel={selectedNode?.type === "basic-shape" ? "shape" : "arrow"} onResizeStart={startElementResize} onRotateStart={startElementRotate} />}
+          {!publicView && selectedBounds && <SelectionFrame bounds={selectedBounds} zoom={zoom} count={selection.length + drawingSelection.length} resizable={["image", "text", "code", "icon", "arrow", "link", "basic-shape"].includes(selectedNode?.type) && rotationModeId !== selectedNode?.id} rotatable={["arrow", "basic-shape"].includes(selectedNode?.type) && rotationModeId === selectedNode.id} horizontalHandles={selectedNode?.type === "basic-shape" && selectedNode.shapeKind === "rectangle" && rotationModeId !== selectedNode.id} rotation={selectedNode?.rotation || 0} resizeLabel={selectedNode?.type || "element"} rotateLabel={selectedNode?.type === "basic-shape" ? "shape" : "arrow"} onResizeStart={startElementResize} onRotateStart={startElementRotate} />}
           {!embedMode && annotationsVisible && (document.annotations || []).map((annotation) => <AnnotationMarker key={annotation.id} annotation={annotation} selected={annotation.id === selectedAnnotationId} draggable={canManageAnnotation(annotation.id)} onDragStart={(event) => startAnnotationDrag(annotation, event)} onSelect={() => { setSelectedAnnotationId(annotation.id); setSelection([]); setEdgeSelection([]); setDrawingSelection([]); }} />)}
         </div>
         {tool === "connect" && <div className="mode-toast"><LinkNodes size={16} /> {connectionSource ? "Choose a destination node" : "Choose a starting node"}</div>}
@@ -3290,6 +3348,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
         {!publicView && (tool === "pen" || drawingSelection.length > 0) && <DrawingThicknessToolbar width={penWidth} color={penColor} streamline={penStreamline} mode={penMode} selectionCount={drawingSelection.length} onChange={changeDrawingWidth} onColorChange={changeDrawingColor} onStreamlineChange={changeDrawingStreamline} onModeChange={changeDrawingMode} onDelete={deleteSelection} />}
         {!publicView && selectedNode && !selectedNode.type && !editingNode && <NodeStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} connectionCount={document.edges.filter((edge) => edge.source === selectedNode.id || edge.target === selectedNode.id).length} hiddenConnectionCount={document.edges.filter((edge) => (edge.source === selectedNode.id || edge.target === selectedNode.id) && edge.hidden).length} onHideConnections={() => { hideNodeConnections(selectedNode.id); setNodeToolbarMenu(null); }} onShowConnections={() => { showHiddenConnections(selectedNode.id); setNodeToolbarMenu(null); }} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
         {!publicView && selectedNode?.type === "text" && !editingNode && <TextStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
+        {!publicView && selectedNode?.type === "code" && !editingNode && <CodeStyleToolbar style={nodeToolbarStyle} onEdit={() => setEditingNode(selectedNode.id)} onDelete={deleteSelection} />}
         {!publicView && selectedNode?.type === "image" && <ImageStyleToolbar node={selectedNode} style={imageToolbarStyle} popoverPlacement={imageToolbarBelow ? "below" : "above"} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
         {!publicView && selectedNode?.type === "icon" && <IconStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
         {!publicView && selectedNode?.type === "arrow" && <ArrowStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
@@ -3397,6 +3456,10 @@ function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, conne
     {node.type === "basic-shape" && <BasicShapeGraphic node={node} size={size} />}
     {editing ? <InlineNodeEditor node={node} onSave={onSaveEdit} onCancel={onCancelEdit} /> : <>
       {node.type === "text" && <span className="text-node-copy">{node.label}</span>}
+      {node.type === "code" && <div className="code-block-content">
+        <div className="code-block-header"><Code size={14} /><span>{node.language || "Code"}</span></div>
+        <pre><code>{node.label}</code></pre>
+      </div>}
       {node.type === "link" && (node.linkDisplay === "embed" ? <EmbeddedLinkNode node={node} /> : <div className="link-card-content">
         <div className={`link-card-thumbnail ${node.thumbnailKind === "favicon" ? "is-favicon" : ""} ${node.mediaKind ? "is-media" : ""}`}><GlobeHemisphereWest size={30} />{node.embedUrl && !node.thumbnail ? <iframe src={node.embedUrl} title={`${node.label} preview`} loading="lazy" tabIndex="-1" /> : <LinkThumbnail node={node} />}{node.mediaKind && <span className="media-play"><Play size={14} /></span>}</div>
         <div className="link-card-copy"><strong>{node.label}</strong><small>{node.subtitle}</small><span>{node.domain}</span></div>
@@ -3448,10 +3511,21 @@ function InlineNodeEditor({ node, onSave, onCancel }) {
   const [icon, setIcon] = useState(node.icon === "lightbulb" ? "brain" : node.icon);
   const suggestedIcon = recommendedIconFor(`${label} ${subtitle}`);
   const suggestedChoice = iconChoices.find((choice) => choice.id === suggestedIcon);
-  const save = () => onSave({ label: label.trim() || "Untitled node", subtitle: subtitle.trim(), ...(!node.type ? { icon } : {}) });
-  return <form className={`inline-node-editor ${node.type === "text" ? "text-only" : ""}`} onSubmit={(event) => { event.preventDefault(); save(); }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) save(); }} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
-    {node.type === "text" ? <textarea autoFocus aria-label="Edit text" value={label} wrap="soft" onFocus={(event) => { if (node.textFit === "auto" && label === "Add text") event.currentTarget.select(); }} onChange={(event) => setLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }} /> : <input autoFocus aria-label="Node title" value={label} onChange={(event) => setLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }} />}
-    {node.type !== "text" && <textarea aria-label="Node description" value={subtitle} placeholder="Add a description" rows="2" onChange={(event) => setSubtitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); save(); } }} />}
+  const save = () => onSave({ label: node.type === "code" ? label || "// Add your code here" : label.trim() || "Untitled node", subtitle: subtitle.trim(), ...(!node.type ? { icon } : {}) });
+  const onCodeKeyDown = (event) => {
+    if (event.key === "Escape") { event.preventDefault(); onCancel(); return; }
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); save(); return; }
+    if (event.key !== "Tab") return;
+    event.preventDefault();
+    const start = event.currentTarget.selectionStart;
+    const end = event.currentTarget.selectionEnd;
+    setLabel(`${label.slice(0, start)}  ${label.slice(end)}`);
+    requestAnimationFrame(() => event.currentTarget.setSelectionRange(start + 2, start + 2));
+  };
+  const editorClass = node.type === "text" ? "text-only" : node.type === "code" ? "code-only" : "";
+  return <form className={`inline-node-editor ${editorClass}`} onSubmit={(event) => { event.preventDefault(); save(); }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) save(); }} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
+    {node.type === "code" ? <textarea autoFocus aria-label="Edit code block" value={label} wrap="off" spellCheck="false" onFocus={(event) => { if (label === "// Add your code here") event.currentTarget.select(); }} onChange={(event) => setLabel(event.target.value)} onKeyDown={onCodeKeyDown} /> : node.type === "text" ? <textarea autoFocus aria-label="Edit text" value={label} wrap="soft" onFocus={(event) => { if (node.textFit === "auto" && label === "Add text") event.currentTarget.select(); }} onChange={(event) => setLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }} /> : <input autoFocus aria-label="Node title" value={label} onChange={(event) => setLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }} />}
+    {!["text", "code"].includes(node.type) && <textarea aria-label="Node description" value={subtitle} placeholder="Add a description" rows="2" onChange={(event) => setSubtitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); save(); } }} />}
     {!node.type && label.trim().length >= 2 && suggestedIcon !== icon && <button type="button" className="inline-icon-suggestion" onClick={() => setIcon(suggestedIcon)} title={`Use ${suggestedChoice?.label || "suggested"} icon`}><IconForNode name={suggestedIcon} size={15} /><span>Suggested: {suggestedChoice?.label}</span></button>}
   </form>;
 }
@@ -3770,6 +3844,14 @@ function TextStyleToolbar({ node, style, openMenu, setOpenMenu, onChange, onDele
   </div>;
 }
 
+function CodeStyleToolbar({ style, onEdit, onDelete }) {
+  return <div className="node-style-toolbar code-style-toolbar" style={style} role="toolbar" aria-label="Code block actions" onPointerDown={(event) => event.stopPropagation()}>
+    <button aria-label="Edit code block" onClick={onEdit}><Code size={17} /><span>Edit code</span></button>
+    <span className="node-toolbar-divider" />
+    <button className="toolbar-delete" aria-label="Delete code block" onClick={onDelete}><Trash size={17} /></button>
+  </div>;
+}
+
 function ImageStyleToolbar({ node, style, popoverPlacement, openMenu, setOpenMenu, onChange, onDelete }) {
   const toggle = (menu) => setOpenMenu((current) => current === menu ? null : menu);
   return <div className={`node-style-toolbar image-style-toolbar popovers-${popoverPlacement}`} style={style} role="toolbar" aria-label="Image formatting" onPointerDown={(event) => event.stopPropagation()}>
@@ -4013,8 +4095,8 @@ function CommandPalette({ commands, onClose }) {
   return <div className="popover-backdrop command-palette-backdrop" onMouseDown={onClose}>
     <div className="command-palette" role="dialog" aria-modal="true" aria-label="Command palette" onMouseDown={(event) => event.stopPropagation()}>
       <label className="command-palette-search">
-        <MagnifyingGlass size={22} />
-        <input ref={inputRef} value={query} placeholder="Search command" aria-label="Search command" autoComplete="off" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => {
+        <img src={commandSparkle} alt="" aria-hidden="true" />
+        <input ref={inputRef} value={query} placeholder="What do you want to create?" aria-label="Search commands and actions" autoComplete="off" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => {
           if (event.key === "ArrowDown") { event.preventDefault(); setActiveIndex((index) => Math.min(index + 1, results.length - 1)); }
           else if (event.key === "ArrowUp") { event.preventDefault(); setActiveIndex((index) => Math.max(index - 1, 0)); }
           else if (event.key === "Enter") { event.preventDefault(); run(results[activeIndex]); }
