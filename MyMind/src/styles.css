@@ -390,6 +390,17 @@ button { cursor: pointer; }
 .mode-toast { position: absolute; top: 65px; left: 50%; z-index: 10; display: flex; align-items: center; gap: 7px; padding: 9px 13px; transform: translateX(-50%); color: #4e5fd4; background: #fff; border: 1px solid #dce0f2; border-radius: 999px; box-shadow: 0 8px 24px rgba(40,48,70,.1); font-size: 12px; font-weight: 600; }
 .drawing-selection-count { position: absolute; top: 65px; left: 50%; z-index: 10; padding: 9px 13px; transform: translateX(-50%); color: #4e5fd4; background: #fff; border: 1px solid #dce0f2; border-radius: 999px; box-shadow: 0 8px 24px rgba(40,48,70,.1); font-size: 12px; font-weight: 650; }
 .drawing-thickness-toolbar { position: absolute; bottom: 20px; left: 50%; z-index: 25; min-height: 44px; max-width: calc(100% - 150px); display: flex; align-items: center; gap: 9px; padding: 6px 10px; transform: translateX(-50%); color: #69717e; background: linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(243,243,247,0.95) 100%); border: 1px solid rgba(220,225,233,0.9); border-radius: 8px; box-shadow: 0 10px 28px rgba(36,43,61,.10); font-size: 11px; font-weight: 650; animation: drawing-toolbar-slide-up .22s cubic-bezier(.22,.8,.3,1) both; }
+
+.alignment-toolbar { position: absolute; top: 14px; left: 50%; z-index: 60; display: flex; align-items: center; gap: 4px; padding: 6px 8px; transform: translateX(-50%); color: #4f5a69; background: rgba(255,255,255,.96); border: 1px solid rgba(146,156,173,.38); border-radius: 12px; box-shadow: 0 14px 32px rgba(33,40,56,.12); font-size: 12px; font-weight: 700; backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); will-change: transform, opacity; animation: alignment-toolbar-slide-down .22s cubic-bezier(.22,.8,.3,1) both; }
+.alignment-toolbar.is-exiting { pointer-events: none; animation: alignment-toolbar-slide-up .16s ease-in both; }
+.alignment-group { display: flex; align-items: center; gap: 2px; }
+.alignment-button { width: 34px; height: 34px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 34px; padding: 0; color: inherit; background: transparent; border: 0; border-radius: 8px; transition: transform .16s ease, color .16s ease, background-color .16s ease; }
+.alignment-button:hover { background: #f5f7fb; border-color: #d7deeb; transform: translateY(-1px); }
+.alignment-button:focus-visible { color: var(--primary); outline: 2px solid color-mix(in srgb, var(--primary) 48%, transparent); outline-offset: 1px; }
+.alignment-button span { display: none; }
+.alignment-toolbar .alignment-divider { width: 1px; height: 22px; margin: 0 3px; background: #e1e5ef; }
+@keyframes alignment-toolbar-slide-down { from { opacity: 0; transform: translate(-50%, -10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@keyframes alignment-toolbar-slide-up { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, -10px); } }
 @keyframes drawing-toolbar-slide-up { from { opacity: 0; transform: translate(-50%, 22px); } to { opacity: 1; transform: translate(-50%, 0); } }
 .drawing-thickness-toolbar.is-exiting { pointer-events: none; animation: drawing-toolbar-slide-down .16s ease-in both; }
 @keyframes drawing-toolbar-slide-down { from { opacity: 1; transform: translate(-50%, 0); } to { opacity: 0; transform: translate(-50%, 22px); } }
@@ -928,7 +939,7 @@ button { cursor: pointer; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .drawing-thickness-toolbar, .drawing-thickness-toolbar.is-exiting, .template-gallery-grid > button { animation-duration: 1ms; animation-delay: 0ms; }
+  .drawing-thickness-toolbar, .drawing-thickness-toolbar.is-exiting, .alignment-toolbar, .alignment-toolbar.is-exiting, .template-gallery-grid > button { animation-duration: 1ms; animation-delay: 0ms; }
 }
 
 @media (max-width: 1024px) and (pointer: coarse) {

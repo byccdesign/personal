@@ -171,6 +171,7 @@ const Phone = adaptHeroIcon(PhoneIcon);
 const TextBlock = adaptHeroIcon(Bars3BottomLeftIcon);
 const TextAlignCenter = adaptHeroIcon(Bars3CenterLeftIcon);
 const TextAlignRight = adaptHeroIcon(Bars3BottomRightIcon);
+const AlignLeft = adaptHeroIcon(Bars3BottomLeftIcon);
 const Photo = adaptHeroIcon(PhotoIcon);
 const Pen = adaptHeroIcon(PencilIcon);
 const Pause = adaptHeroIcon(PauseIcon);
@@ -397,6 +398,72 @@ function selectedElementsBounds(nodes, drawings) {
   const maxX = Math.max(...boxes.map((box) => box.maxX));
   const maxY = Math.max(...boxes.map((box) => box.maxY));
   return { x: minX, y: minY, width: Math.max(1, maxX - minX), height: Math.max(1, maxY - minY) };
+}
+
+function rgbToHsl(red, green, blue) {
+  const r = red / 255, g = green / 255, b = blue / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  const lightness = (max + min) / 2;
+  if (max === min) return { hue: 0, saturation: 0, lightness };
+  const delta = max - min;
+  const saturation = lightness > .5 ? delta / (2 - max - min) : delta / (max + min);
+  const hue = (max === r ? (g - b) / delta + (g < b ? 6 : 0) : max === g ? (b - r) / delta + 2 : (r - g) / delta + 4) * 60;
+  return { hue, saturation, lightness };
+}
+
+function sampleImageVisualColour(source) {
+  if (!source) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const image = new Image();
+    const finish = (value) => { window.clearTimeout(timer); resolve(value); };
+    const timer = window.setTimeout(() => finish(null), 4000);
+    image.crossOrigin = "anonymous";
+    image.referrerPolicy = "no-referrer";
+    image.onload = () => {
+      try {
+        const canvas = window.document.createElement("canvas");
+        canvas.width = 32;
+        canvas.height = 32;
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        context.drawImage(image, 0, 0, 32, 32);
+        const pixels = context.getImageData(0, 0, 32, 32).data;
+        const bins = Array.from({ length: 13 }, () => ({ red: 0, green: 0, blue: 0, weight: 0 }));
+        for (let index = 0; index < pixels.length; index += 4) {
+          const alpha = pixels[index + 3];
+          if (alpha < 96) continue;
+          const red = pixels[index], green = pixels[index + 1], blue = pixels[index + 2];
+          if (red > 244 && green > 244 && blue > 244) continue;
+          const hsl = rgbToHsl(red, green, blue);
+          const bin = hsl.saturation < .12 ? 12 : Math.min(11, Math.floor(hsl.hue / 30));
+          const weight = (alpha / 255) * (.2 + hsl.saturation);
+          bins[bin].red += red * weight;
+          bins[bin].green += green * weight;
+          bins[bin].blue += blue * weight;
+          bins[bin].weight += weight;
+        }
+        const dominant = bins.reduce((best, bin) => bin.weight > best.weight ? bin : best, bins[12]);
+        if (!dominant.weight) { finish(null); return; }
+        const red = Math.round(dominant.red / dominant.weight);
+        const green = Math.round(dominant.green / dominant.weight);
+        const blue = Math.round(dominant.blue / dominant.weight);
+        finish({ ...rgbToHsl(red, green, blue), hex: `#${[red, green, blue].map((value) => value.toString(16).padStart(2, "0")).join("")}` });
+      } catch { finish(null); }
+    };
+    image.onerror = () => finish(null);
+    image.src = source;
+  });
+}
+
+async function mapWithConcurrency(items, limit, mapper) {
+  const results = new Array(items.length);
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await mapper(items[index], index);
+    }
+  }));
+  return results;
 }
 
 function normaliseLinkUrl(value) {
@@ -916,6 +983,48 @@ async function writeLocalDocument(document) {
   }
 }
 
+const pendingLocalDocumentWrites = new Map();
+
+function flushScheduledLocalDocument(id) {
+  const entry = pendingLocalDocumentWrites.get(id);
+  if (!entry || entry.writing) return;
+  window.clearTimeout(entry.timer);
+  entry.timer = null;
+  entry.writing = true;
+  const document = entry.document;
+  const resolve = entry.resolve;
+  entry.promise = null;
+  entry.resolve = null;
+  void writeLocalDocument(document).then(resolve).finally(() => {
+    entry.writing = false;
+    if (entry.promise) {
+      entry.timer = window.setTimeout(() => flushScheduledLocalDocument(id), 0);
+    } else {
+      pendingLocalDocumentWrites.delete(id);
+    }
+  });
+}
+
+function scheduleLocalDocumentWrite(document, delay = 120) {
+  if (!document?.id) return Promise.resolve(false);
+  let entry = pendingLocalDocumentWrites.get(document.id);
+  if (!entry) {
+    entry = { document, timer: null, writing: false, promise: null, resolve: null, startedAt: 0 };
+    pendingLocalDocumentWrites.set(document.id, entry);
+  }
+  entry.document = document;
+  if (!entry.promise) {
+    entry.startedAt = performance.now();
+    entry.promise = new Promise((resolve) => { entry.resolve = resolve; });
+  }
+  if (!entry.writing) {
+    window.clearTimeout(entry.timer);
+    const checkpointDelay = Math.max(0, 800 - (performance.now() - entry.startedAt));
+    entry.timer = window.setTimeout(() => flushScheduledLocalDocument(document.id), Math.min(Math.max(0, delay), checkpointDelay));
+  }
+  return entry.promise;
+}
+
 async function removeLocalDocument(id) {
   try {
     localStorage.removeItem(`${STORAGE_DOCUMENT_PREFIX}${id}`);
@@ -962,13 +1071,29 @@ function writeLocalFolders(folders) {
   catch { /* The server remains the primary persistence layer. */ }
 }
 
+async function encodedJsonRequest(body) {
+  const json = JSON.stringify(body);
+  if (json.length < 65536 || typeof CompressionStream === "undefined") {
+    return { body: json, headers: { "Content-Type": "application/json" } };
+  }
+  try {
+    const stream = new Blob([json]).stream().pipeThrough(new CompressionStream("gzip"));
+    const compressed = await new Response(stream).blob();
+    if (compressed.size < json.length * .92) {
+      return { body: compressed, headers: { "Content-Type": "application/json", "Content-Encoding": "gzip" } };
+    }
+  } catch { /* Fall back to plain JSON when compression is unavailable. */ }
+  return { body: json, headers: { "Content-Type": "application/json" } };
+}
+
 async function apiRequest(action, body, { onProgress, signal } = {}) {
   onProgress?.(8);
+  const encoded = body ? await encodedJsonRequest(body) : null;
   const response = await fetch(`${APP_BASE}api/index.php?action=${action}`, {
     method: body ? "POST" : "GET",
     cache: "no-store",
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
+    headers: encoded?.headers,
+    body: encoded?.body,
     signal,
   });
   onProgress?.(28);
@@ -1393,17 +1518,18 @@ export function App() {
         ? { status: "conflict", revision: Number(error.payload?.currentRevision ?? baseRevision) }
         : { status: "failed", revision: baseRevision });
     }
-    const localCache = writeLocalDocument(next);
-    setDocuments((items) => items.some((item) => item.id === next.id) ? items.map((item) => item.id === next.id ? next : item) : [next, ...items]);
-    if (localOnly) return localCache.then((savedLocally) => ({ status: savedLocally ? "local" : "failed", revision: baseRevision }));
+    if (localOnly) return scheduleLocalDocumentWrite(next).then((savedLocally) => ({ status: savedLocally ? "local" : "failed", revision: baseRevision }));
     return persistCanvasPage(next, { baseRevision })
       .then((result) => {
-        if (Number.isInteger(result.revision)) void writeLocalDocument({ ...next, revision: result.revision });
+        const saved = Number.isInteger(result.revision) ? { ...next, revision: result.revision } : next;
+        void scheduleLocalDocumentWrite(saved, 0);
+        setDocuments((items) => items.some((item) => item.id === saved.id) ? items.map((item) => item.id === saved.id ? saved : item) : [saved, ...items]);
         return result;
       })
       .catch(async (error) => {
         if (error.status === 409) return { status: "conflict", revision: Number(error.payload?.currentRevision ?? baseRevision) };
-        const savedLocally = await localCache;
+        const savedLocally = await scheduleLocalDocumentWrite(next, 0);
+        if (savedLocally) setDocuments((items) => items.some((item) => item.id === next.id) ? items.map((item) => item.id === next.id ? next : item) : [next, ...items]);
         return { status: savedLocally ? "local" : "failed", revision: baseRevision };
       });
   }}
@@ -1658,6 +1784,9 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
   const [mobileInsertOpen, setMobileInsertOpen] = useState(false);
   const [drawingToolbarMounted, setDrawingToolbarMounted] = useState(false);
   const [drawingToolbarExiting, setDrawingToolbarExiting] = useState(false);
+  const [alignToolbarMounted, setAlignToolbarMounted] = useState(false);
+  const [alignToolbarExiting, setAlignToolbarExiting] = useState(false);
+  const [alignToolbarHiddenByEscape, setAlignToolbarHiddenByEscape] = useState(false);
   const canvasRef = useRef(null);
   const touchPointersRef = useRef(new Map());
   const pinchRef = useRef(null);
@@ -1665,7 +1794,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
   const tableInputRef = useRef(null);
   const dragRef = useRef(null);
   const saveTimer = useRef(null);
-  const immediateSaveChain = useRef(Promise.resolve());
+  const remoteSaveChain = useRef(Promise.resolve());
   const pendingSaveRef = useRef(null);
   const onSaveRef = useRef(onSave);
   const onFetchRemoteRef = useRef(onFetchRemote);
@@ -1697,6 +1826,32 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     return () => window.clearTimeout(timer);
   }, [drawingToolbarMounted, wantsDrawingToolbar]);
 
+  const selectedGroupCount = selection.length + drawingSelection.length;
+  const previousSelectionRef = useRef({ count: 0, key: "" });
+  useEffect(() => {
+    const key = `${selection.join(",")}|${drawingSelection.join(",")}`;
+    if (selectedGroupCount !== previousSelectionRef.current.count || key !== previousSelectionRef.current.key) {
+      if (selectedGroupCount > 1) setAlignToolbarHiddenByEscape(false);
+      previousSelectionRef.current = { count: selectedGroupCount, key };
+    }
+  }, [selection, drawingSelection, selectedGroupCount]);
+
+  const wantsAlignmentToolbar = selectedGroupCount > 1;
+  useEffect(() => {
+    if (!wantsAlignmentToolbar || alignToolbarHiddenByEscape) {
+      if (!alignToolbarMounted) return undefined;
+      setAlignToolbarExiting(true);
+      const timer = window.setTimeout(() => {
+        setAlignToolbarMounted(false);
+        setAlignToolbarExiting(false);
+      }, 170);
+      return () => window.clearTimeout(timer);
+    }
+    setAlignToolbarMounted(true);
+    setAlignToolbarExiting(false);
+    return undefined;
+  }, [alignToolbarHiddenByEscape, alignToolbarMounted, wantsAlignmentToolbar]);
+
   const finishSave = useCallback((result, savedDocument) => {
     const status = result?.status || "failed";
     if (status === "conflict") {
@@ -1705,9 +1860,19 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       return;
     }
     if (Number.isFinite(Number(result?.revision))) serverRevisionRef.current = Number(result.revision);
-    if (pendingSaveRef.current === savedDocument) pendingSaveRef.current = null;
-    setSaveState(status === "failed" ? "Save failed" : status === "local" ? "Saved locally" : "Saved");
+    const isLatest = pendingSaveRef.current === savedDocument;
+    if (isLatest) pendingSaveRef.current = null;
+    setSaveState(isLatest ? (status === "failed" ? "Save failed" : status === "local" ? "Saved locally" : "Saved") : "Saving…");
   }, []);
+
+  const enqueueRemoteSave = useCallback((documentToSave) => {
+    remoteSaveChain.current = remoteSaveChain.current.catch(() => {}).then(async () => {
+      if (conflictRef.current || pendingSaveRef.current !== documentToSave) return;
+      const result = await onSaveRef.current(documentToSave, { baseRevision: serverRevisionRef.current });
+      finishSave(result, documentToSave);
+    });
+    return remoteSaveChain.current;
+  }, [finishSave]);
 
   const acceptApiRevision = useCallback((response) => {
     if (Number.isInteger(response?.revision)) serverRevisionRef.current = response.revision;
@@ -1732,20 +1897,16 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       }
       if (immediate) {
         saveTimer.current = null;
-        immediateSaveChain.current = immediateSaveChain.current.catch(() => {}).then(async () => {
-          const result = await onSaveRef.current(next, { baseRevision: serverRevisionRef.current });
-          finishSave(result, next);
-        });
+        enqueueRemoteSave(next);
         return next;
       }
-      saveTimer.current = setTimeout(async () => {
+      saveTimer.current = setTimeout(() => {
         saveTimer.current = null;
-        const result = await onSaveRef.current(next, { baseRevision: serverRevisionRef.current });
-        finishSave(result, next);
-      }, 450);
+        enqueueRemoteSave(next);
+      }, 320);
       return next;
     });
-  }, [finishSave, publicView]);
+  }, [enqueueRemoteSave, publicView]);
 
   const showFeedback = useCallback((type, count = 1) => {
     clearTimeout(feedbackTimer.current);
@@ -1767,15 +1928,14 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       setSaveState("Saving…");
       pendingSaveRef.current = next;
       queueMicrotask(() => onSaveRef.current(next, { localOnly: true, baseRevision: serverRevisionRef.current }));
-      saveTimer.current = setTimeout(async () => {
+      saveTimer.current = setTimeout(() => {
         saveTimer.current = null;
-        const result = await onSaveRef.current(next, { baseRevision: serverRevisionRef.current });
-        finishSave(result, next);
+        enqueueRemoteSave(next);
       }, 80);
       return next;
     });
     setContextMenu(null);
-  }, [finishSave, publicView, showFeedback]);
+  }, [enqueueRemoteSave, publicView, showFeedback]);
 
   useEffect(() => {
     onSaveRef.current = onSave;
@@ -1785,8 +1945,8 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
   useEffect(() => () => {
     clearTimeout(saveTimer.current);
     clearTimeout(feedbackTimer.current);
-    if (pendingSaveRef.current && !conflictRef.current) onSaveRef.current(pendingSaveRef.current, { baseRevision: serverRevisionRef.current });
-  }, []);
+    if (pendingSaveRef.current && !conflictRef.current) enqueueRemoteSave(pendingSaveRef.current);
+  }, [enqueueRemoteSave]);
 
   useEffect(() => {
     if (!collaborationEnabled) { setParticipants([]); return undefined; }
@@ -1900,6 +2060,34 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     document.nodes.filter((node) => selection.includes(node.id) && !collapsedNodeIds.has(node.id)),
     (document.drawings || []).filter((drawing) => drawingSelection.includes(drawing.id)),
   ), [collapsedNodeIds, document.drawings, document.nodes, drawingSelection, selection]);
+
+  const alignSelected = useCallback((mode) => {
+    if (!selectedBounds || selectedGroupCount <= 1) return;
+    const nodeIds = new Set(selection);
+    const drawingIds = new Set(drawingSelection);
+    const nodeBoundsCache = new Map(document.nodes.filter((node) => nodeIds.has(node.id)).map((node) => [node.id, nodeDimensions(node)]));
+    const drawingBoundsCache = new Map((document.drawings || []).filter((drawing) => drawingIds.has(drawing.id)).map((drawing) => [drawing.id, drawingBounds(drawing)]));
+
+    updateDocument((doc) => ({
+      ...doc,
+      nodes: doc.nodes.map((node) => {
+        if (!nodeIds.has(node.id)) return node;
+        const size = nodeBoundsCache.get(node.id) || nodeDimensions(node);
+        const x = mode === "left" ? selectedBounds.x : mode === "center" ? selectedBounds.x + (selectedBounds.width - size.width) / 2 : mode === "right" ? selectedBounds.x + selectedBounds.width - size.width : node.x;
+        const y = mode === "top" ? selectedBounds.y : mode === "middle" ? selectedBounds.y + (selectedBounds.height - size.height) / 2 : mode === "bottom" ? selectedBounds.y + selectedBounds.height - size.height : node.y;
+        return { ...node, x, y };
+      }),
+      drawings: (doc.drawings || []).map((drawing) => {
+        if (!drawingIds.has(drawing.id)) return drawing;
+        const bounds = drawingBoundsCache.get(drawing.id);
+        if (!bounds) return drawing;
+        const dx = mode === "left" ? selectedBounds.x - bounds.minX : mode === "center" ? selectedBounds.x + (selectedBounds.width - (bounds.maxX - bounds.minX)) / 2 - bounds.minX : mode === "right" ? selectedBounds.x + selectedBounds.width - (bounds.maxX - bounds.minX) - bounds.minX : 0;
+        const dy = mode === "top" ? selectedBounds.y - bounds.minY : mode === "middle" ? selectedBounds.y + (selectedBounds.height - (bounds.maxY - bounds.minY)) / 2 - bounds.minY : mode === "bottom" ? selectedBounds.y + selectedBounds.height - (bounds.maxY - bounds.minY) - bounds.minY : 0;
+        return { ...drawing, points: drawing.points.map((point) => ({ x: point.x + dx, y: point.y + dy })) };
+      }),
+    }));
+    showFeedback("aligned", selectedGroupCount);
+  }, [drawingSelection, document.drawings, document.nodes, selectedBounds, selectedGroupCount, selection, showFeedback, updateDocument]);
 
   const addNode = useCallback((kind = "idea") => {
     const centerX = (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - NODE_SIZE.width / 2;
@@ -2913,6 +3101,72 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     setContextMenu(null);
   }, [drawingSelection, publicView, selection, updateDocument]);
 
+  const arrangeSelectionByVisualColour = useCallback(async (target) => {
+    if (publicView) return;
+    const nodeIds = new Set(target?.nodeIds || selection);
+    const nodes = document.nodes.filter((node) => nodeIds.has(node.id) && (node.type === "image" || node.type === "link"));
+    if (nodes.length < 2 || nodes.length !== nodeIds.size) return;
+    setContextMenu(null);
+
+    const sampled = await mapWithConcurrency(nodes, 4, async (node, originalIndex) => {
+      if (node.visualSortColour) return { node, colour: node.visualSortColour, originalIndex };
+      const sources = node.type === "image" ? [node.imageData] : [node.thumbnail, ...(node.thumbnailFallbacks || [])];
+      if (node.type === "link" && (node.linkDisplay === "embed" || node.thumbnailKind === "favicon")) {
+        try {
+          const preview = await apiRequest("link-preview", { url: node.linkUrl });
+          sources.unshift(preview.image, preview.icon);
+        } catch { /* Retain the stored thumbnail or stable fallback order. */ }
+      }
+      let colour = null;
+      for (const source of sources.filter(Boolean)) {
+        colour = await sampleImageVisualColour(source);
+        if (colour) break;
+      }
+      return { node, colour, originalIndex };
+    });
+
+    const ordered = sampled.sort((a, b) => {
+      if (!a.colour && !b.colour) return a.originalIndex - b.originalIndex;
+      if (!a.colour) return 1;
+      if (!b.colour) return -1;
+      const aNeutral = a.colour.saturation < .12;
+      const bNeutral = b.colour.saturation < .12;
+      if (aNeutral !== bNeutral) return aNeutral ? 1 : -1;
+      return aNeutral
+        ? a.colour.lightness - b.colour.lightness
+        : a.colour.hue - b.colour.hue || b.colour.saturation - a.colour.saturation || a.colour.lightness - b.colour.lightness;
+    });
+
+    const sizes = ordered.map(({ node }) => nodeDimensions(node));
+    const sortedWidths = sizes.map((size) => size.width).sort((a, b) => a - b);
+    const columnWidth = Math.max(220, Math.min(320, sortedWidths[Math.floor(sortedWidths.length / 2)] || 280));
+    const columnCount = Math.min(4, Math.max(2, Math.ceil(Math.sqrt(ordered.length))));
+    const gap = 24;
+    const anchorX = Math.min(...nodes.map((node) => node.x));
+    const anchorY = Math.min(...nodes.map((node) => node.y));
+    const columnHeights = Array(columnCount).fill(0);
+    const layout = new Map();
+    ordered.forEach(({ node, colour }) => {
+      const size = nodeDimensions(node);
+      const column = columnHeights.indexOf(Math.min(...columnHeights));
+      const height = Math.max(1, Math.round(columnWidth / Math.max(.01, size.width / size.height)));
+      layout.set(node.id, {
+        x: anchorX + column * (columnWidth + gap),
+        y: anchorY + columnHeights[column],
+        width: columnWidth,
+        height,
+        ...(colour ? { visualSortColour: colour } : {}),
+      });
+      columnHeights[column] += height + gap;
+    });
+
+    updateDocument((doc) => ({
+      ...doc,
+      nodes: doc.nodes.map((node) => layout.has(node.id) ? { ...node, ...layout.get(node.id) } : node),
+    }));
+    showFeedback("arranged", nodes.length);
+  }, [document.nodes, publicView, selection, showFeedback, updateDocument]);
+
   const groupSelection = useCallback((target = null) => {
     if (publicView) return;
     const nodeIds = target?.nodeIds || selection;
@@ -2953,9 +3207,12 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     const keepGroup = selection.includes(node.id);
     const nodeIds = keepGroup ? selection : [node.id];
     const drawingIds = keepGroup ? drawingSelection : [];
+    if (keepGroup && nodeIds.length + drawingIds.length > 1) {
+      setAlignToolbarHiddenByEscape(false);
+    }
     if (!keepGroup) { setSelection([node.id]); setDrawingSelection([]); setEdgeSelection([]); }
     const bounds = canvasRef.current?.getBoundingClientRect();
-    setContextMenu({ x: Math.max(8, Math.min((bounds?.width || 900) - 224, event.clientX - (bounds?.left || 0))), y: Math.max(8, Math.min((bounds?.height || 700) - 278, event.clientY - (bounds?.top || 0))), nodeIds, drawingIds, rotateNodeId: ["arrow", "basic-shape"].includes(node.type) ? node.id : null, rotateLabel: node.type === "basic-shape" ? "Rotate shape" : "Rotate arrow" });
+    setContextMenu({ x: Math.max(8, Math.min((bounds?.width || 900) - 224, event.clientX - (bounds?.left || 0))), y: Math.max(8, Math.min((bounds?.height || 700) - 326, event.clientY - (bounds?.top || 0))), nodeIds, drawingIds, rotateNodeId: ["arrow", "basic-shape"].includes(node.type) ? node.id : null, rotateLabel: node.type === "basic-shape" ? "Rotate shape" : "Rotate arrow" });
   };
 
   const openDrawingContextMenu = (event, drawing) => {
@@ -2965,9 +3222,12 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     const keepGroup = drawingSelection.includes(drawing.id);
     const drawingIds = keepGroup ? drawingSelection : [drawing.id];
     const nodeIds = keepGroup ? selection : [];
+    if (keepGroup && nodeIds.length + drawingIds.length > 1) {
+      setAlignToolbarHiddenByEscape(false);
+    }
     if (!keepGroup) { setDrawingSelection([drawing.id]); setSelection([]); setEdgeSelection([]); }
     const bounds = canvasRef.current?.getBoundingClientRect();
-    setContextMenu({ x: Math.max(8, Math.min((bounds?.width || 900) - 224, event.clientX - (bounds?.left || 0))), y: Math.max(8, Math.min((bounds?.height || 700) - 278, event.clientY - (bounds?.top || 0))), nodeIds, drawingIds });
+    setContextMenu({ x: Math.max(8, Math.min((bounds?.width || 900) - 224, event.clientX - (bounds?.left || 0))), y: Math.max(8, Math.min((bounds?.height || 700) - 326, event.clientY - (bounds?.top || 0))), nodeIds, drawingIds });
   };
 
   const selectionPayload = useCallback(() => {
@@ -3031,6 +3291,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       if (event.key === "Escape" && tool === "annotate" && !pendingAnnotation) setTool("select");
       if (event.key === "Escape" && tool === "pen" && !modalOpen) setTool("select");
       if (event.key === "Escape") {
+        setAlignToolbarHiddenByEscape(true);
         setContextMenu(null);
         setRotationModeId(null);
         setSelectedAnnotationId(null);
@@ -3582,6 +3843,19 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
           {!publicView && selectedBounds && <SelectionFrame bounds={selectedBounds} zoom={zoom} count={selection.length + drawingSelection.length} resizable={(selectionCanScale || ["image", "text", "code", "table", "icon", "arrow", "link", "basic-shape"].includes(selectedNode?.type)) && rotationModeId !== selectedNode?.id} rotatable={["arrow", "basic-shape"].includes(selectedNode?.type) && rotationModeId === selectedNode.id} horizontalHandles={!selectionCanScale && selectedNode?.type === "basic-shape" && selectedNode.shapeKind === "rectangle" && rotationModeId !== selectedNode.id} rotation={selectedNode?.rotation || 0} resizeLabel={selectionCanScale ? "selection" : selectedNode?.type || "element"} rotateLabel={selectedNode?.type === "basic-shape" ? "shape" : "arrow"} onResizeStart={selectionCanScale ? startSelectionResize : startElementResize} onRotateStart={startElementRotate} />}
           {!embedMode && annotationsVisible && (document.annotations || []).map((annotation) => <AnnotationMarker key={annotation.id} annotation={annotation} selected={annotation.id === selectedAnnotationId} draggable={canManageAnnotation(annotation.id)} onDragStart={(event) => startAnnotationDrag(annotation, event)} onSelect={() => { setSelectedAnnotationId(annotation.id); setSelection([]); setEdgeSelection([]); setDrawingSelection([]); }} />)}
         </div>
+        {!publicView && alignToolbarMounted && <div className={`alignment-toolbar ${alignToolbarExiting ? "is-exiting" : ""}`} role="toolbar" aria-label="Align selected elements" onPointerDown={(event) => event.stopPropagation()}>
+          <div className="alignment-group" role="group" aria-label="Horizontal alignment">
+            <button type="button" className="alignment-button" title="Align left" aria-label="Align left" onClick={() => alignSelected("left")}><LucideIcons.AlignHorizontalJustifyStart size={18} /><span>Left</span></button>
+            <button type="button" className="alignment-button" title="Align horizontal centers" aria-label="Align horizontal centers" onClick={() => alignSelected("center")}><LucideIcons.AlignHorizontalJustifyCenter size={18} /><span>Center</span></button>
+            <button type="button" className="alignment-button" title="Align right" aria-label="Align right" onClick={() => alignSelected("right")}><LucideIcons.AlignHorizontalJustifyEnd size={18} /><span>Right</span></button>
+          </div>
+          <span className="alignment-divider" />
+          <div className="alignment-group" role="group" aria-label="Vertical alignment">
+            <button type="button" className="alignment-button" title="Align top" aria-label="Align top" onClick={() => alignSelected("top")}><LucideIcons.AlignVerticalJustifyStart size={18} /><span>Top</span></button>
+            <button type="button" className="alignment-button" title="Align vertical centers" aria-label="Align vertical centers" onClick={() => alignSelected("middle")}><LucideIcons.AlignVerticalJustifyCenter size={18} /><span>Middle</span></button>
+            <button type="button" className="alignment-button" title="Align bottom" aria-label="Align bottom" onClick={() => alignSelected("bottom")}><LucideIcons.AlignVerticalJustifyEnd size={18} /><span>Bottom</span></button>
+          </div>
+        </div>}
         {tool === "connect" && <div className="mode-toast"><LinkNodes size={16} /> {connectionSource ? "Choose a destination node" : "Choose a starting node"}</div>}
         {tool === "annotate" && !pendingAnnotation && <div className="mode-toast"><ChatCircleDots size={16} /> Click anywhere to add an annotation</div>}
         {rotationFeedback !== null && <div className="mode-toast rotation-mode-toast"><ArrowsClockwise size={16} /> Rotating {selectedNode?.type === "basic-shape" ? "shape" : "arrow"} <strong>{rotationFeedback}°</strong></div>}
@@ -3603,9 +3877,11 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
           canGroup={(contextMenu.nodeIds.length + contextMenu.drawingIds.length) > 1}
           canUngroup={[...document.nodes, ...(document.drawings || [])].some((item) => item.groupId && [...contextMenu.nodeIds, ...contextMenu.drawingIds].includes(item.id))}
           canRotate={Boolean(contextMenu.rotateNodeId)}
+          canArrangeByColour={contextMenu.drawingIds.length === 0 && contextMenu.nodeIds.length > 1 && contextMenu.nodeIds.every((id) => document.nodes.some((node) => node.id === id && (node.type === "image" || node.type === "link")))}
           onGroup={() => groupSelection(contextMenu)}
           onUngroup={() => ungroupSelection(contextMenu)}
           onRotate={() => { setRotationModeId(contextMenu.rotateNodeId); setContextMenu(null); }}
+          onArrangeByColour={() => arrangeSelectionByVisualColour(contextMenu)}
           onDelete={() => { deleteSelection(); setContextMenu(null); }}
           onExport={(format) => { exportDiagram(format, "selected"); setContextMenu(null); }}
           onBack={() => changeStacking("back", contextMenu)}
@@ -3935,11 +4211,12 @@ function DrawingStroke({ drawing, selected, passive, onSelect, onContextMenu }) 
   return <g className={`drawing-stroke ${selected ? "selected" : ""}`} onPointerDown={(event) => { if (passive || event.button === 2) return; event.stopPropagation(); onSelect?.(event); }} onContextMenu={onContextMenu}><path className="drawing-hit" d={centerPath} /><path className="drawing-line" d={outlinePath} style={{ fill: drawing.color || "#3f4652", mixBlendMode: isHighlighter ? "multiply" : undefined, opacity: isHighlighter ? 0.45 : 1 }} /></g>;
 }
 
-function CanvasContextMenu({ menu, canGroup, canUngroup, canRotate, onGroup, onUngroup, onRotate, onDelete, onExport, onBack, onFront }) {
+function CanvasContextMenu({ menu, canGroup, canUngroup, canRotate, canArrangeByColour, onGroup, onUngroup, onRotate, onArrangeByColour, onDelete, onExport, onBack, onFront }) {
   return <div className="canvas-context-menu" role="menu" style={{ left: menu.x, top: menu.y }} onPointerDown={(event) => event.stopPropagation()}>
     {canGroup && <button role="menuitem" onClick={onGroup}><span>Group selection</span><kbd>⌘ G</kbd></button>}
     {canUngroup && <button role="menuitem" onClick={onUngroup}><span>Ungroup</span><kbd>⇧⌘ G</kbd></button>}
     {canRotate && <button role="menuitem" onClick={onRotate}><span>{menu.rotateLabel || "Rotate element"}</span><ArrowsClockwise size={15} /></button>}
+    {canArrangeByColour && <button role="menuitem" onClick={onArrangeByColour}><span>Sort by colour · Masonry</span><LucideIcons.LayoutGrid size={15} /></button>}
     <div className="context-menu-label">Export selected</div>
     <div className="context-export-row">{["jpg", "svg", "png", "gif"].map((format) => <button key={format} role="menuitem" onClick={() => onExport(format)}>{format.toUpperCase()}</button>)}</div>
     <button role="menuitem" onClick={onFront}><span>Bring to front</span><kbd>⌘ ]</kbd></button>
@@ -3999,6 +4276,8 @@ function CanvasFeedback({ feedback }) {
     grouped: { icon: <Squares2X2Icon width="17" />, label: `${itemLabel} grouped` },
     ungrouped: { icon: <Squares2X2Icon width="17" />, label: `${itemLabel} ungrouped` },
     deleted: { icon: <Trash size={17} />, label: `${itemLabel} deleted` },
+    aligned: { icon: <AlignLeft size={17} />, label: `${itemLabel} aligned` },
+    arranged: { icon: <Squares2X2Icon width="17" />, label: `${itemLabel} arranged by colour` },
     imported: { icon: <FileText size={17} />, label: `${itemLabel} imported` },
     undo: { icon: <ArrowsClockwise size={17} />, label: "Change undone" },
     redo: { icon: <ArrowsClockwise size={17} />, label: "Change redone" },
