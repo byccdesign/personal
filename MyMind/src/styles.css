@@ -839,6 +839,11 @@ button { cursor: pointer; }
 .embed-share-block > div { display: flex; flex-direction: column; gap: 3px; }
 .embed-share-block strong { font-size: 11px; }
 .embed-share-block small { color: var(--muted); font-size: 9px; }
+.embed-page-picker { grid-column: 1 / -1; display: grid; gap: 6px; }
+.embed-page-picker > span { color: #626b79; font-size: 10px; font-weight: 700; }
+.embed-page-picker select { width: 100%; height: 38px; padding: 0 34px 0 11px; border: 1px solid #dfe3ea; border-radius: 12px; outline: 0; background: #fff; color: #343b49; font-family: inherit; font-size: 12px; font-weight: 600; line-height: 1.2; }
+.embed-page-picker select:focus-visible { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(83, 103, 239, .14); }
+.embed-page-picker select:disabled { cursor: not-allowed; }
 .embed-share-block code { grid-column: 1 / -1; max-height: 58px; padding: 8px; overflow: auto; color: #626b79; background: #fff; border: 1px solid #e1e4ea; border-radius: 4px; font: 9px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; white-space: normal; }
 .embed-share-block .secondary-button { grid-column: 2; grid-row: 1; height: 32px; padding: 0 10px; font-size: 10px; }
 .editor-shell.is-embed .canvas { background: #f7f8fb; }

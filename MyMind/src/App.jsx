@@ -1252,9 +1252,11 @@ function routeFromPath() {
   const baseParts = APP_BASE.split("/").filter(Boolean);
   const pathParts = window.location.pathname.split("/").filter(Boolean);
   const parts = baseParts.every((part, index) => pathParts[index] === part) ? pathParts.slice(baseParts.length) : pathParts;
-  const embedMode = new URLSearchParams(window.location.search).get("embed") === "1";
+  const searchParams = new URLSearchParams(window.location.search);
+  const embedMode = searchParams.get("embed") === "1";
+  const pageId = String(searchParams.get("page") || "").slice(0, 96);
   if (parts[0] === "editor" && parts[1]) return { screen: "editor", id: parts[1], publicView: false, embedMode: false };
-  if (parts[0]) return { screen: "editor", slug: parts[0], publicView: true, embedMode };
+  if (parts[0]) return { screen: "editor", slug: parts[0], publicView: true, embedMode, pageId };
   return { screen: "dashboard", publicView: false, embedMode: false };
 }
 
@@ -1616,8 +1618,9 @@ export function App() {
   if (!document) return <NotFound />;
 
   return <Editor
-    key={`${document?.id || route.slug}:${route.embedMode ? "embed" : "app"}`}
+    key={`${document?.id || route.slug}:${route.embedMode ? "embed" : "app"}:${route.pageId || "default"}`}
     initialDocument={document}
+    initialPageId={route.pageId}
     publicView={route.publicView}
     embedMode={route.embedMode}
     onFetchRemote={() => route.publicView
@@ -1848,9 +1851,17 @@ function ConfirmDialog({ title, message, confirmLabel, onClose, onConfirm }) {
   </div>;
 }
 
-function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, onSave, onFetchRemote, onPresence }) {
+function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink, embedMode = false, onSave, onFetchRemote, onPresence }) {
   const fallback = useMemo(() => ({ id: uid("canvas"), title: "Shared canvas unavailable", slug: "unavailable", shared: false, updatedAt: new Date().toISOString(), ...blankTemplate() }), []);
-  const [document, setDocument] = useState(() => normalisePagedDocument(initialDocument || fallback));
+  const preferredPageIdRef = useRef(initialPageId || initialDocument?.activePageId || "");
+  const [document, setDocument] = useState(() => {
+    const normalised = normalisePagedDocument(initialDocument || fallback);
+    const requestedPageId = normalised.pages.some((page) => page.id === preferredPageIdRef.current)
+      ? preferredPageIdRef.current
+      : normalised.pages[0]?.id;
+    preferredPageIdRef.current = requestedPageId || "";
+    return requestedPageId ? activatePage(normalised, requestedPageId) : normalised;
+  });
   const [selection, setSelection] = useState([]);
   const [edgeSelection, setEdgeSelection] = useState([]);
   const [drawingSelection, setDrawingSelection] = useState([]);
@@ -2096,7 +2107,12 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
         const remote = await onFetchRemoteRef.current?.();
         const remoteRevision = Number(remote?.revision || 0);
         if (stopped || !remote || remoteRevision <= serverRevisionRef.current) return;
-        const next = normalisePagedDocument(remote);
+        const normalised = normalisePagedDocument(remote);
+        const requestedPageId = normalised.pages.some((page) => page.id === preferredPageIdRef.current)
+          ? preferredPageIdRef.current
+          : normalised.pages[0]?.id;
+        preferredPageIdRef.current = requestedPageId || "";
+        const next = requestedPageId ? activatePage(normalised, requestedPageId) : normalised;
         serverRevisionRef.current = remoteRevision;
         setDocument(next);
         setSaveState(publicView ? "View only" : "Saved");
@@ -2120,6 +2136,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
 
   const switchPage = (pageId) => {
     if (pageId === document.activePageId) return;
+    preferredPageIdRef.current = pageId;
     if (isPublicLink) setDocument((current) => activatePage(current, pageId));
     else updateDocument((current) => activatePage(current, pageId));
     clearCanvasSelection();
@@ -3696,7 +3713,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     return () => { window.removeEventListener("copy", onCopy); window.removeEventListener("paste", onPaste); };
   }, [addImageFile, addLinkNode, addTextNode, editingNode, exportOpen, imageSourceOpen, linkOpen, pasteElements, pendingAnnotation, publicView, selectionPayload, shareOpen, shortcutsOpen, showFeedback]);
 
-  const shareUrl = `${window.location.origin}${APP_BASE}${document.slug}`;
+  const shareUrl = `${window.location.origin}${APP_BASE}${document.slug}?page=${encodeURIComponent(document.activePageId)}`;
   const toggleShare = () => updateDocument((doc) => doc.shared ? { ...doc, shared: false, guestEditable: false } : { ...doc, shared: true }, { immediate: true });
   const toggleGuestEditing = () => updateDocument((doc) => ({ ...doc, guestEditable: !doc.guestEditable }), { immediate: true });
 
@@ -5151,9 +5168,16 @@ function CommentsPanel({ comments, onSelect, onClose }) {
 function ShareDialog({ document, url, publishing, ready: _ready, onToggle, onToggleGuestEditing, onClose }) {
   const [copied, setCopied] = useState(false);
   const [copiedEmbed, setCopiedEmbed] = useState(false);
+  const pages = Array.isArray(document.pages) ? document.pages : [];
+  const [embedPageId, setEmbedPageId] = useState(document.activePageId || pages[0]?.id || "");
   const linkReady = document.shared;
-  const embedUrl = `${url}${url.includes("?") ? "&" : "?"}embed=1`;
-  const embedTitle = String(document.title || "MyMind canvas").replace(/["<>]/g, "");
+  const embedPage = pages.find((page) => page.id === embedPageId) || pages[0];
+  const embedPageName = String(embedPage?.name || "Page");
+  const embedUrlObject = new URL(url);
+  embedUrlObject.searchParams.set("page", embedPage?.id || document.activePageId);
+  embedUrlObject.searchParams.set("embed", "1");
+  const embedUrl = embedUrlObject.toString();
+  const embedTitle = `${String(document.title || "MyMind canvas")} — ${embedPageName}`.replace(/["<>]/g, "");
   const embedCode = `<iframe src="${embedUrl}" title="${embedTitle}" loading="lazy" style="width:100%;height:720px;border:0;border-radius:8px;" allow="fullscreen"></iframe>`;
   const copy = async () => {
     if (!linkReady) return;
@@ -5174,7 +5198,13 @@ function ShareDialog({ document, url, publishing, ready: _ready, onToggle, onTog
     <div className={`share-status guest-edit-status ${!document.shared ? "disabled" : ""}`}><span className={document.guestEditable ? "live" : ""}><PencilIcon width="20" /></span><div><strong>Allow guest editing</strong><small>Anyone with the shared link can change canvas content.</small></div><button className={`switch ${document.guestEditable ? "on" : ""}`} aria-label="Toggle guest editing" disabled={!document.shared} onClick={onToggleGuestEditing}><i /></button></div>
     <div className={`copy-field ${!linkReady ? "disabled" : ""}`}><span>{url}</span><button disabled={!linkReady} onClick={copy}>{copied ? <Check size={18} /> : <Copy size={18} />}{copied ? "Copied" : "Copy"}</button></div>
     <div className={`embed-share-block ${!linkReady ? "disabled" : ""}`}>
-      <div><strong>Embed in a case study</strong><small>Clean canvas view with pan and zoom controls.</small></div>
+      <div><strong>Embed a specific page</strong><small>Choose which page opens inside the embedded canvas.</small></div>
+      <label className="embed-page-picker">
+        <span>Page to embed</span>
+        <select value={embedPage?.id || ""} disabled={!linkReady} onChange={(event) => { setEmbedPageId(event.target.value); setCopiedEmbed(false); }}>
+          {pages.map((page, index) => <option key={page.id} value={page.id}>{page.name || `Page ${index + 1}`}</option>)}
+        </select>
+      </label>
       <code>{embedCode}</code>
       <button className="secondary-button" disabled={!linkReady} onClick={copyEmbed}>{copiedEmbed ? <Check size={16} /> : <Copy size={16} />}{copiedEmbed ? "Copied embed" : "Copy iframe"}</button>
     </div>
