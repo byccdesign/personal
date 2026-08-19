@@ -12,6 +12,8 @@ RewriteEngine On
 </IfModule>
 
 <IfModule mod_headers.c>
+    Header always set X-Robots-Tag "noindex, nofollow, noarchive"
+
     <FilesMatch "\.(?:css|js|mjs|webp|png|jpe?g|gif|svg|woff2?|mp4)$">
         Header set Cache-Control "public, max-age=31536000, immutable"
     </FilesMatch>
