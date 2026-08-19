@@ -97,7 +97,6 @@ import { getStroke } from "perfect-freehand";
 import { unzipSync } from "fflate";
 import penIcon from "./assets/pen.png";
 import highlighterIcon from "./assets/highlighter.png";
-import commandSparkle from "./assets/command-sparkle.svg";
 
 function adaptHeroIcon(Icon) {
   return function HeroIconAdapter({ size = 24, weight: _weight, ...props }) {
@@ -244,6 +243,40 @@ const palette = {
   slate: { accent: "#697386", soft: "#f0f2f5" },
 };
 
+const ONBOARDING_FLOW_PROMPT = `A new customer starts onboarding.
+Show a welcome screen, then ask them to create an account and verify their email.
+Help them set up their workspace, then ask whether they want to invite teammates.
+If yes, let them invite teammates. If no, skip invitations.
+Bring both paths to the product dashboard and finish onboarding.`;
+
+const ONBOARDING_FLOW_SAMPLE = {
+  title: "Customer onboarding flow",
+  nodes: [
+    { id: "start", title: "Start onboarding", description: "New customer enters the product", type: "start", column: 0, row: 1 },
+    { id: "welcome", title: "Welcome screen", description: "Set expectations and explain the value", type: "process", column: 1, row: 1 },
+    { id: "account", title: "Create account", description: "Collect the minimum account details", type: "input", column: 2, row: 1 },
+    { id: "verify", title: "Verify email", description: "Confirm the customer can access their inbox", type: "process", column: 3, row: 1 },
+    { id: "workspace", title: "Set up workspace", description: "Choose a name and initial preferences", type: "process", column: 4, row: 1 },
+    { id: "invite-choice", title: "Invite teammates?", description: "Let the customer decide for now", type: "decision", column: 5, row: 1 },
+    { id: "invite", title: "Invite teammates", description: "Add colleagues by email", type: "input", column: 6, row: 0 },
+    { id: "skip", title: "Skip invitations", description: "Continue without adding teammates", type: "process", column: 6, row: 2 },
+    { id: "dashboard", title: "Open dashboard", description: "Show the customer their ready workspace", type: "process", column: 7, row: 1 },
+    { id: "complete", title: "Onboarding complete", description: "Customer can begin using the product", type: "end", column: 8, row: 1 },
+  ],
+  edges: [
+    { source: "start", target: "welcome", label: "" },
+    { source: "welcome", target: "account", label: "" },
+    { source: "account", target: "verify", label: "" },
+    { source: "verify", target: "workspace", label: "" },
+    { source: "workspace", target: "invite-choice", label: "" },
+    { source: "invite-choice", target: "invite", label: "Yes" },
+    { source: "invite-choice", target: "skip", label: "No" },
+    { source: "invite", target: "dashboard", label: "" },
+    { source: "skip", target: "dashboard", label: "" },
+    { source: "dashboard", target: "complete", label: "" },
+  ],
+};
+
 const iconChoices = [
   { id: "brain", label: "Idea" },
   { id: "user", label: "Person" },
@@ -335,6 +368,7 @@ function fittedTextDimensions(label, fontSize = 24) {
 function nodeDimensions(node) {
   if (node?.type === "icon") return { width: node.width || 64, height: node.height || node.width || 64 };
   if (node?.type === "basic-shape") return { width: node.width || 180, height: node.height || 120 };
+  if (node?.type === "checklist") return { width: node.width || 320, height: node.height || 220 };
   if (node?.type === "code") return { width: node.width || 360, height: node.height || 220 };
   if (node?.type === "table") return { width: node.width || 520, height: node.height || 300 };
   if (node?.type === "link") return { width: node.width || (node.linkDisplay === "embed" ? 560 : 300), height: node.height || (node.linkDisplay === "embed" ? 340 : 196) };
@@ -367,6 +401,12 @@ function nodeDimensions(node) {
   const titleLines = Math.max(1, Math.ceil(String(node?.label || "").length / Math.max(10, Math.floor(copyWidth / 7))));
   const subtitleLines = Math.max(1, Math.ceil(String(node?.subtitle || "").length / Math.max(12, Math.floor(copyWidth / 5.6))));
   return { width, height: Math.max(NODE_SIZE.height, 36 + titleLines * 17 + subtitleLines * 14) };
+}
+
+function nodeAllowsConnections(node) {
+  if (!node) return false;
+  if (["table", "arrow", "checklist"].includes(node.type)) return false;
+  return !(node.type === "basic-shape" && node.shapeKind === "line");
 }
 
 function nodeBounds(node) {
@@ -1241,6 +1281,80 @@ function useModalKeyboard(onClose, onPrimary) {
   }, [onClose, onPrimary]);
 }
 
+function ThinkingOrb({ size = 28 }) {
+  const canvasRef = useRef(null);
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+    const context = canvas.getContext("2d");
+    if (!context) return undefined;
+    const pixelRatio = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(size * pixelRatio);
+    canvas.height = Math.round(size * pixelRatio);
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const points = Array.from({ length: 132 }, (_, index) => {
+      const y = 1 - (index / 131) * 2;
+      const radius = Math.sqrt(Math.max(0, 1 - y * y));
+      const angle = index * Math.PI * (3 - Math.sqrt(5));
+      return { x: Math.cos(angle) * radius, y, z: Math.sin(angle) * radius };
+    });
+    const draw = (seconds) => {
+      context.clearRect(0, 0, size, size);
+      const rotation = seconds * .46;
+      const cosine = Math.cos(rotation);
+      const sine = Math.sin(rotation);
+      const pulse = 1 + Math.sin(seconds * 1.45) * .035;
+      const radius = size * .37 * pulse;
+      const projected = points.map((point) => ({
+        x: point.x * cosine - point.z * sine,
+        y: point.y + Math.sin(seconds * .72 + point.x * 2.4) * .018,
+        z: point.x * sine + point.z * cosine,
+      })).sort((a, b) => a.z - b.z);
+      projected.forEach((point) => {
+        const depth = (point.z + 1) / 2;
+        const perspective = .9 + depth * .16;
+        const x = size / 2 + point.x * radius * perspective;
+        const y = size / 2 + point.y * radius * perspective;
+        const dotRadius = .28 + depth * .48;
+        const alpha = .17 + depth * .73;
+        const red = Math.round(102 + depth * 16);
+        const green = Math.round(116 + depth * 17);
+        const blue = Math.round(224 + depth * 24);
+        context.beginPath();
+        context.arc(x, y, dotRadius, 0, Math.PI * 2);
+        context.fillStyle = `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+        context.fill();
+      });
+    };
+    let frame = 0;
+    let intersecting = true;
+    const stop = () => { if (frame) window.cancelAnimationFrame(frame); frame = 0; };
+    const tick = (time) => { draw(time / 1000); frame = window.requestAnimationFrame(tick); };
+    const start = () => {
+      if (reducedMotion || frame || !intersecting || window.document.hidden) return;
+      frame = window.requestAnimationFrame(tick);
+    };
+    const onVisibilityChange = () => { if (window.document.hidden) stop(); else start(); };
+    const observer = typeof IntersectionObserver === "function" ? new IntersectionObserver(([entry]) => {
+      intersecting = entry.isIntersecting;
+      if (intersecting) start(); else stop();
+    }) : null;
+    draw(.7);
+    if (!reducedMotion) {
+      observer?.observe(canvas);
+      window.document.addEventListener("visibilitychange", onVisibilityChange);
+      start();
+    }
+    return () => {
+      stop();
+      observer?.disconnect();
+      window.document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [size]);
+  return <canvas ref={canvasRef} className="thinking-orb" width={size} height={size} aria-hidden="true" />;
+}
+
 function IconForNode({ name, size = 24 }) {
   const props = { size, weight: "duotone", "aria-hidden": true };
   if (name === "user") return <UserCircle {...props} />;
@@ -1620,30 +1734,32 @@ function Dashboard({ documents, folders, onNew, onImport, onDelete, onSaveFolder
             </div>
         </aside>
         <main className="dashboard">
-          <section className="dashboard-heading">
-            <div><h1>{selectedFolder === "all" ? "All canvases" : selectedFolder === "unfiled" ? "Unfiled" : folders.find((folder) => folder.id === selectedFolder)?.name || "Canvases"}</h1></div>
-            <div className="dashboard-heading-actions">
-              <button className="secondary-button" disabled={importing} onClick={() => dashboardImportRef.current?.click()}><ArrowDownTrayIcon width="18" /> {importing ? "Importing…" : "Import .mymind"}</button>
-              <input ref={dashboardImportRef} className="visually-hidden-input" type="file" accept=".mymind,application/vnd.mymind.canvas+json,application/json" onChange={async (event) => {
-                const file = event.target.files?.[0];
-                event.target.value = "";
-                if (!file) return;
-                setImporting(true);
-                try { await onImport(file); }
-                catch (error) { window.alert(error instanceof Error ? error.message : "MyMind could not import this canvas."); }
-                finally { setImporting(false); }
-              }} />
-              <div className="new-canvas-trigger">
-                <button className="primary-button" onClick={onNew}><Plus size={18} weight="bold" /> New canvas</button>
-                {dialog && <NewCanvasMenu onClose={closeDialog} onCreate={createDocument} />}
+          <div className="dashboard-inner">
+            <section className="dashboard-heading">
+              <div><h1>{selectedFolder === "all" ? "All canvases" : selectedFolder === "unfiled" ? "Unfiled" : folders.find((folder) => folder.id === selectedFolder)?.name || "Canvases"}</h1></div>
+              <div className="dashboard-heading-actions">
+                <button className="secondary-button" disabled={importing} onClick={() => dashboardImportRef.current?.click()}><ArrowDownTrayIcon width="18" /> {importing ? "Importing…" : "Import .mymind"}</button>
+                <input ref={dashboardImportRef} className="visually-hidden-input" type="file" accept=".mymind,application/vnd.mymind.canvas+json,application/json" onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (!file) return;
+                  setImporting(true);
+                  try { await onImport(file); }
+                  catch (error) { window.alert(error instanceof Error ? error.message : "MyMind could not import this canvas."); }
+                  finally { setImporting(false); }
+                }} />
+                <div className="new-canvas-trigger">
+                  <button className="primary-button" onClick={onNew}><Plus size={18} weight="bold" /> New canvas</button>
+                  {dialog && <NewCanvasMenu onClose={closeDialog} onCreate={createDocument} />}
+                </div>
               </div>
-            </div>
-          </section>
-          <div className="dashboard-content">
-            <section className="document-grid">
-              {filtered.map((doc) => <DocumentCard key={doc.id} document={doc} folders={folders} onMove={onMoveDocument} onDelete={() => setConfirmDelete({ type: "file", item: doc })} />)}
-              <button className="new-card" onClick={onNew}><span><Plus size={22} /></span><strong>Create a canvas</strong><small>Start blank or use a template</small></button>
             </section>
+            <div className="dashboard-content">
+              <section className="document-grid">
+                {filtered.map((doc) => <DocumentCard key={doc.id} document={doc} folders={folders} onMove={onMoveDocument} onDelete={() => setConfirmDelete({ type: "file", item: doc })} />)}
+                <button className="new-card" onClick={onNew}><span><Plus size={22} /></span><strong>Create a canvas</strong><small>Start blank or use a template</small></button>
+              </section>
+            </div>
           </div>
         </main>
       </div>
@@ -1714,7 +1830,7 @@ function NewCanvasMenu({ onClose, onCreate }) {
       <div className="template-gallery-heading"><div><strong>Templates gallery</strong><small>Choose a ready-to-edit canvas</small></div><button aria-label="Close template gallery" onClick={onClose}><X size={16} /></button></div>
       <div className="template-gallery-grid">
         <button role="menuitem" style={{ "--stagger": 0 }} onClick={() => onCreate("blank")}><span className="template-icon"><StickyNote size={19} /></span><span><strong>Blank Canvas</strong><small>Start from an open canvas</small></span></button>
-        {templateCatalog.map((template, index) => { const TemplateIcon = LucideIcons[template.icon] || Sparkles; return <button key={template.id} role="menuitem" style={{ "--stagger": index + 1 }} onClick={() => onCreate(template.id)}><span className="template-icon"><TemplateIcon size={19} /></span><span><strong>{template.title}</strong><small>{template.description}</small></span></button>; })}
+        {templateCatalog.map((template, index) => { const TemplateIcon = LucideIcons[template.icon] || Sparkle; return <button key={template.id} role="menuitem" style={{ "--stagger": index + 1 }} onClick={() => onCreate(template.id)}><span className="template-icon"><TemplateIcon size={19} /></span><span><strong>{template.title}</strong><small>{template.description}</small></span></button>; })}
       </div>
     </div>
   </>;
@@ -1758,6 +1874,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
   const [shareOpen, setShareOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [flowGeneratorOpen, setFlowGeneratorOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [imageSourceOpen, setImageSourceOpen] = useState(false);
   const [saveState, setSaveState] = useState("Saved");
@@ -2108,6 +2225,77 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     setNodeMenu(false);
   }, [pan.x, pan.y, updateDocument, zoom]);
 
+  const insertGeneratedFlow = useCallback((flow) => {
+    const allowedTypes = new Set(["start", "process", "decision", "input", "end"]);
+    const incomingNodes = Array.isArray(flow?.nodes) ? flow.nodes.slice(0, 24) : [];
+    const sourceIds = new Set();
+    const validNodes = incomingNodes.filter((node) => {
+      const id = String(node?.id || "").trim();
+      if (!id || sourceIds.has(id) || !allowedTypes.has(node?.type)) return false;
+      sourceIds.add(id);
+      return String(node?.title || "").trim().length > 0;
+    });
+    if (validNodes.length < 2) throw new Error("The generated flow did not contain enough valid steps.");
+
+    const idMap = new Map(validNodes.map((node) => [String(node.id), uid("flow-node")]));
+    const columns = validNodes.map((node) => Math.max(0, Math.min(12, Math.round(Number(node.column) || 0))));
+    const rows = validNodes.map((node) => Math.max(0, Math.min(8, Math.round(Number(node.row) || 0))));
+    const minColumn = Math.min(...columns);
+    const minRow = Math.min(...rows);
+    const maxColumn = Math.max(...columns);
+    const maxRow = Math.max(...rows);
+    const columnGap = 270;
+    const rowGap = 170;
+    const layoutWidth = (maxColumn - minColumn) * columnGap + 230;
+    const layoutHeight = (maxRow - minRow) * rowGap + 150;
+    const canvasWidth = canvasRef.current?.clientWidth || 900;
+    const canvasHeight = canvasRef.current?.clientHeight || 700;
+    const currentCenterX = (canvasWidth / 2 - pan.x) / zoom;
+    const currentCenterY = (canvasHeight / 2 - pan.y) / zoom;
+    const originX = currentCenterX - layoutWidth / 2;
+    const originY = currentCenterY - layoutHeight / 2;
+    const typePreset = {
+      start: { shape: "terminator", color: "violet" },
+      process: { shape: "process", color: "aqua" },
+      decision: { shape: "decision", color: "amber" },
+      input: { shape: "data", color: "blue" },
+      end: { shape: "terminator", color: "violet" },
+    };
+    const nodes = validNodes.map((node) => ({
+      id: idMap.get(String(node.id)),
+      x: originX + (Math.round(Number(node.column) || 0) - minColumn) * columnGap,
+      y: originY + (Math.round(Number(node.row) || 0) - minRow) * rowGap,
+      label: String(node.title).trim().slice(0, 120),
+      subtitle: String(node.description || "").trim().slice(0, 240),
+      icon: null,
+      ...typePreset[node.type],
+    }));
+    const edges = (Array.isArray(flow?.edges) ? flow.edges : []).slice(0, 36).flatMap((edge) => {
+      const source = idMap.get(String(edge?.source || ""));
+      const target = idMap.get(String(edge?.target || ""));
+      if (!source || !target || source === target) return [];
+      const sourceNode = validNodes.find((node) => String(node.id) === String(edge.source));
+      const targetNode = validNodes.find((node) => String(node.id) === String(edge.target));
+      const vertical = Number(sourceNode?.column) === Number(targetNode?.column);
+      return [{ id: uid("edge"), source, target, label: String(edge?.label || "").trim().slice(0, 48), routing: "orthogonal", sourcePort: vertical ? "bottom" : "right", targetPort: vertical ? "top" : "left" }];
+    });
+    updateDocument((doc) => ({ ...doc, nodes: [...doc.nodes, ...nodes], edges: [...doc.edges, ...edges] }), { immediate: true });
+    setSelection(nodes.map((node) => node.id));
+    setEdgeSelection([]);
+    setDrawingSelection([]);
+    setTool("select");
+    const nextZoom = Math.min(1, Math.max(.35, Math.min((canvasWidth - 96) / layoutWidth, (canvasHeight - 128) / layoutHeight)));
+    setZoom(nextZoom);
+    setPan({ x: canvasWidth / 2 - currentCenterX * nextZoom, y: canvasHeight / 2 - currentCenterY * nextZoom });
+    showFeedback("generated", nodes.length);
+  }, [pan.x, pan.y, showFeedback, updateDocument, zoom]);
+
+  const generateFlow = useCallback(async ({ text, useSample }) => {
+    const flow = useSample ? ONBOARDING_FLOW_SAMPLE : await apiRequest("flow-generate", { text });
+    insertGeneratedFlow(flow);
+    return flow;
+  }, [insertGeneratedFlow]);
+
   const addTextNode = useCallback((initialLabel = "Add text") => {
     const label = String(initialLabel || "Add text").slice(0, 2000);
     const fontSize = 24;
@@ -2135,6 +2323,30 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     setNodeMenu(false);
     setTool("select");
     setEditingNode(node.id);
+  }, [pan.x, pan.y, updateDocument, zoom]);
+
+  const addChecklistNode = useCallback(() => {
+    const width = 320;
+    const height = 220;
+    const x = (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - width / 2;
+    const y = (canvasRef.current?.clientHeight / 2 - pan.y) / zoom - height / 2;
+    const node = {
+      id: uid("checklist"),
+      type: "checklist",
+      x,
+      y,
+      width,
+      height,
+      label: "Task list",
+      color: "slate",
+      items: [{ id: uid("task"), text: "", completed: false }],
+    };
+    updateDocument((doc) => ({ ...doc, nodes: [...doc.nodes, node] }));
+    setSelection([node.id]);
+    setDrawingSelection([]);
+    setEdgeSelection([]);
+    setNodeMenu(false);
+    setTool("select");
   }, [pan.x, pan.y, updateDocument, zoom]);
 
   const addTableFile = useCallback(async (file) => {
@@ -2181,11 +2393,12 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
   const addBasicShape = useCallback((shapeKind) => {
     if (publicView) return;
     const proportional = ["circle", "square"].includes(shapeKind);
-    const width = proportional ? 140 : 180;
-    const height = proportional ? 140 : 120;
+    const isLine = shapeKind === "line";
+    const width = isLine ? 220 : proportional ? 140 : 180;
+    const height = isLine ? 24 : proportional ? 140 : 120;
     const x = (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - width / 2;
     const y = (canvasRef.current?.clientHeight / 2 - pan.y) / zoom - height / 2;
-    const node = { id: uid("shape"), type: "basic-shape", shapeKind, x, y, width, height, rotation: 0, fillColor: "#eef1ff", outlineColor: "#5367ef", label: "" };
+    const node = { id: uid("shape"), type: "basic-shape", shapeKind, x, y, width, height, rotation: 0, fillColor: isLine ? "transparent" : "#eef1ff", outlineColor: "#5367ef", strokeWidth: isLine ? 3 : undefined, label: "" };
     updateDocument((doc) => ({ ...doc, nodes: [...doc.nodes, node] }));
     setSelection([node.id]);
     setEdgeSelection([]);
@@ -2418,7 +2631,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     if (!sourceInfo || !targetNode || sourceInfo.nodeId === targetNode.id) return false;
     const edgeId = uid("edge");
     const sourceNode = document.nodes.find((item) => item.id === sourceInfo.nodeId);
-    if (!sourceNode) return false;
+    if (!nodeAllowsConnections(sourceNode) || !nodeAllowsConnections(targetNode)) return false;
     const isFlowchart = !!(sourceNode.shape || targetNode.shape);
     const label = sourceNode.shape === "decision" ? (sourceInfo.port === "bottom" ? "No" : "Yes") : "";
     updateDocument((doc) => ({ ...doc, edges: [...doc.edges, { id: edgeId, source: sourceInfo.nodeId, target: targetNode.id, label, sourcePort: sourceInfo.port, targetPort, ...(isFlowchart ? { routing: "orthogonal" } : {}) }] }));
@@ -2550,6 +2763,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     setSelectedAnnotationId(null);
     if (publicView) return;
     setRotationModeId(null);
+    const canConnect = nodeAllowsConnections(node);
     const clickedPort = event.target instanceof Element && event.target.classList.contains("node-port");
     if (clickedPort && !connectionSource) {
       const bounds = canvasRef.current.getBoundingClientRect();
@@ -2564,6 +2778,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       return;
     }
     if (tool === "connect" || connectionSource) {
+      if (!canConnect) return;
       if (!connectionSource) {
         const bounds = canvasRef.current.getBoundingClientRect();
         const sourceInfo = { nodeId: node.id, port: "auto" };
@@ -2615,7 +2830,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
   };
 
   const startElementResize = (corner, event) => {
-    const node = selection.length === 1 ? document.nodes.find((item) => item.id === selection[0] && ["image", "text", "code", "table", "arrow", "icon", "link", "basic-shape"].includes(item.type)) : null;
+    const node = selection.length === 1 ? document.nodes.find((item) => item.id === selection[0] && ["image", "text", "code", "checklist", "table", "arrow", "icon", "link", "basic-shape"].includes(item.type)) : null;
     if (!node) return;
     event.preventDefault();
     event.stopPropagation();
@@ -2679,6 +2894,23 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     event.currentTarget.setPointerCapture?.(event.pointerId);
   };
 
+  const startLineEndpointDrag = (side, event) => {
+    const node = selection.length === 1 ? document.nodes.find((item) => item.id === selection[0] && item.type === "basic-shape" && item.shapeKind === "line") : null;
+    if (!node) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const size = nodeDimensions(node);
+    const radians = Number(node.rotation || 0) * Math.PI / 180;
+    const centerX = node.x + size.width / 2;
+    const centerY = node.y + size.height / 2;
+    const axisX = Math.cos(radians);
+    const axisY = Math.sin(radians);
+    const left = { x: centerX - axisX * size.width / 2, y: centerY - axisY * size.width / 2 };
+    const right = { x: centerX + axisX * size.width / 2, y: centerY + axisY * size.width / 2 };
+    dragRef.current = { type: "line-endpoint", id: node.id, side, anchor: side === "left" ? right : left, axisX, axisY, height: size.height };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
   const onPointerMove = (event) => {
     if (event.pointerType === "touch" && touchPointersRef.current.has(event.pointerId)) {
       touchPointersRef.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -2703,6 +2935,27 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       const roundedRotation = Math.round(rotation);
       setRotationFeedback(roundedRotation);
       updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === drag.id ? { ...node, rotation: roundedRotation } : node) }));
+      return;
+    }
+    if (dragRef.current?.type === "line-endpoint") {
+      const drag = dragRef.current;
+      const bounds = canvasRef.current.getBoundingClientRect();
+      const point = { x: (event.clientX - bounds.left - pan.x) / zoom, y: (event.clientY - bounds.top - pan.y) / zoom };
+      const pointerDeltaX = drag.side === "left" ? drag.anchor.x - point.x : point.x - drag.anchor.x;
+      const pointerDeltaY = drag.side === "left" ? drag.anchor.y - point.y : point.y - drag.anchor.y;
+      const pointerDistance = Math.hypot(pointerDeltaX, pointerDeltaY);
+      const width = Math.max(24, Math.min(1600, pointerDistance));
+      const axisX = pointerDistance < 1 ? drag.axisX : pointerDeltaX / pointerDistance;
+      const axisY = pointerDistance < 1 ? drag.axisY : pointerDeltaY / pointerDistance;
+      const from = drag.side === "left" ? { x: drag.anchor.x - axisX * width, y: drag.anchor.y - axisY * width } : drag.anchor;
+      const to = drag.side === "left" ? drag.anchor : { x: drag.anchor.x + axisX * width, y: drag.anchor.y + axisY * width };
+      const rotation = Math.atan2(axisY, axisX) * 180 / Math.PI;
+      const centerX = (from.x + to.x) / 2;
+      const centerY = (from.y + to.y) / 2;
+      updateDocument((doc) => ({
+        ...doc,
+        nodes: doc.nodes.map((node) => node.id === drag.id ? { ...node, x: centerX - width / 2, y: centerY - drag.height / 2, width, height: drag.height, rotation } : node),
+      }));
       return;
     }
     if (dragRef.current?.type === "element-resize") {
@@ -2741,14 +2994,14 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
         x = drag.signX < 0 ? drag.anchorX - width : drag.anchorX;
         y = drag.signY < 0 ? drag.anchorY - height : drag.anchorY;
       } else {
-        const minimumWidth = ["code", "table"].includes(drag.elementType) ? 220 : 80;
-        const minimumHeight = ["code", "table"].includes(drag.elementType) ? 120 : 40;
+        const minimumWidth = ["code", "checklist", "table"].includes(drag.elementType) ? 220 : 80;
+        const minimumHeight = ["code", "checklist", "table"].includes(drag.elementType) ? 120 : 40;
         width = Math.max(minimumWidth, Math.min(1600, extentX));
         height = Math.max(minimumHeight, Math.min(1200, extentY));
         x = drag.signX < 0 ? drag.anchorX - width : drag.anchorX;
         y = drag.signY < 0 ? drag.anchorY - height : drag.anchorY;
       }
-      updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === drag.id ? { ...node, x, y, width, ...(["text", "code", "table", "arrow", "icon", "link", "basic-shape"].includes(drag.elementType) ? { height } : {}), ...(drag.elementType === "text" ? { textFit: "free" } : {}) } : node) }));
+      updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === drag.id ? { ...node, x, y, width, ...(["text", "code", "checklist", "table", "arrow", "icon", "link", "basic-shape"].includes(drag.elementType) ? { height } : {}), ...(drag.elementType === "text" ? { textFit: "free" } : {}) } : node) }));
       return;
     }
     if (dragRef.current?.type === "selection-resize") {
@@ -2819,7 +3072,8 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       const edge = document.edges.find((item) => item.id === dragRef.current.edgeId);
       const blockedId = dragRef.current.side === "target" ? edge?.source : edge?.target;
       const hoveredId = hoveredNode?.dataset.nodeId;
-      const validTarget = hoveredId && hoveredId !== blockedId;
+      const hoveredCanvasNode = hoveredId ? document.nodes.find((node) => node.id === hoveredId) : null;
+      const validTarget = hoveredId && hoveredId !== blockedId && nodeAllowsConnections(hoveredCanvasNode);
       setConnectionTargetId(validTarget ? hoveredId : null);
       setConnectionTargetPort(validTarget ? hitElement?.closest?.(".node-port")?.dataset.port || "auto" : null);
       return;
@@ -2830,7 +3084,8 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       const hitElement = window.document.elementFromPoint(event.clientX, event.clientY);
       const hoveredNode = hitElement?.closest?.("[data-node-id]");
       const hoveredId = hoveredNode?.dataset.nodeId;
-      const validTarget = hoveredId && hoveredId !== connectionSource.nodeId;
+      const hoveredCanvasNode = hoveredId ? document.nodes.find((node) => node.id === hoveredId) : null;
+      const validTarget = hoveredId && hoveredId !== connectionSource.nodeId && nodeAllowsConnections(hoveredCanvasNode);
       setConnectionTargetId(validTarget ? hoveredId : null);
       setConnectionTargetPort(validTarget ? hitElement?.closest?.(".node-port")?.dataset.port || "auto" : null);
       if (dragRef.current?.type === "connect" && Math.hypot(event.clientX - dragRef.current.startX, event.clientY - dragRef.current.startY) > 4) dragRef.current.moved = true;
@@ -2890,7 +3145,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       const droppedNode = targetElement ? document.nodes.find((node) => node.id === targetElement.dataset.nodeId) : null;
       const droppedPort = hitElement?.closest?.(".node-port")?.dataset.port || "auto";
       const blockedId = drag.side === "target" ? edge?.source : edge?.target;
-      if (edge && droppedNode && droppedNode.id !== blockedId) {
+      if (edge && droppedNode && droppedNode.id !== blockedId && nodeAllowsConnections(droppedNode)) {
         const sourceId = drag.side === "source" ? droppedNode.id : edge.source;
         const targetId = drag.side === "target" ? droppedNode.id : edge.target;
         const sourceNode = document.nodes.find((node) => node.id === sourceId);
@@ -2992,7 +3247,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       if (!["0", "1", "2", "5", "7"].includes(event.key)) return;
       const activeElement = window.document.activeElement;
       const isTyping = ["INPUT", "TEXTAREA", "SELECT"].includes(activeElement?.tagName) || activeElement?.isContentEditable;
-      const overlayOpen = commandPaletteOpen || editingNode || editingEdge || exportOpen || shareOpen || shortcutsOpen || linkOpen || imageSourceOpen || pendingAnnotation || guestWelcomeOpen;
+      const overlayOpen = commandPaletteOpen || flowGeneratorOpen || editingNode || editingEdge || exportOpen || shareOpen || shortcutsOpen || linkOpen || imageSourceOpen || pendingAnnotation || guestWelcomeOpen;
       if (isTyping || overlayOpen) return;
       event.preventDefault();
       if (event.key === "1") zoomToContent();
@@ -3001,7 +3256,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     };
     window.addEventListener("keydown", onNumberZoom);
     return () => window.removeEventListener("keydown", onNumberZoom);
-  }, [commandPaletteOpen, editingEdge, editingNode, exportOpen, guestWelcomeOpen, imageSourceOpen, linkOpen, pendingAnnotation, selectedBounds, shareOpen, shortcutsOpen, tool, zoomAtCenter, zoomToBounds, zoomToContent]);
+  }, [commandPaletteOpen, editingEdge, editingNode, exportOpen, flowGeneratorOpen, guestWelcomeOpen, imageSourceOpen, linkOpen, pendingAnnotation, selectedBounds, shareOpen, shortcutsOpen, tool, zoomAtCenter, zoomToBounds, zoomToContent]);
 
   const deleteSelection = useCallback(() => {
     if ((!selection.length && !edgeSelection.length && !drawingSelection.length) || publicView) return;
@@ -3109,7 +3364,6 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     setContextMenu(null);
 
     const sampled = await mapWithConcurrency(nodes, 4, async (node, originalIndex) => {
-      if (node.visualSortColour) return { node, colour: node.visualSortColour, originalIndex };
       const sources = node.type === "image" ? [node.imageData] : [node.thumbnail, ...(node.thumbnailFallbacks || [])];
       if (node.type === "link" && (node.linkDisplay === "embed" || node.thumbnailKind === "favicon")) {
         try {
@@ -3122,7 +3376,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
         colour = await sampleImageVisualColour(source);
         if (colour) break;
       }
-      return { node, colour, originalIndex };
+      return { node, colour: colour || node.visualSortColour || null, originalIndex };
     });
 
     const ordered = sampled.sort((a, b) => {
@@ -3212,7 +3466,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     }
     if (!keepGroup) { setSelection([node.id]); setDrawingSelection([]); setEdgeSelection([]); }
     const bounds = canvasRef.current?.getBoundingClientRect();
-    setContextMenu({ x: Math.max(8, Math.min((bounds?.width || 900) - 224, event.clientX - (bounds?.left || 0))), y: Math.max(8, Math.min((bounds?.height || 700) - 326, event.clientY - (bounds?.top || 0))), nodeIds, drawingIds, rotateNodeId: ["arrow", "basic-shape"].includes(node.type) ? node.id : null, rotateLabel: node.type === "basic-shape" ? "Rotate shape" : "Rotate arrow" });
+    setContextMenu({ x: Math.max(8, Math.min((bounds?.width || 900) - 224, event.clientX - (bounds?.left || 0))), y: Math.max(8, Math.min((bounds?.height || 700) - 326, event.clientY - (bounds?.top || 0))), nodeIds, drawingIds, rotateNodeId: ["arrow", "basic-shape"].includes(node.type) && node.shapeKind !== "line" ? node.id : null, rotateLabel: node.type === "basic-shape" ? "Rotate shape" : "Rotate arrow" });
   };
 
   const openDrawingContextMenu = (event, drawing) => {
@@ -3277,7 +3531,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       }
       if ((event.key === "Backspace" || event.key === "Delete") && !["INPUT", "TEXTAREA"].includes(window.document.activeElement?.tagName)) deleteSelection();
       if ((event.metaKey || event.ctrlKey) && event.key === "0") { event.preventDefault(); setPan({ x: 80, y: 90 }); setZoom(.9); }
-      const modalOpen = editingNode || editingEdge || exportOpen || shareOpen || shortcutsOpen || linkOpen || imageSourceOpen || pendingAnnotation;
+      const modalOpen = editingNode || editingEdge || exportOpen || flowGeneratorOpen || shareOpen || shortcutsOpen || linkOpen || imageSourceOpen || pendingAnnotation;
       const activeTag = window.document.activeElement?.tagName;
       const selectedSource = selection.length === 1 ? selection[0] : (document.nodes.length === 1 ? document.nodes[0].id : null);
       if (event.key === "Tab" && selectedSource && !publicView && !modalOpen && !["INPUT", "TEXTAREA", "BUTTON", "SELECT"].includes(activeTag)) {
@@ -3375,7 +3629,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [addArrowShape, addConnectedNode, addNode, addTextNode, applyHistory, changeStacking, commandPaletteOpen, connectionSource, deleteSelection, document.nodes, duplicateSelection, edgeToolbarMenu, editingEdge, editingNode, exportOpen, groupSelection, imageSourceOpen, linkOpen, nodeToolbarMenu, pendingAnnotation, publicView, selection, shareOpen, shortcutsOpen, tool, ungroupSelection, zoom, zoomAtCenter]);
+  }, [addArrowShape, addConnectedNode, addNode, addTextNode, applyHistory, changeStacking, commandPaletteOpen, connectionSource, deleteSelection, document.nodes, duplicateSelection, edgeToolbarMenu, editingEdge, editingNode, exportOpen, flowGeneratorOpen, groupSelection, imageSourceOpen, linkOpen, nodeToolbarMenu, pendingAnnotation, publicView, selection, shareOpen, shortcutsOpen, tool, ungroupSelection, zoom, zoomAtCenter]);
 
   useEffect(() => {
     const dismissFloatingPanels = (event) => {
@@ -3530,7 +3784,9 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       if (node.type === "basic-shape") {
         const fill = escape(node.fillColor || "#eef1ff");
         const outline = escape(node.outlineColor || "#5367ef");
-        const surface = node.shapeKind === "circle"
+        const surface = node.shapeKind === "line"
+          ? `<line x1="${x}" y1="${y + size.height / 2}" x2="${x + size.width}" y2="${y + size.height / 2}" stroke="${outline}" stroke-width="${node.strokeWidth || 3}" stroke-linecap="round"/>`
+          : node.shapeKind === "circle"
           ? `<ellipse cx="${x + size.width / 2}" cy="${y + size.height / 2}" rx="${size.width / 2}" ry="${size.height / 2}" fill="${fill}" stroke="${outline}" stroke-width="3"/>`
           : node.shapeKind === "triangle"
             ? `<polygon points="${x + size.width / 2},${y} ${x + size.width},${y + size.height} ${x},${y + size.height}" fill="${fill}" stroke="${outline}" stroke-width="3"/>`
@@ -3544,6 +3800,19 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
         const columnWidth = size.width / columnCount;
         const cells = rows.map((row, rowIndex) => row.map((cell, columnIndex) => `<rect x="${x + columnIndex * columnWidth}" y="${y + 38 + rowIndex * 30}" width="${columnWidth}" height="30" fill="${rowIndex === 0 ? "#f1f3f7" : "#ffffff"}" stroke="#eceef2"/><text x="${x + columnIndex * columnWidth + 8}" y="${y + 57 + rowIndex * 30}" font-family="Inter,Arial" font-size="10" font-weight="${rowIndex === 0 ? 700 : 400}" fill="#505865">${escape(String(cell).slice(0, 24))}</text>`).join("")).join("");
         return `<g><rect x="${x}" y="${y}" width="${size.width}" height="${size.height}" rx="12" fill="#fff" stroke="#dfe3e9"/><rect x="${x}" y="${y}" width="${size.width}" height="38" rx="12" fill="#f7f8fb"/><text x="${x + 12}" y="${y + 24}" font-family="Inter,Arial" font-size="11" font-weight="700" fill="#596373">${escape(node.label || "Spreadsheet")}</text>${cells}</g>`;
+      }
+      if (node.type === "checklist") {
+        const items = (node.items || []).slice(0, Math.max(1, Math.floor((size.height - 52) / 28)));
+        const rows = items.map((item, index) => {
+          const rowY = y + 49 + index * 28;
+          const checked = item.completed
+            ? `<rect x="${x + 13}" y="${rowY - 11}" width="13" height="13" rx="3" fill="#66707d"/><path d="M${x + 16} ${rowY - 5}l2.3 2.4 4.8-5" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>`
+            : `<rect x="${x + 13}" y="${rowY - 11}" width="13" height="13" rx="3" fill="#fff" stroke="#cbd1da"/>`;
+          const text = escape(String(item.text || "").slice(0, Math.max(12, Math.floor((size.width - 56) / 6.5))));
+          const strike = item.completed && text ? `<line x1="${x + 35}" y1="${rowY - 4}" x2="${Math.min(x + size.width - 14, x + 35 + text.length * 6.2)}" y2="${rowY - 4}" stroke="#69717d" stroke-width="1" opacity=".48"/>` : "";
+          return `<g opacity="${item.completed ? ".48" : "1"}">${checked}<text x="${x + 35}" y="${rowY}" font-family="Inter,Arial" font-size="11" fill="#4f5764">${text}</text>${strike}</g>`;
+        }).join("");
+        return `<g><rect x="${x}" y="${y}" width="${size.width}" height="${size.height}" rx="14" fill="#fff" stroke="#dfe3e9"/><path d="M${x} ${y + 38}H${x + size.width}" stroke="#e2e5eb"/><text x="${x + 13}" y="${y + 24}" font-family="Inter,Arial" font-size="11" font-weight="700" fill="#596373">${escape(node.label || "Task list")}</text>${rows}</g>`;
       }
       if (node.type === "icon") {
         const HeroIcon = LucideIcons[node.iconName] || HeroOutlineIcons[node.iconName] || LucideIcons.SparklesIcon;
@@ -3649,14 +3918,17 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     { id: "zoom-content", label: "Zoom to content", icon: Viewfinder, run: zoomToContent },
     { id: "shortcuts", label: "Keyboard shortcuts", icon: HelpCircle, shortcut: "?", run: () => setShortcutsOpen(true) },
   ] : [
+    { id: "generate-flow", label: "Generate process flow from text", icon: Sparkle, run: () => setFlowGeneratorOpen(true) },
     { id: "add-idea", label: "Add idea node", icon: Lightbulb, shortcut: "N", run: () => addNode("idea") },
     { id: "add-code", label: "Add code block", icon: Code, run: addCodeNode },
+    { id: "add-checklist", label: "Add checklist or task list", icon: LucideIcons.ListChecks, run: addChecklistNode },
     { id: "import-table", label: "Import CSV or Excel", icon: LucideIcons.Table2, run: () => tableInputRef.current?.click() },
     { id: "add-text", label: "Add text", icon: TextBlock, shortcut: "T", run: () => addTextNode() },
     { id: "add-image", label: "Add image", icon: Photo, shortcut: "P", run: () => setImageSourceOpen(true) },
     { id: "add-link", label: "Add link", icon: LinkSimple, shortcut: "K", run: () => setLinkOpen(true) },
     { id: "add-shapes", label: "Add shapes", icon: LucideIcons.Shapes, shortcut: "S", run: () => setShapeMenuOpen(true) },
     { id: "add-arrow", label: "Add arrow", icon: ArrowLine, run: () => addArrowShape() },
+    { id: "add-line", label: "Add line shape", icon: LucideIcons.Minus, run: () => addBasicShape("line") },
     { id: "add-rectangle", label: "Add rectangle shape", icon: LucideIcons.RectangleHorizontal, run: () => addBasicShape("rectangle") },
     { id: "add-circle", label: "Add circular shape", icon: LucideIcons.Circle, run: () => addBasicShape("circle") },
     { id: "add-triangle", label: "Add triangle shape", icon: LucideIcons.Triangle, run: () => addBasicShape("triangle") },
@@ -3715,6 +3987,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
 
   return <div className={`app-shell editor-shell ${isPublicLink ? "is-public" : ""} ${embedMode ? "is-embed" : ""}`}>
     {commandPaletteOpen && <CommandPalette commands={commandPaletteCommands} onClose={() => setCommandPaletteOpen(false)} />}
+    {flowGeneratorOpen && <FlowGeneratorDialog onClose={() => setFlowGeneratorOpen(false)} onGenerate={generateFlow} />}
     {!embedMode && <header className="topbar editor-topbar">
       <div className="editor-title-row">
         {!isPublicLink && <button className="editor-back-button" aria-label="Back to dashboard" onClick={() => navigate("/")}><ArrowLeft size={16} /></button>}
@@ -3747,11 +4020,13 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
           <button className={nodeMenu ? "active" : ""} title="Add node · N" aria-label="Add node" aria-keyshortcuts="N" onClick={() => { setPagesOpen(false); setShapeMenuOpen(false); setNodeMenu(!nodeMenu); }}><Plus size={22} /></button>
           {nodeMenu && <div className="node-menu">
             <p>Add node</p>
+            <button onClick={() => { setNodeMenu(false); setFlowGeneratorOpen(true); }}><span className="menu-node violet"><Sparkle size={18} /></span><span><strong>Generate flow</strong><small>Turn a journey into a diagram</small></span></button>
             <button onClick={() => addNode("idea")}><span className="menu-node violet"><Brain size={18} /></span><span><strong>Idea</strong><small>Thought or topic</small></span></button>
             <button onClick={() => addNode("person")}><span className="menu-node blue"><UserCircle size={18} /></span><span><strong>Person</strong><small>Role or audience</small></span></button>
             <button onClick={() => addNode("process")}><span className="menu-node aqua"><CirclesFour size={18} /></span><span><strong>Process</strong><small>Step or system</small></span></button>
             <button onClick={() => addNode("outcome")}><span className="menu-node amber"><Check size={18} /></span><span><strong>Outcome</strong><small>Result or decision</small></span></button>
             <button onClick={addCodeNode}><span className="menu-node slate"><Code size={18} /></span><span><strong>Code block</strong><small>Write or paste code</small></span></button>
+            <button onClick={addChecklistNode}><span className="menu-node slate"><LucideIcons.ListChecks size={18} /></span><span><strong>Task list</strong><small>Checklist with completion states</small></span></button>
             <div className="node-menu-divider"><span>Flowchart</span></div>
             <button onClick={() => addNode("terminator")}><span className="menu-node violet"><Flag size={18} /></span><span><strong>Start / End</strong><small>Beginning or end</small></span></button>
             <button onClick={() => addNode("decision")}><span className="menu-node amber"><Check size={18} /></span><span><strong>Decision</strong><small>Branch the flow</small></span></button>
@@ -3764,6 +4039,7 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
           <button className={shapeMenuOpen ? "active" : ""} title="Add shapes · S" aria-label="Add shapes" aria-keyshortcuts="S" aria-expanded={shapeMenuOpen} onClick={() => { setPagesOpen(false); setNodeMenu(false); setShapeMenuOpen((open) => !open); }}><LucideIcons.Shapes size={21} /></button>
           {shapeMenuOpen && <div className="node-menu basic-shape-menu"><p>Add shapes</p>
             <button onClick={() => { addArrowShape(); setShapeMenuOpen(false); }}><span className="menu-node slate"><ArrowLine size={18} /></span><span><strong>Arrow line</strong><small>Directional line</small></span></button>
+            <button onClick={() => addBasicShape("line")}><span className="menu-node slate"><LucideIcons.Minus size={18} /></span><span><strong>Line</strong><small>Resize and rotate from either end</small></span></button>
             <button onClick={() => addBasicShape("rectangle")}><span className="menu-node blue"><LucideIcons.RectangleHorizontal size={18} /></span><span><strong>Rectangle</strong><small>Free width and height</small></span></button>
             <button onClick={() => addBasicShape("circle")}><span className="menu-node aqua"><LucideIcons.Circle size={18} /></span><span><strong>Circular</strong><small>Proportional resize</small></span></button>
             <button onClick={() => addBasicShape("triangle")}><span className="menu-node amber"><LucideIcons.Triangle size={18} /></span><span><strong>Triangle</strong><small>Free width and height</small></span></button>
@@ -3808,14 +4084,17 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       {!publicView && mobileInsertOpen && <aside className="mobile-insert-sheet" aria-label="Insert canvas element">
         <div><strong>Insert</strong><button aria-label="Close insert tools" onClick={() => setMobileInsertOpen(false)}><X size={18} /></button></div>
         <section>
+          <button onClick={() => { setFlowGeneratorOpen(true); setMobileInsertOpen(false); }}><Sparkle size={20} /><span>Generate flow</span></button>
           <button onClick={() => { setPagesOpen(true); setMobileInsertOpen(false); }}><FileText size={20} /><span>Pages</span></button>
           <button onClick={() => { addTextNode(); setMobileInsertOpen(false); }}><HeadingOne size={20} /><span>Text</span></button>
           <button onClick={() => { addCodeNode(); setMobileInsertOpen(false); }}><Code size={20} /><span>Code</span></button>
+          <button onClick={() => { addChecklistNode(); setMobileInsertOpen(false); }}><LucideIcons.ListChecks size={20} /><span>List</span></button>
           <button onClick={() => { setIconBrowserOpen(true); setMobileInsertOpen(false); }}><Cube size={20} /><span>Icon</span></button>
           <button onClick={() => { setImageSourceOpen(true); setMobileInsertOpen(false); }}><Photo size={20} /><span>Picture</span></button>
           <button onClick={() => { setLinkOpen(true); setMobileInsertOpen(false); }}><LinkSimple size={20} /><span>Link</span></button>
           <button onClick={() => { tableInputRef.current?.click(); setMobileInsertOpen(false); }}><LucideIcons.Table2 size={20} /><span>Table</span></button>
           <button onClick={() => { addArrowShape(); setMobileInsertOpen(false); }}><ArrowLine size={20} /><span>Arrow</span></button>
+          <button onClick={() => { addBasicShape("line"); setMobileInsertOpen(false); }}><LucideIcons.Minus size={20} /><span>Line</span></button>
           <button onClick={() => { addBasicShape("rectangle"); setMobileInsertOpen(false); }}><LucideIcons.RectangleHorizontal size={20} /><span>Rectangle</span></button>
           <button onClick={() => { addBasicShape("circle"); setMobileInsertOpen(false); }}><LucideIcons.Circle size={20} /><span>Circle</span></button>
           <button onClick={() => { setShortcutsOpen(true); setMobileInsertOpen(false); }}><HelpCircle size={20} /><span>Help</span></button>
@@ -3834,13 +4113,13 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
           <svg className="drawing-layer drawing-layer-back" width="4000" height="2400" viewBox="-1000 -600 4000 2400">
             {(document.drawings || []).filter((drawing) => drawing.stackLevel === "back").map((drawing) => <DrawingStroke key={drawing.id} drawing={drawing} selected={drawingSelection.includes(drawing.id)} passive={spaceHeld || tool !== "select"} onSelect={(event) => onDrawingPointerDown(event, drawing)} onContextMenu={(event) => openDrawingContextMenu(event, drawing)} />)}
           </svg>
-          {document.nodes.filter((node) => !collapsedNodeIds.has(node.id) || vanishingNodeIds.has(node.id)).map((node) => <CanvasNode key={node.id} node={node} hiding={collapsedNodeIds.has(node.id)} hiddenConnectionCount={document.edges.filter((edge) => (edge.source === node.id || edge.target === node.id) && edge.hidden).length} onShowHidden={() => showHiddenConnections(node.id)} selected={selection.includes(node.id)} connecting={connectionSource?.nodeId === node.id} dropTarget={connectionTargetId === node.id} editing={editingNode === node.id} onEdit={() => { if (!publicView && !["image", "arrow", "icon", "table"].includes(node.type)) { setNodeToolbarMenu(null); setEditingNode(node.id); } }} onSaveEdit={(patch) => { const fitted = node.type === "text" && node.textFit !== "free" ? fittedTextDimensions(patch.label, node.fontSize || 24) : {}; updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, ...patch, ...fitted } : item) })); setEditingNode(null); }} onCancelEdit={() => setEditingNode(null)} onTableChange={publicView ? null : (rows) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, rows } : item) }))} onPointerDown={onNodePointerDown} onContextMenu={(event) => openNodeContextMenu(event, node)} onKeyDown={(event) => { if (event.target instanceof Element && event.target.closest("input,textarea,select,[contenteditable='true']")) return; if (!publicView && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setSelection([node.id]); setEdgeSelection([]); setDrawingSelection([]); } }} />)}
+          {document.nodes.filter((node) => !collapsedNodeIds.has(node.id) || vanishingNodeIds.has(node.id)).map((node) => <CanvasNode key={node.id} node={node} hiding={collapsedNodeIds.has(node.id)} hiddenConnectionCount={document.edges.filter((edge) => (edge.source === node.id || edge.target === node.id) && edge.hidden).length} onShowHidden={() => showHiddenConnections(node.id)} selected={selection.includes(node.id)} connecting={connectionSource?.nodeId === node.id} dropTarget={connectionTargetId === node.id} editing={editingNode === node.id} onEdit={() => { if (!publicView && !["image", "arrow", "icon", "table", "checklist"].includes(node.type) && !(node.type === "basic-shape" && node.shapeKind === "line")) { setNodeToolbarMenu(null); setEditingNode(node.id); } }} onSaveEdit={(patch) => { const fitted = node.type === "text" && node.textFit !== "free" ? fittedTextDimensions(patch.label, node.fontSize || 24) : {}; updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, ...patch, ...fitted } : item) })); setEditingNode(null); }} onCancelEdit={() => setEditingNode(null)} onTableChange={publicView ? null : (rows) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, rows } : item) }))} onChecklistChange={publicView ? null : (items) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, items } : item) }))} onPointerDown={onNodePointerDown} onContextMenu={(event) => openNodeContextMenu(event, node)} onKeyDown={(event) => { if (event.target instanceof Element && event.target.closest("input,textarea,select,[contenteditable='true']")) return; if (!publicView && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setSelection([node.id]); setEdgeSelection([]); setDrawingSelection([]); } }} />)}
           <svg className="drawing-layer" width="4000" height="2400" viewBox="-1000 -600 4000 2400">
             {(document.drawings || []).filter((drawing) => drawing.stackLevel !== "back").map((drawing) => <DrawingStroke key={drawing.id} drawing={drawing} selected={drawingSelection.includes(drawing.id)} passive={spaceHeld || tool !== "select"} onSelect={(event) => onDrawingPointerDown(event, drawing)} onContextMenu={(event) => openDrawingContextMenu(event, drawing)} />)}
             {draftDrawing && <DrawingStroke drawing={draftDrawing} passive />}
           </svg>
           {!publicView && marquee && <SelectionMarquee bounds={marquee} zoom={zoom} />}
-          {!publicView && selectedBounds && <SelectionFrame bounds={selectedBounds} zoom={zoom} count={selection.length + drawingSelection.length} resizable={(selectionCanScale || ["image", "text", "code", "table", "icon", "arrow", "link", "basic-shape"].includes(selectedNode?.type)) && rotationModeId !== selectedNode?.id} rotatable={["arrow", "basic-shape"].includes(selectedNode?.type) && rotationModeId === selectedNode.id} horizontalHandles={!selectionCanScale && selectedNode?.type === "basic-shape" && selectedNode.shapeKind === "rectangle" && rotationModeId !== selectedNode.id} rotation={selectedNode?.rotation || 0} resizeLabel={selectionCanScale ? "selection" : selectedNode?.type || "element"} rotateLabel={selectedNode?.type === "basic-shape" ? "shape" : "arrow"} onResizeStart={selectionCanScale ? startSelectionResize : startElementResize} onRotateStart={startElementRotate} />}
+          {!publicView && selectedBounds && <SelectionFrame bounds={selectedBounds} zoom={zoom} count={selection.length + drawingSelection.length} resizable={(selectionCanScale || ["image", "text", "code", "checklist", "table", "icon", "arrow", "link", "basic-shape"].includes(selectedNode?.type)) && selectedNode?.shapeKind !== "line" && rotationModeId !== selectedNode?.id} rotatable={["arrow", "basic-shape"].includes(selectedNode?.type) && selectedNode?.shapeKind !== "line" && rotationModeId === selectedNode.id} lineEndpoints={!selectionCanScale && selectedNode?.type === "basic-shape" && selectedNode.shapeKind === "line"} horizontalHandles={!selectionCanScale && selectedNode?.type === "basic-shape" && selectedNode.shapeKind === "rectangle" && rotationModeId !== selectedNode.id} rotation={selectedNode?.rotation || 0} resizeLabel={selectionCanScale ? "selection" : selectedNode?.type || "element"} rotateLabel={selectedNode?.type === "basic-shape" ? "shape" : "arrow"} onResizeStart={selectionCanScale ? startSelectionResize : startElementResize} onRotateStart={startElementRotate} onLineEndpointStart={startLineEndpointDrag} />}
           {!embedMode && annotationsVisible && (document.annotations || []).map((annotation) => <AnnotationMarker key={annotation.id} annotation={annotation} selected={annotation.id === selectedAnnotationId} draggable={canManageAnnotation(annotation.id)} onDragStart={(event) => startAnnotationDrag(annotation, event)} onSelect={() => { setSelectedAnnotationId(annotation.id); setSelection([]); setEdgeSelection([]); setDrawingSelection([]); }} />)}
         </div>
         {!publicView && alignToolbarMounted && <div className={`alignment-toolbar ${alignToolbarExiting ? "is-exiting" : ""}`} role="toolbar" aria-label="Align selected elements" onPointerDown={(event) => event.stopPropagation()}>
@@ -3958,7 +4237,7 @@ function LinkThumbnail({ node }) {
   }} />;
 }
 
-function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, connecting, dropTarget, editing, hiding, onEdit, onSaveEdit, onCancelEdit, onTableChange, onPointerDown, onContextMenu, onKeyDown }) {
+function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, connecting, dropTarget, editing, hiding, onEdit, onSaveEdit, onCancelEdit, onTableChange, onChecklistChange, onPointerDown, onContextMenu, onKeyDown }) {
   const tone = toneForNode(node);
   const shapeColors = accessibleShapeColors(tone.accent);
   const size = nodeDimensions(node);
@@ -3978,6 +4257,7 @@ function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, conne
         <pre><code>{node.label}</code></pre>
       </div>}
       {node.type === "table" && <TableNode node={node} onChange={onTableChange} />}
+      {node.type === "checklist" && <ChecklistNode node={node} onChange={onChecklistChange} />}
       {node.type === "link" && (node.linkDisplay === "embed" ? <EmbeddedLinkNode node={node} /> : <div className="link-card-content">
         <div className={`link-card-thumbnail ${node.thumbnailKind === "favicon" ? "is-favicon" : ""} ${node.mediaKind ? "is-media" : ""}`}><GlobeHemisphereWest size={30} />{node.embedUrl && !node.thumbnail ? <iframe src={node.embedUrl} title={`${node.label} preview`} loading="lazy" tabIndex="-1" /> : <LinkThumbnail node={node} />}{node.mediaKind && <span className="media-play"><Play size={14} /></span>}</div>
         <div className="link-card-copy"><strong>{node.label}</strong><small>{node.subtitle}</small><span>{node.domain}</span></div>
@@ -3985,9 +4265,55 @@ function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, conne
       </div>)}
       {!node.type && <>{node.icon && <span className="node-icon"><IconForNode name={node.icon} /></span>}<span className="node-copy"><strong>{node.label}</strong><small>{node.subtitle}</small></span></>}
     </>}
-    {!['image', 'icon', 'arrow', 'link'].includes(node.type) && <><i className="node-port left" data-port="left" aria-hidden="true" /><i className="node-port right" data-port="right" aria-hidden="true" /><i className="node-port top" data-port="top" aria-hidden="true" /><i className="node-port bottom" data-port="bottom" aria-hidden="true" /></>}
+    {nodeAllowsConnections(node) && !['image', 'icon', 'link'].includes(node.type) && <><i className="node-port left" data-port="left" aria-hidden="true" /><i className="node-port right" data-port="right" aria-hidden="true" /><i className="node-port top" data-port="top" aria-hidden="true" /><i className="node-port bottom" data-port="bottom" aria-hidden="true" /></>}
     {hiddenConnectionCount > 0 && <button className="hidden-connections-badge" aria-label={`Show ${hiddenConnectionCount} hidden ${hiddenConnectionCount === 1 ? "connection" : "connections"}`} title="Show hidden connections" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onShowHidden(); }}>+{hiddenConnectionCount}</button>}
   </article>;
+}
+
+function ChecklistNode({ node, onChange }) {
+  const listRef = useRef(null);
+  const items = Array.isArray(node.items) && node.items.length ? node.items : [{ id: "task-empty", text: "", completed: false }];
+  const completedCount = items.filter((item) => item.completed).length;
+  const commit = (nextItems) => onChange?.(nextItems);
+  const focusTask = (taskId) => window.requestAnimationFrame(() => {
+    const row = Array.from(listRef.current?.querySelectorAll("[data-task-id]") || []).find((item) => item.dataset.taskId === taskId);
+    row?.querySelector('input[type="text"]')?.focus();
+  });
+  const updateTask = (index, patch) => commit(items.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
+  const addTaskAfter = (index) => {
+    if (!onChange) return;
+    const task = { id: uid("task"), text: "", completed: false };
+    const nextItems = [...items];
+    nextItems.splice(index + 1, 0, task);
+    commit(nextItems);
+    focusTask(task.id);
+  };
+  const removeTask = (index) => {
+    if (!onChange) return;
+    if (items.length === 1) {
+      commit([{ ...items[0], text: "", completed: false }]);
+      return;
+    }
+    const focusId = items[Math.max(0, index - 1)]?.id;
+    commit(items.filter((_, itemIndex) => itemIndex !== index));
+    if (focusId) focusTask(focusId);
+  };
+
+  return <div className="checklist-card-content">
+    <div className="checklist-card-header" title="Drag to move this list"><LucideIcons.ListChecks size={14} /><strong>{node.label || "Task list"}</strong><small>{completedCount}/{items.length}</small></div>
+    <div ref={listRef} className="checklist-items" role="list" aria-label={node.label || "Task list"} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
+      {items.map((item, index) => <div key={item.id} data-task-id={item.id} className={`checklist-item ${item.completed ? "completed" : ""}`} role="listitem">
+        <input type="checkbox" checked={Boolean(item.completed)} disabled={!onChange} aria-label={`Mark ${item.text || `task ${index + 1}`} ${item.completed ? "incomplete" : "complete"}`} onChange={(event) => updateTask(index, { completed: event.target.checked })} />
+        <input type="text" value={item.text || ""} readOnly={!onChange} placeholder="Add a task" aria-label={`Task ${index + 1}`} autoFocus={Boolean(onChange && index === 0 && !item.text)} onChange={(event) => updateTask(index, { text: event.target.value.slice(0, 500) })} onKeyDown={(event) => {
+          if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); addTaskAfter(index); }
+          if (event.key === "Backspace" && !item.text && items.length > 1) { event.preventDefault(); removeTask(index); }
+          if (event.key === "Escape") event.currentTarget.blur();
+        }} />
+        {onChange && <button type="button" aria-label={`Delete task ${index + 1}`} title="Delete task" onClick={() => removeTask(index)}><X size={12} /></button>}
+      </div>)}
+      {onChange && <button type="button" className="checklist-add-task" onClick={() => addTaskAfter(items.length - 1)}><Plus size={13} /> Add task</button>}
+    </div>
+  </div>;
 }
 
 function TableNode({ node, onChange }) {
@@ -4013,9 +4339,10 @@ function BasicShapeGraphic({ node, size }) {
   const common = { fill: node.fillColor || "#eef1ff", stroke: node.outlineColor || "#5367ef", strokeWidth: 3, vectorEffect: "non-scaling-stroke" };
   const inset = 0;
   return <svg className="basic-shape-graphic" viewBox={`0 0 ${size.width} ${size.height}`} aria-hidden="true">
+    {node.shapeKind === "line" && <line x1="0" y1={size.height / 2} x2={size.width} y2={size.height / 2} stroke={node.outlineColor || "#5367ef"} strokeWidth={node.strokeWidth || 3} strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
     {node.shapeKind === "circle" && <ellipse cx={size.width / 2} cy={size.height / 2} rx={Math.max(1, size.width / 2 - inset)} ry={Math.max(1, size.height / 2 - inset)} {...common} />}
     {node.shapeKind === "triangle" && <polygon points={`${size.width / 2},${inset} ${size.width - inset},${size.height - inset} ${inset},${size.height - inset}`} {...common} />}
-    {!["circle", "triangle"].includes(node.shapeKind) && <rect x="0" y="0" width={size.width} height={size.height} rx={node.shapeKind === "square" ? 5 : 9} {...common} />}
+    {!["line", "circle", "triangle"].includes(node.shapeKind) && <rect x="0" y="0" width={size.width} height={size.height} rx={node.shapeKind === "square" ? 5 : 9} {...common} />}
   </svg>;
 }
 
@@ -4252,12 +4579,13 @@ function HeroIconReplacementPicker({ currentIcon, onSelect }) {
   </div>;
 }
 
-function SelectionFrame({ bounds, zoom, count, resizable = false, rotatable = false, horizontalHandles = false, rotation = 0, resizeLabel = "element", rotateLabel = "element", onResizeStart, onRotateStart }) {
+function SelectionFrame({ bounds, zoom, count, resizable = false, rotatable = false, lineEndpoints = false, horizontalHandles = false, rotation = 0, resizeLabel = "element", rotateLabel = "element", onResizeStart, onRotateStart, onLineEndpointStart }) {
   const stroke = 2 / zoom;
   const handle = 10 / zoom;
   const handles = ["top-left", "top-right", "bottom-left", "bottom-right"];
-  return <div className={`selection-frame ${resizable ? "resizable" : ""} ${rotatable ? "rotatable" : ""}`} aria-hidden={!resizable && !rotatable} style={{ left: bounds.x, top: bounds.y, width: bounds.width, height: bounds.height, borderWidth: stroke, transform: rotation ? `rotate(${rotation}deg)` : undefined, "--selection-handle": `${handle}px`, "--selection-offset": `${-handle / 2 - stroke / 2}px` }}>
-    {handles.map((corner) => resizable || rotatable ? <button key={corner} type="button" className={`selection-handle ${corner}`} title={rotatable ? `Drag to rotate ${rotateLabel}` : undefined} aria-label={rotatable ? `Rotate ${rotateLabel} from ${corner.replace("-", " ")} corner` : `Resize ${resizeLabel} from ${corner.replace("-", " ")} corner`} onPointerDown={(event) => rotatable ? onRotateStart?.(corner, event) : onResizeStart?.(corner, event)} /> : <i key={corner} className={`selection-handle ${corner}`} />)}
+  return <div className={`selection-frame ${resizable ? "resizable" : ""} ${rotatable ? "rotatable" : ""} ${lineEndpoints ? "line-selection" : ""}`} aria-hidden={!resizable && !rotatable && !lineEndpoints} style={{ left: bounds.x, top: bounds.y, width: bounds.width, height: bounds.height, borderWidth: stroke, transform: rotation ? `rotate(${rotation}deg)` : undefined, "--selection-handle": `${handle}px`, "--selection-offset": `${-handle / 2 - stroke / 2}px` }}>
+    {!lineEndpoints && handles.map((corner) => resizable || rotatable ? <button key={corner} type="button" className={`selection-handle ${corner}`} title={rotatable ? `Drag to rotate ${rotateLabel}` : undefined} aria-label={rotatable ? `Rotate ${rotateLabel} from ${corner.replace("-", " ")} corner` : `Resize ${resizeLabel} from ${corner.replace("-", " ")} corner`} onPointerDown={(event) => rotatable ? onRotateStart?.(corner, event) : onResizeStart?.(corner, event)} /> : <i key={corner} className={`selection-handle ${corner}`} />)}
+    {lineEndpoints && ["left", "right"].map((side) => <button key={side} type="button" className={`selection-handle line-endpoint ${side}`} title={`Drag to resize and rotate line from the ${side} endpoint`} aria-label={`Resize and rotate line from the ${side} endpoint`} onPointerDown={(event) => onLineEndpointStart?.(side, event)} />)}
     {horizontalHandles && ["middle-left", "middle-right"].map((position) => <button key={position} type="button" className={`selection-handle ${position}`} aria-label={`Resize ${resizeLabel} width from ${position.replace("-", " ")}`} onPointerDown={(event) => onResizeStart?.(position, event)} />)}
     {count > 1 && <span className="selection-count" style={{ fontSize: `${10 / zoom}px`, height: `${22 / zoom}px`, padding: `0 ${7 / zoom}px`, top: `${-30 / zoom}px` }}>{count} selected</span>}
   </div>;
@@ -4279,6 +4607,7 @@ function CanvasFeedback({ feedback }) {
     aligned: { icon: <AlignLeft size={17} />, label: `${itemLabel} aligned` },
     arranged: { icon: <Squares2X2Icon width="17" />, label: `${itemLabel} arranged by colour` },
     imported: { icon: <FileText size={17} />, label: `${itemLabel} imported` },
+    generated: { icon: <Sparkle size={17} />, label: `${feedback.count}-step flow created` },
     undo: { icon: <ArrowsClockwise size={17} />, label: "Change undone" },
     redo: { icon: <ArrowsClockwise size={17} />, label: "Change redone" },
   }[feedback.type];
@@ -4394,8 +4723,6 @@ function CodeStyleToolbar({ style, onEdit, onDelete }) {
 function ImageStyleToolbar({ node, style, popoverPlacement, openMenu, setOpenMenu, onChange, onDelete }) {
   const toggle = (menu) => setOpenMenu((current) => current === menu ? null : menu);
   return <div className={`node-style-toolbar image-style-toolbar popovers-${popoverPlacement}`} style={style} role="toolbar" aria-label="Image formatting" onPointerDown={(event) => event.stopPropagation()}>
-    <div className="node-toolbar-item"><button className={openMenu === "image-details" ? "active" : ""} aria-label="Image details" onClick={() => toggle("image-details")}><Photo size={18} /><CaretDown size={11} /></button>{openMenu === "image-details" && <div className="node-toolbar-popover image-details-popover"><strong>Image</strong><label>Alternative text<input value={node.label || ""} onChange={(event) => onChange({ label: event.target.value })} /></label><label>Width <span>{node.width || 280}px</span><input type="range" min="120" max="900" step="10" value={node.width || 280} style={rangeFillStyle(node.width || 280, 120, 900)} onChange={(event) => onChange({ width: Number(event.target.value) })} /></label>{node.isSvg && <p>SVG · transparent vector</p>}</div>}</div>
-    <span className="node-toolbar-divider" />
     <div className="node-toolbar-item"><button className={openMenu === "crop" ? "active" : ""} aria-label="Crop image" onClick={() => toggle("crop")}><Viewfinder size={18} /><span>Crop</span></button>{openMenu === "crop" && <div className="node-toolbar-popover crop-popover"><strong>Crop image</strong><div className="crop-aspects">{[["original", "Original"], ["square", "1:1"], ["4:3", "4:3"], ["16:9", "16:9"]].map(([value, label]) => <button key={value} className={(node.cropAspect || "original") === value ? "selected" : ""} onClick={() => onChange({ cropAspect: value })}>{label}</button>)}</div><label>Zoom <span>{Math.round((node.cropZoom || 1) * 100)}%</span><input type="range" min="1" max="3" step=".05" value={node.cropZoom || 1} style={rangeFillStyle(node.cropZoom || 1, 1, 3)} onChange={(event) => onChange({ cropZoom: Number(event.target.value) })} /></label><button className="crop-reset" onClick={() => onChange({ cropAspect: "original", cropZoom: 1 })}>Reset crop</button></div>}</div>
     <span className="node-toolbar-divider" />
     <button className="toolbar-delete" aria-label="Delete image" onClick={onDelete}><Trash size={17} /></button>
@@ -4429,6 +4756,13 @@ function ArrowStyleToolbar({ node, style, openMenu, setOpenMenu, onChange, onDel
 
 function BasicShapeToolbar({ node, style, openMenu, setOpenMenu, onEdit, onChange, onDelete }) {
   const toggle = (menu) => setOpenMenu((current) => current === menu ? null : menu);
+  if (node.shapeKind === "line") return <div className="node-style-toolbar basic-shape-toolbar line-shape-toolbar" style={style} role="toolbar" aria-label="Line formatting" onPointerDown={(event) => event.stopPropagation()}>
+    <div className="node-toolbar-item"><button className={openMenu === "line-colour" ? "active" : ""} aria-label="Line stroke colour" aria-expanded={openMenu === "line-colour"} onClick={() => toggle("line-colour")}><span className="toolbar-colour-dot" style={{ background: node.outlineColor || "#5367ef" }} /><span>Stroke</span><CaretDown size={11} /></button>{openMenu === "line-colour" && <div className="node-toolbar-popover colour-popover"><ShapeColorControl label="Stroke" value={node.outlineColor || "#5367ef"} onChange={(outlineColor) => onChange({ outlineColor })} /></div>}</div>
+    <span className="node-toolbar-divider" />
+    <div className="node-toolbar-item"><button className={openMenu === "line-thickness" ? "active" : ""} aria-label={`Line thickness ${node.strokeWidth || 3} pixels`} aria-expanded={openMenu === "line-thickness"} onClick={() => toggle("line-thickness")}><LucideIcons.Weight size={16} /><span>{node.strokeWidth || 3}px</span><CaretDown size={11} /></button>{openMenu === "line-thickness" && <div className="node-toolbar-popover line-thickness-popover"><strong>Thickness</strong><div className="inspector-field"><input className="size-range" type="range" min="1" max="24" step="1" value={node.strokeWidth || 3} style={rangeFillStyle(node.strokeWidth || 3, 1, 24)} onChange={(event) => onChange({ strokeWidth: Number(event.target.value) })} /><small>{node.strokeWidth || 3}px</small></div></div>}</div>
+    <span className="node-toolbar-divider" />
+    <button className="toolbar-delete" aria-label="Delete line" onClick={onDelete}><Trash size={17} /></button>
+  </div>;
   const fillIsTransparent = String(node.fillColor || "").toLowerCase() === "transparent";
   const outlineIsTransparent = String(node.outlineColor || "").toLowerCase() === "transparent";
   return <div className="node-style-toolbar basic-shape-toolbar" style={style} role="toolbar" aria-label="Basic shape formatting" onPointerDown={(event) => event.stopPropagation()}>
@@ -4617,6 +4951,47 @@ function LinkDialog({ onClose, onAdd }) {
   </form></div>;
 }
 
+function FlowGeneratorDialog({ onClose, onGenerate }) {
+  const [value, setValue] = useState(ONBOARDING_FLOW_PROMPT);
+  const [useSample, setUseSample] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  useModalKeyboard(busy ? undefined : onClose);
+  const submit = async () => {
+    const text = value.trim();
+    if (text.length < 20) { setError("Describe at least two steps so MyMind can build a useful flow."); return; }
+    setBusy(true);
+    setError("");
+    try {
+      await onGenerate({ text, useSample });
+      onClose();
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : "MyMind could not generate this flow.");
+      setBusy(false);
+    }
+  };
+  return <div className="modal-backdrop flow-generator-backdrop" onMouseDown={busy ? undefined : onClose}>
+    <form className="modal flow-generator-modal" role="dialog" aria-modal="true" aria-labelledby="flow-generator-title" onSubmit={(event) => { event.preventDefault(); submit(); }} onMouseDown={(event) => event.stopPropagation()}>
+      <div className="modal-header">
+        <div className="flow-generator-heading"><span><Sparkle size={19} /></span><div><h2 id="flow-generator-title">Generate a process flow</h2><p>Describe a journey and get editable nodes and connections.</p></div></div>
+        <button type="button" className="icon-button" aria-label="Close dialog" disabled={busy} onClick={onClose}><X size={18} /></button>
+      </div>
+      <label className="flow-generator-field">Product journey
+        <textarea autoFocus value={value} placeholder="For example: A customer signs up, verifies their email…" aria-invalid={!!error} onChange={(event) => { setValue(event.target.value); setUseSample(false); setError(""); }} />
+      </label>
+      <div className="flow-generator-sample-row">
+        <button type="button" className={useSample ? "active" : ""} onClick={() => { setValue(ONBOARDING_FLOW_PROMPT); setUseSample(true); setError(""); }}><Workflow size={16} /> Use onboarding sample</button>
+        <small>{useSample ? "Ready without an API key" : "Uses structured AI generation"}</small>
+      </div>
+      {error && <p className="field-error flow-generator-error" role="alert">{error}</p>}
+      <div className="flow-generator-preview" aria-label="Generated flow preview">
+        <span>Start</span><i /><span>Steps</span><i /><span>Decision</span><i /><span>Outcome</span>
+      </div>
+      <div className="modal-actions"><button type="button" className="secondary-button" disabled={busy} onClick={onClose}>Cancel</button><button className="primary-button" disabled={busy}><Sparkle size={16} /> {busy ? "Generating…" : useSample ? "Create sample flow" : "Generate flow"}</button></div>
+    </form>
+  </div>;
+}
+
 function CommandPalette({ commands, onClose }) {
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
@@ -4636,7 +5011,7 @@ function CommandPalette({ commands, onClose }) {
   return <div className="popover-backdrop command-palette-backdrop" onMouseDown={onClose}>
     <div className="command-palette" role="dialog" aria-modal="true" aria-label="Command palette" onMouseDown={(event) => event.stopPropagation()}>
       <label className="command-palette-search">
-        <img src={commandSparkle} alt="" aria-hidden="true" />
+        <ThinkingOrb />
         <input ref={inputRef} value={query} placeholder="What do you want to create?" aria-label="Search commands and actions" autoComplete="off" onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => {
           if (event.key === "ArrowDown") { event.preventDefault(); setActiveIndex((index) => Math.min(index + 1, results.length - 1)); }
           else if (event.key === "ArrowUp") { event.preventDefault(); setActiveIndex((index) => Math.max(index - 1, 0)); }

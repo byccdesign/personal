@@ -829,6 +829,119 @@ try {
         reply(['error' => 'Authentication required'], 401);
     }
 
+    if ($action === 'flow-generate' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        if (!function_exists('curl_init')) reply(['error' => 'AI generation is unavailable on this server'], 503);
+        $payload = body();
+        $text = trim((string) ($payload['text'] ?? ''));
+        if (mb_strlen($text) < 20) reply(['error' => 'Describe at least two steps for the process flow'], 422);
+        if (mb_strlen($text) > 8000) reply(['error' => 'Keep the process description under 8,000 characters'], 422);
+        $apiKey = trim((string) ($config['openai_api_key'] ?? (getenv('OPENAI_API_KEY') ?: '')));
+        if ($apiKey === '') reply(['error' => 'Add OPENAI_API_KEY to enable custom flow generation. The onboarding sample works without it.'], 503);
+        $model = trim((string) ($config['openai_model'] ?? (getenv('OPENAI_MODEL') ?: 'gpt-5.6-sol'))) ?: 'gpt-5.6-sol';
+
+        $schema = [
+            'type' => 'object',
+            'additionalProperties' => false,
+            'required' => ['title', 'nodes', 'edges'],
+            'properties' => [
+                'title' => ['type' => 'string'],
+                'nodes' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'additionalProperties' => false,
+                        'required' => ['id', 'title', 'description', 'type', 'column', 'row'],
+                        'properties' => [
+                            'id' => ['type' => 'string'],
+                            'title' => ['type' => 'string'],
+                            'description' => ['type' => 'string'],
+                            'type' => ['type' => 'string', 'enum' => ['start', 'process', 'decision', 'input', 'end']],
+                            'column' => ['type' => 'integer'],
+                            'row' => ['type' => 'integer'],
+                        ],
+                    ],
+                ],
+                'edges' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'additionalProperties' => false,
+                        'required' => ['source', 'target', 'label'],
+                        'properties' => [
+                            'source' => ['type' => 'string'],
+                            'target' => ['type' => 'string'],
+                            'label' => ['type' => 'string'],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+        $request = [
+            'model' => $model,
+            'reasoning' => ['effort' => 'low'],
+            'instructions' => 'Convert the supplied product journey into a concise process flow of 2 to 24 nodes and no more than 36 edges. Preserve the user intent, add only steps needed for clarity, use decisions only for real branches, and reconnect every branch to a meaningful next step. Keep titles under 120 characters and descriptions under 240 characters. Arrange the diagram left-to-right with integer columns from 0 to 12 and rows from 0 to 8 for branches. IDs must be unique slugs under 48 characters. Start with one start node and finish with at least one end node. Return only the requested structured data.',
+            'input' => $text,
+            'text' => ['format' => ['type' => 'json_schema', 'name' => 'mymind_product_flow', 'strict' => true, 'schema' => $schema]],
+        ];
+        $curl = curl_init('https://api.openai.com/v1/responses');
+        curl_setopt_array($curl, [
+            CURLOPT_POST => true,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 8,
+            CURLOPT_TIMEOUT => 45,
+            CURLOPT_HTTPHEADER => ['Authorization: Bearer ' . $apiKey, 'Content-Type: application/json'],
+            CURLOPT_POSTFIELDS => json_encode($request, JSON_UNESCAPED_SLASHES),
+        ]);
+        $rawResponse = curl_exec($curl);
+        $status = (int) curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+        $transportError = curl_error($curl);
+        curl_close($curl);
+        if (!is_string($rawResponse)) reply(['error' => $transportError !== '' ? 'OpenAI request failed: ' . $transportError : 'OpenAI request failed'], 502);
+        $response = json_decode($rawResponse, true);
+        if ($status < 200 || $status >= 300) {
+            $message = is_array($response) ? (string) ($response['error']['message'] ?? 'OpenAI could not generate this flow') : 'OpenAI could not generate this flow';
+            reply(['error' => mb_substr($message, 0, 300)], 502);
+        }
+        $outputText = '';
+        foreach (is_array($response['output'] ?? null) ? $response['output'] : [] as $output) {
+            if (($output['type'] ?? '') !== 'message') continue;
+            foreach (is_array($output['content'] ?? null) ? $output['content'] : [] as $content) {
+                if (($content['type'] ?? '') === 'output_text' && is_string($content['text'] ?? null)) $outputText .= $content['text'];
+            }
+        }
+        $flow = json_decode($outputText, true);
+        if (!is_array($flow) || !is_array($flow['nodes'] ?? null) || !is_array($flow['edges'] ?? null)) reply(['error' => 'OpenAI returned an invalid flow'], 502);
+        $nodeIds = [];
+        $nodes = [];
+        $allowedTypes = ['start', 'process', 'decision', 'input', 'end'];
+        foreach (array_slice($flow['nodes'], 0, 24) as $node) {
+            if (!is_array($node)) continue;
+            $id = substr(preg_replace('/[^a-zA-Z0-9_-]/', '-', trim((string) ($node['id'] ?? ''))), 0, 48);
+            $title = mb_substr(trim(strip_tags((string) ($node['title'] ?? ''))), 0, 120);
+            $type = (string) ($node['type'] ?? '');
+            if ($id === '' || $title === '' || isset($nodeIds[$id]) || !in_array($type, $allowedTypes, true)) continue;
+            $nodeIds[$id] = true;
+            $nodes[] = [
+                'id' => $id,
+                'title' => $title,
+                'description' => mb_substr(trim(strip_tags((string) ($node['description'] ?? ''))), 0, 240),
+                'type' => $type,
+                'column' => max(0, min(12, (int) ($node['column'] ?? 0))),
+                'row' => max(0, min(8, (int) ($node['row'] ?? 0))),
+            ];
+        }
+        if (count($nodes) < 2) reply(['error' => 'OpenAI did not return enough valid flow steps'], 502);
+        $edges = [];
+        foreach (array_slice($flow['edges'], 0, 36) as $edge) {
+            if (!is_array($edge)) continue;
+            $source = substr((string) ($edge['source'] ?? ''), 0, 48);
+            $target = substr((string) ($edge['target'] ?? ''), 0, 48);
+            if ($source === $target || !isset($nodeIds[$source], $nodeIds[$target])) continue;
+            $edges[] = ['source' => $source, 'target' => $target, 'label' => mb_substr(trim(strip_tags((string) ($edge['label'] ?? ''))), 0, 48)];
+        }
+        reply(['title' => mb_substr(trim(strip_tags((string) ($flow['title'] ?? 'Generated process flow'))), 0, 100), 'nodes' => $nodes, 'edges' => $edges, 'model' => $model]);
+    }
+
     if ($action === 'list' && $_SERVER['REQUEST_METHOD'] === 'GET') {
         $rows = $pdo->query('SELECT ' . document_list_select_columns() . ' FROM mind_documents d LEFT JOIN mind_document_sync s ON s.document_id = d.id ORDER BY d.updated_at DESC')->fetchAll();
         $folders = $pdo->query('SELECT id, name FROM mind_folders ORDER BY name')->fetchAll();

@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="author" content="Christine Uy" />
+  <meta name="description" content="A visual workspace for AI-generated flows, connected canvases, rich content, collaboration, templates, embedding, and portable exports." />
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#090B12">
+  <meta property="og:image" content="MyMind/video/end-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair:ital,opsz,wght@0,5..1200,300..900;1,5..1200,300..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/brand.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block">
+  <title>Christine Uy - MyMind, Designing an AI-ready visual workspace</title>
+</head>
+
+<body class="mymind-page">
+<div class="cursor"></div>
+<div class="cursor-ring"></div>
+
+<header class="navbar" id="navbar">
+  <div class="nav-logo" alt="Christine Uy - This is the homepage">
+    <a href="https://christine-uy.com/">Christine Uy</a>
+  </div>
+
+  <button class="nav-toggle" type="button" aria-controls="primary-navigation" aria-expanded="false" aria-label="Open menu">
+    <span></span>
+    <span></span>
+  </button>
+
+  <nav class="nav-links" id="primary-navigation">
+    <a href="/product" aria-current="page">Product</a>
+    <a href="/notes/">Notes</a>
+    <a href="/about">About</a>
+    <a href="/contact">Contact</a>
+  </nav>
+</header>
+
+<nav class="case-anchor-nav" aria-label="MyMind case study sections">
+  <div class="case-anchor-nav__rail">
+    <a href="#summary-title" aria-label="Summary"></a>
+    <a href="#origin-title" aria-label="How it started"></a>
+    <a href="#product-title" aria-label="Product"></a>
+    <a href="#problem-title" aria-label="Problem"></a>
+    <a href="#workflow-title" aria-label="AI workflow model"></a>
+    <a href="#trust-title" aria-label="Control and trust"></a>
+    <a href="#iteration-title" aria-label="Iteration"></a>
+    <a href="#craft-title" aria-label="Craft"></a>
+    <a href="#outcome-title" aria-label="Outcome"></a>
+    <a href="#learnings-title" aria-label="Learnings"></a>
+  </div>
+  <div class="case-anchor-card">
+    <p>Content</p>
+    <a href="#summary-title">Summary</a>
+    <a href="#origin-title">How It Started</a>
+    <a href="#product-title">Product</a>
+    <a href="#problem-title">Problem</a>
+    <a href="#workflow-title">AI Workflow</a>
+    <a href="#trust-title">Control &amp; Trust</a>
+    <a href="#iteration-title">Iteration</a>
+    <a href="#craft-title">Craft</a>
+    <a href="#outcome-title">Outcome</a>
+    <a href="#learnings-title">Learnings</a>
+  </div>
+</nav>
+
+<main class="ewa-case-study ewa-case-study--project-hero mymind-case-study">
+  <section class="project-hero" aria-labelledby="summary-title">
+    <div class="project-hero__content fade-in-up">
+      <div class="project-hero__tags" aria-label="Project disciplines">
+        <span>Visual Workspace</span>
+        <span>AI Workflows</span>
+        <span>Canvas Systems</span>
+        <span>Responsive Interaction</span>
+        <span>Full-Stack Prototype</span>
+      </div>
+
+      <h1 class="project-hero__title" id="summary-title">
+        Designing and developing an AI-ready canvas app workspace.
+      </h1>
+
+      <p class="project-hero__summary">
+        Built with React, SVG, Canvas APIs, and a lightweight PHP backend after years of switching
+        between Miro, Whimsical, Lucidchart, and FigJam. The current product combines connected diagrams,
+        freehand drawing, rich content, data tables, collaboration, templates, and natural-language flow
+        generation in one responsive workspace.
+      </p>
+
+      <div class="project-hero__metrics" aria-label="Project outcomes">
+        <article class="project-metric">
+          <p class="project-metric__value">15+ elements</p>
+          <p class="project-metric__label">Nodes, shapes, drawings, media, data, code, lists, and embeds</p>
+        </article>
+        <article class="project-metric">
+          <p class="project-metric__value">11 templates</p>
+          <p class="project-metric__label">Flows, maps, journeys, roadmaps, planning boards, and UML</p>
+        </article>
+        <article class="project-metric">
+          <p class="project-metric__value">6 exports</p>
+          <p class="project-metric__label">Editable .mymind, PDF, JPG, PNG, GIF, and SVG</p>
+        </article>
+      </div>
+    </div>
+
+    <div class="project-hero__visual project-hero__visual--mymind">
+      <figure class="mymind-case-study-video" aria-label="MyMind product demonstration">
+        <video class="mymind-case-study-video__media" autoplay muted loop playsinline preload="metadata" poster="/vid/mymind/mymind-demo-desktop-poster.jpg" aria-label="MyMind opens command search, generates a connected workflow, and organizes a visual board">
+          <source src="/vid/mymind/mymind-demo-mobile.mp4" type="video/mp4" media="(max-width: 640px)">
+          <source src="/vid/mymind/mymind-demo-desktop.mp4" type="video/mp4">
+        </video>
+        <figcaption>Press Cmd + K, describe a workflow, and watch MyMind turn it into an editable visual system.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="fade-in-up ewa-details" aria-label="Project details">
+    <dl>
+      <div>
+        <dt>Product</dt>
+        <dd>MyMind</dd>
+      </div>
+      <div>
+        <dt>Role</dt>
+        <dd>Product Design, UX, Front-End</dd>
+      </div>
+      <div>
+        <dt>Focus</dt>
+        <dd>AI creation, canvas systems, collaboration</dd>
+      </div>
+      <div>
+        <dt>Format</dt>
+        <dd>Responsive full-stack product prototype</dd>
+      </div>
+    </dl>
+  </section>
+
+  <section class="project-showcase project-showcase--content-width" aria-labelledby="origin-title">
+    <div class="project-showcase__copy">
+      <span>How It Started</span>
+      <h2 id="origin-title">I started with a vision, an idea, and a very real workflow itch.</h2>
+      <p>In my Substack post, I wrote about building MyMind because I kept moving between tools like Miro, Whimsical, Lucidchart, and FigJam. I used them for process flows, mind maps, idea dumps, and systems thinking, but the exact mix of features I wanted never lived in one place.</p>
+      <p>So I built the canvas tool I actually needed for personal use: something granular enough to map connections, flexible enough for messy thinking, and small enough to match the way I naturally work. I also wanted the interface interactions to feel personal and the product to work offline.</p>
+      <div class="ewa-metric-grid" aria-label="MyMind origin inputs">
+        <article>
+          <span class="material-symbols-outlined icon-small-cs" aria-hidden="true">draw</span><strong class="ewa-metric-card__title">Canvas First</strong>
+          <p>I think in systems, so the product begins with a blank canvas where ideas, flows, images, and annotations can connect.</p>
+        </article>
+        <article>
+          <span class="material-symbols-outlined icon-small-cs" aria-hidden="true">auto_awesome</span><strong class="ewa-metric-card__title">AI-Assisted Build</strong>
+          <p>I used open-source libraries and AI tools in my development workflow to prototype, debug, and iterate faster.</p>
+        </article>
+        <article>
+          <span class="material-symbols-outlined icon-small-cs" aria-hidden="true">groups</span><strong class="ewa-metric-card__title">Real Feedback</strong>
+          <p>Friends and colleagues across product, QA, and engineering tested it, critiqued it, and helped shape the direction.</p>
+        </article>
+      </div>
+      <p><a href="https://creatvetin.substack.com/p/exploration-designing-and-building" target="_blank" rel="noreferrer">Read the original Substack reflection</a></p>
+    </div>
+  </section>
+
+  <section class="ewa-highlight ewa-highlight-card ewa-highlight-card--impact" aria-labelledby="product-title">
+    <div class="ewa-highlight__copy ewa-highlight-card__copy">
+      <h2 id="product-title">A flexible canvas for thinking, planning, and publishing.</h2>
+      <p>
+        The current version supports the full path from an unfinished thought to a reusable artifact. A user can sketch freely, generate a structured process, connect and reorganize objects, add media or data, invite feedback, and publish the result without flattening the canvas into a dead image.
+      </p>
+    </div>
+    <div class="ewa-highlight-card__nodes" aria-label="MyMind product pillars">
+      <article class="ewa-highlight-card__node">
+        <span class="material-symbols-outlined" aria-hidden="true">account_tree</span>
+        <p>Structured + Freeform Canvas</p>
+      </article>
+      <article class="ewa-highlight-card__node">
+        <span class="material-symbols-outlined" aria-hidden="true">auto_awesome</span>
+        <p>Natural-Language Flow Creation</p>
+      </article>
+      <article class="ewa-highlight-card__node">
+        <span class="material-symbols-outlined" aria-hidden="true">deployed_code</span>
+        <p>Rich Content + Embeds</p>
+      </article>
+      <article class="ewa-highlight-card__node">
+        <span class="material-symbols-outlined" aria-hidden="true">group</span>
+        <p>Share, Comment + Guest Edit</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="ewa-section mymind-current-features" aria-labelledby="current-features-title">
+    <span class="project-pill">Current Product</span>
+    <h2 id="current-features-title">The latest build goes well beyond nodes and connectors.</h2>
+    <p>MyMind now combines diagramming, visual organization, rich canvas objects, collaboration, and publishing in one interaction system. Every feature below is implemented in the current app.</p>
+    <div class="mymind-feature-bento" aria-label="Current MyMind features">
+      <article class="mymind-feature-card mymind-feature-card--building">
+        <div class="mymind-feature-card__copy">
+          <span class="material-symbols-outlined" aria-hidden="true">category</span>
+          <strong>Flexible Building Blocks</strong>
+          <p>Add idea, person, process, outcome, start/end, decision, and input/output nodes alongside text, code blocks, task lists, searchable icons, arrows, and editable shapes.</p>
+        </div>
+        <figure class="mymind-feature-card__media mymind-feature-card__media--flow" aria-hidden="true">
+          <img src="/img/mymind/mymind-feature-flow.jpg" alt="" loading="lazy" decoding="async">
+        </figure>
+      </article>
+      <article class="mymind-feature-card mymind-feature-card--collaboration">
+        <div class="mymind-feature-card__copy">
+          <span class="material-symbols-outlined" aria-hidden="true">group</span>
+          <strong>Collaboration and Publishing</strong>
+          <p>Organize work across pages, share a public canvas, allow or disable guest editing, show active participants, place threaded comments, and copy a clean iframe embed for a case study.</p>
+        </div>
+        <div class="mymind-collab-preview" aria-hidden="true">
+          <div class="mymind-collab-preview__toolbar">
+            <div class="mymind-collab-preview__avatars"><span>CU</span><span>AM</span><span>JL</span><small>+2</small></div>
+            <b>Share</b>
+            <span class="material-symbols-outlined">link</span>
+          </div>
+          <div class="mymind-collab-preview__canvas">
+            <div class="mymind-collab-preview__node is-selected"><strong>Marketing plan</strong><small>Q2 launch campaign</small><i>Christine</i></div>
+            <span class="material-symbols-outlined mymind-collab-preview__arrow">arrow_forward</span>
+            <div class="mymind-collab-preview__node is-outcome"><strong>Content production</strong><small>Assets and copy</small><i>Mark</i></div>
+            <div class="mymind-collab-preview__comment"><span>A</span><p><strong>Alex</strong><small>Let’s tighten the message and add audience notes.</small></p><b>2</b></div>
+          </div>
+        </div>
+      </article>
+      <article class="mymind-feature-card mymind-feature-card--connections">
+        <div class="mymind-feature-card__copy">
+          <span class="material-symbols-outlined" aria-hidden="true">conversion_path</span>
+          <strong>Connections and Layout</strong>
+          <p>Connect from any side, label and bend routes, reconnect either endpoint, hide branches, align multiple objects, group selections, rotate shapes, and control stacking order.</p>
+        </div>
+        <figure class="mymind-feature-card__media mymind-feature-card__media--connections" aria-hidden="true">
+          <img src="/img/mymind/mymind-feature-flow.jpg" alt="" loading="lazy" decoding="async">
+        </figure>
+      </article>
+      <article class="mymind-feature-card mymind-feature-card--drawing">
+        <div class="mymind-feature-card__copy">
+          <span class="material-symbols-outlined" aria-hidden="true">draw</span>
+          <strong>Drawing and Visual Media</strong>
+          <p>Use pressure-aware pen and highlighter strokes, resize one or many drawings, upload or paste images, add preview cards, and place resizeable website or document iframes.</p>
+        </div>
+        <figure class="mymind-feature-card__media mymind-feature-card__media--drawing" aria-hidden="true">
+          <img src="/img/mymind/mymind-feature-drawing.jpg" alt="" loading="lazy" decoding="async">
+        </figure>
+      </article>
+      <article class="mymind-feature-card mymind-feature-card--data">
+        <div class="mymind-feature-card__copy">
+          <span class="material-symbols-outlined" aria-hidden="true">table_view</span>
+          <strong>Data and Templates</strong>
+          <p>Import CSV or XLSX files as editable, resizeable, scrollable tables, or start from 11 templates covering processes, mind maps, journeys, roadmaps, Gantt planning, sitemaps, workshops, and UML.</p>
+        </div>
+        <div class="mymind-data-preview" aria-hidden="true">
+          <table>
+            <thead><tr><th>Task</th><th>Owner</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>Research</td><td>Christine</td><td><span>Done</span></td></tr>
+              <tr><td>Wireframes</td><td>Mark</td><td><span>In progress</span></td></tr>
+              <tr><td>Prototype</td><td>Alex</td><td><span>Planned</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </article>
+      <article class="mymind-feature-card mymind-feature-card--workflow">
+        <div class="mymind-feature-card__copy">
+          <span class="material-symbols-outlined" aria-hidden="true">bolt</span>
+          <strong>Fast, Portable Workflow</strong>
+          <p>Find actions through Cmd/Ctrl + K, use desktop shortcuts or the mobile radial tool selector, then export the whole canvas or a selection as .mymind, PDF, JPG, PNG, GIF, or SVG.</p>
+        </div>
+        <figure class="mymind-feature-card__media mymind-feature-card__media--command" aria-hidden="true">
+          <img src="/img/mymind/mymind-feature-command.jpg" alt="" loading="lazy" decoding="async">
+        </figure>
+      </article>
+    </div>
+  </section>
+
+  <section class="ewa-section" aria-labelledby="problem-title">
+    <span class="project-pill">Problem</span>
+    <h2 id="problem-title">AI can accelerate thinking, but it can also make the process feel opaque.</h2>
+    <p>Most productivity tools optimize for the finished artifact: a note, a diagram, a document, or a task list. But real thinking is less linear. I wanted a space where I could collect fragments, test relationships, change my mind, invite feedback, and understand what changed before trusting the next iteration.</p>
+    <p>For AI-assisted workflows, the design challenge becomes sharper: how do you help people move faster without hiding the steps, removing authorship, or making generated output feel too final?</p>
+    <div class="ewa-metric-grid" aria-label="Design challenges">
+      <article>
+        <span class="material-symbols-outlined icon-small-cs" aria-hidden="true">schema</span><strong class="ewa-metric-card__title">Nonlinear Work</strong>
+        <p>Ideas needed to move between freeform exploration and structured maps without forcing one rigid workflow.</p>
+      </article>
+      <article>
+        <span class="material-symbols-outlined icon-small-cs" aria-hidden="true">psychology</span><strong class="ewa-metric-card__title">AI Ambiguity</strong>
+        <p>Suggestions needed to feel inspectable and reversible rather than magical, hidden, or overconfident.</p>
+      </article>
+      <article>
+        <span class="material-symbols-outlined icon-small-cs" aria-hidden="true">lock_open</span><strong class="ewa-metric-card__title">Trust Boundaries</strong>
+        <p>Sharing, guest editing, comments, and exports needed clear permissions so users knew what others could see or change.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="project-showcase project-showcase--content-width" aria-labelledby="workflow-title">
+    <div class="project-showcase__copy">
+      <span>AI Workflow Model</span>
+      <h2 id="workflow-title">I designed the workflow around human intent first, automation second.</h2>
+      <p>The product model separates the user's goal from the system's suggestion. A person starts with intent, chooses a creation path, reviews the structure, edits the result, and only then decides whether to share, export, or keep iterating.</p>
+      <div class="project-node-comparison" aria-label="AI workflow comparison">
+        <article class="project-node-comparison__card">
+          <h3>Weak Pattern</h3>
+          <ul>
+            <li>Ask the system for an answer</li>
+            <li>Receive a finished-looking output</li>
+            <li>Manually inspect what changed</li>
+            <li>Trust depends on confidence, not clarity</li>
+          </ul>
+        </article>
+
+        <svg class="project-node-comparison__connector" viewBox="0 0 105 12" aria-hidden="true" focusable="false">
+          <path d="M1 6H99"></path>
+        </svg>
+
+        <article class="project-node-comparison__card">
+          <h3>MyMind Pattern</h3>
+          <ul>
+            <li>Start with intent and context</li>
+            <li>Suggest an editable structure</li>
+            <li>Keep every object movable and reversible</li>
+            <li>Trust comes from control and visibility</li>
+          </ul>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="ewa-section" aria-labelledby="trust-title">
+    <span class="project-pill">Control and Trust</span>
+    <h2 id="trust-title">The interaction model keeps people in charge of each step.</h2>
+    <p>MyMind uses familiar controls such as templates, keyboard shortcuts, command search, comments, share toggles, and export scopes to make complex workflows feel governable. AI generation produces normal canvas objects—not a locked result—so every node, label, connection, and layout decision remains editable.</p>
+    <ul class="ewa-list">
+      <li><strong>Scoped creation:</strong> add an individual node, text block, code block, task list, spreadsheet, icon, image, link, iframe, shape, drawing, comment, or complete template.</li>
+      <li><strong>Reversible editing:</strong> undo, redo, duplicate, group, ungroup, align, restack, reconnect, hide connections, and delete controls keep experimentation low-risk.</li>
+      <li><strong>Transparent sharing:</strong> private, shared view/comment, guest edit, participant presence, and clean embed states clarify who can see or change a canvas.</li>
+      <li><strong>Portable output:</strong> editable .mymind import/export plus PDF, JPG, PNG, GIF, and SVG output preserve both ownership and presentation flexibility.</li>
+    </ul>
+  </section>
+
+  <section class="project-showcase project-showcase--content-width" aria-labelledby="iteration-title">
+    <div class="project-showcase__copy">
+      <span>Iteration</span>
+      <h2 id="iteration-title">I used the app itself as a design lab for workflow iteration.</h2>
+      <p>The prototype helped me test how quickly a user could move from blank canvas to useful structure across desktop, tablet, and mobile. I focused iterations around reducing blank-state anxiety, making contextual controls discoverable, preserving direct manipulation, and ensuring every advanced feature still had a visible escape hatch.</p>
+      <p>My AI-assisted development workflow also became part of the product story. Codex carried most of the build and refactor work because it kept stronger continuity with the codebase. Copilot was useful for smaller tasks. When I switched models midstream, the app sometimes broke because the new model did not share the same architectural context. That shaped one of the biggest lessons in the project: consistency and context matter as much as raw model capability.</p>
+      <div class="ewa-metric-grid" aria-label="Iteration focus">
+        <article>
+          <span class="material-symbols-outlined icon-small-cs" aria-hidden="true">keyboard_command_key</span><strong class="ewa-metric-card__title">Command Palette</strong>
+          <p>A natural-language entry point that lets users search actions by intent, while still returning explicit commands.</p>
+        </article>
+        <article>
+          <span class="material-symbols-outlined icon-small-cs" aria-hidden="true">dashboard_customize</span><strong class="ewa-metric-card__title">Templates</strong>
+          <p>Eleven editable starting structures for processes, mind maps, journeys, three roadmap styles, Gantt plans, sitemaps, workshops, and UML.</p>
+        </article>
+        <article>
+          <span class="material-symbols-outlined icon-small-cs" aria-hidden="true">touch_app</span><strong class="ewa-metric-card__title">Mobile Tool Wheel</strong>
+          <p>A touch-first radial selector, pinch zoom, compact controls, and mobile sheets keep canvas creation usable on phones and tablets.</p>
+        </article>
+        <article>
+          <span class="material-symbols-outlined icon-small-cs" aria-hidden="true">forum</span><strong class="ewa-metric-card__title">Comments and Guests</strong>
+          <p>Numbered annotations, threaded replies, guest onboarding, view/comment access, and optional guest editing support async review.</p>
+        </article>
+        <article>
+          <span class="material-symbols-outlined icon-small-cs" aria-hidden="true">database</span><strong class="ewa-metric-card__title">Heavy Canvas Reliability</strong>
+          <p>Debounced saves, large-media upload progress, guarded .mymind imports, and safe canvas limits keep richer documents responsive.</p>
+        </article>
+        <article>
+          <span class="material-symbols-outlined icon-small-cs" aria-hidden="true">bug_report</span><strong class="ewa-metric-card__title">Debug Loop</strong>
+          <p>I used diffs, screenshots, annotations, and screen recordings to explain bugs and prompt targeted fixes.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="ewa-section" aria-labelledby="craft-title">
+    <span class="project-pill">Craft</span>
+    <h2 id="craft-title">The craft challenge was making a powerful canvas feel calm.</h2>
+    <p>Canvas products can become visually noisy very quickly. I used compact controls, direct manipulation, soft color systems, keyboard affordances, contextual toolbars, and device-specific interaction patterns so a growing feature set would not compete with the work itself.</p>
+    <div class="ewa-metric-grid" aria-label="Craft principles">
+      <article>
+        <span class="material-symbols-outlined icon-small-cs" aria-hidden="true">ads_click</span><strong class="ewa-metric-card__title">Direct Manipulation</strong>
+        <p>Move, resize, connect, draw, annotate, and edit objects where the work is happening.</p>
+      </article>
+      <article>
+        <span class="material-symbols-outlined icon-small-cs" aria-hidden="true">center_focus_strong</span><strong class="ewa-metric-card__title">Contextual Focus</strong>
+        <p>Toolbars and inspectors appear around the selected object instead of filling the screen with permanent controls.</p>
+      </article>
+      <article>
+        <span class="material-symbols-outlined icon-small-cs" aria-hidden="true">ios_share</span><strong class="ewa-metric-card__title">Outcome Ready</strong>
+        <p>Share, export, editable-file import, and embed flows let a canvas become a presentation, review artifact, case-study module, or reusable workspace.</p>
+      </article>
+      <article>
+        <span class="material-symbols-outlined icon-small-cs" aria-hidden="true">devices</span><strong class="ewa-metric-card__title">Responsive by Interaction</strong>
+        <p>Desktop contextual toolbars become touch-friendly sheets and a radial tool wheel on smaller screens instead of simply shrinking.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="ewa-highlight" aria-labelledby="outcome-title">
+    <div class="ewa-highlight__copy">
+      <p class="ewa-highlight__pill">Outcome</p>
+      <h2 id="outcome-title">A working full-stack canvas product, not a static concept.</h2>
+      <p>
+        MyMind now supports creation, editing, structured data, collaboration, public sharing, embedding, import, and export across desktop and mobile. It shows how I move between strategy, interaction design, systems thinking, and implementation while keeping the AI workflow principles I care about: make intent explicit, show system state, keep generated work editable, and protect trust through clear control.
+      </p>
+    </div>
+  </section>
+
+  <section class="ewa-learnings" aria-labelledby="learnings-title">
+    <div class="ewa-section">
+      <h2 id="learnings-title">Learnings</h2>
+      <article>
+        <div class="ewa-learnings-title">
+          <span class="material-symbols-outlined" aria-hidden="true">psychology_alt</span>
+          <h3>AI workflows need visible checkpoints.</h3>
+        </div>
+        <p>Users trust assistance more when they can see the step, inspect the result, and decide what happens next. The same is true when designing with AI: clear diffs and explanations made the process easier to learn from.</p>
+      </article>
+      <article>
+        <div class="ewa-learnings-title">
+          <span class="material-symbols-outlined" aria-hidden="true">edit_square</span>
+          <h3>Generated structure should remain editable.</h3>
+        </div>
+        <p>The output should feel like a starting point, not a verdict. Editability is one of the strongest trust signals in AI-assisted products.</p>
+      </article>
+      <article>
+        <div class="ewa-learnings-title">
+          <span class="material-symbols-outlined" aria-hidden="true">verified_user</span>
+          <h3>Trust is designed through permissions, language, and reversibility.</h3>
+        </div>
+        <p>Clear share states, guest editing controls, export scopes, and undo paths make complex workflows feel safer and more understandable.</p>
+      </article>
+      <article>
+        <div class="ewa-learnings-title">
+          <span class="material-symbols-outlined" aria-hidden="true">hub</span>
+          <h3>Model continuity affects product quality.</h3>
+        </div>
+        <p>Switching between AI models during development can break coherence when architectural context is lost. For AI-integrated workflows, preserving context is a design problem, not just an engineering detail.</p>
+      </article>
+    </div>
+  </section>
+</main>
+
+
+ <!-- Other Design Work -->
+<section class="brand-other" aria-labelledby="brand-other-title" data-node-id="1084:324">
+  <div class="brand-other__inner">
+    <div class="brand-other__intro fade-in-up" data-node-id="1089:465">
+      <p class="brand-other__eyebrow" data-node-id="1088:462">Freelance</p>
+      <h2 id="brand-other-title" data-node-id="1084:327">Other Works</h2>
+      <p class="brand-other__summary" data-node-id="1087:343">
+        I partner with startups and agencies to deliver fast, thoughtful design execution across web, marketing, and product experiences. Short and mid-term projects that need both strategic thinking and hands-on execution.
+      </p>
+      <a class="outline-btn" href="mailto:hi@christine-uy.com" data-node-id="1089:508">
+        <span data-label="hi@christine-uy.com">hi@christine-uy.com</span>
+      </a>
+    </div>
+
+    <div class="brand-other__grid" data-node-id="1089:484">
+      <article class="brand-other-card fade-in-up" role="button" tabindex="0"
+            aria-label="Open Amazon Ads x Titan Network Tools project" 
+            data-project-modal data-project-title="Amazon Ads x Titan Network Tools"
+            data-project-category="UI/UX" data-project-image="img/freelance/amazon-campaign.png"
+            data-project-video="img/amazoncamp/ac-titan-ads.mp4"
+            data-project-alt="Amazon Ads x Titan Network Tools dashboard interface"
+            data-project-description="A hands-on product and campaign experience for planning, creating, and reading performance across Amazon Ads workflows. The work focused on clear data hierarchy, campaign action paths, and a polished interface that helps teams move from insight to execution quickly."
+            data-project-meta="Dashboard UI, campaign management, Big data, Chrome Extension"
+            data-project-gallery='[{"src":"img/amazoncamp/ac-full.jpg","alt":"Dummy full width modal image one","layout":"full"},
+            {"src":"img/amazoncamp/ac_01.jpg","alt":"Amazon Ads x Titan Network Tools image one","layout":"half"},
+            {"src":"img/amazoncamp/ac_02.jpg","alt":"Amazon Ads x Titan Network Tools image two","layout":"half"},
+            {"src":"img/amazoncamp/ac_03.jpg","alt":"Amazon Ads x Titan Network Tools image three","layout":"full"}]'>
+        <div class="brand-other-card__media" data-node-id="1089:476">
+          <img src="/img/freelance/amazon-campaign.png" alt="Amazon Campaign x Titan Network Tools dashboard interface">
+        </div>
+        <div class="brand-other-card__copy" data-node-id="1089:483">
+          <h3>Amazon Ads x Titan Network Tools</h3>
+          <p>UI/UX</p>
+        </div>
+      </article>
+
+
+
+      <article class="brand-other-card fade-in-up" role="button" tabindex="0"
+            aria-label="Open Web Design & UI/UX Collection" 
+            data-project-modal data-project-title="Web Design & UI/UX Collection"
+            data-project-category="Web Design" data-project-image="img/freelance/web-design.png"
+            data-project-video="img/freelance/titan_04.mp4"
+            data-project-alt="Dashboard preview shown on a laptop"
+            data-project-description="A collection of web and interface projects spanning marketing sites, CMS builds, and small-scale UI work. Covers the full range from visual direction to interaction detail based on clients' needs. "
+            data-project-meta="CMS, Marketing Pages, Responsive Site, UI/UX Design, Dashboard UI"
+            data-project-gallery='[
+            {"src":"img/freelance/titan_05.jpg","alt":"Titan PPC Tool","layout":"half"},
+            {"src":"img/freelance/titan_03.jpg","alt":"Titan PPC Tool","layout":"half"},
+            {"src":"img/freelance/titan_06.jpg","alt":"Titan PPC Tool","layout":"full"},
+            {"src":"img/freelance/freight_01.jpg","alt":"Freightlancer","layout":"half"},
+            {"src":"img/freelance/freight_02.jpg","alt":"Freightlancer","layout":"half"},
+            {"src":"img/freelance/titan_01.jpg","alt":"Titan Amazon Product Research Tool","layout":"full"},
+            {"src":"img/freelance/laurin_01.jpg","alt":"Laurin Construction","layout":"half"},
+            {"src":"img/freelance/laurin_02.jpg","alt":"Laurin Construction","layout":"half"},
+            {"src":"img/freelance/lo_01.jpg","alt":"Lavor Ombra","layout":"full"},
+            {"src":"img/freelance/mobile-kyc.png","alt":"Freightlance Onboarding","layout":"half"},
+            {"src":"img/freelance/bukid.jpg","alt":"Bukid Agriculture","layout":"half"}        
+
+            ]'>
+        <div class="brand-other-card__media" data-node-id="1089:476">
+          <img src="/img/freelance/titan_02.jpg" alt="Web Design">>
+        </div>
+        <div class="brand-other-card__copy" data-node-id="1089:483">
+          <h3>Web Design & UI/UX Collection</h3>
+          <p>Web Design, UI/UX</p>
+        </div>
+      </article>
+
+
+
+
+
+
+    </div>
+  </div>
+</section>
+
+  <div class="brand-project-modal" role="dialog" aria-modal="true" aria-labelledby="brand-project-modal-title" aria-hidden="true">
+    <div class="brand-project-modal__panel" role="document">
+      <button class="brand-project-modal__close" type="button" aria-label="Close project preview">
+        <span aria-hidden="true"></span>
+      </button>
+
+      <div class="brand-project-modal__content">
+        <div class="brand-project-modal__header">
+          <p class="brand-project-modal__category"></p>
+          <h2 id="brand-project-modal-title"></h2>
+          <p class="brand-project-modal__description"></p>
+          <p class="brand-project-modal__meta"></p>
+        </div>
+
+        <figure class="brand-project-modal__media">
+          <video muted loop playsinline preload="metadata"></video>
+          <img src="" alt="">
+        </figure>
+
+        <div class="brand-project-modal__gallery" aria-label="Project images"></div>
+      </div>
+    </div>
+  </div>  
+
+
+<footer class="site-footer fade-in-up" id="contact">
+  <div class="footer-inner">
+    <div class="footer-heading" aria-label="Availability">
+      <p data-text="Available for work."><span class="footer-amp"> & </span>Available for work</p>
+    </div>
+
+    <div class="footer-rule" aria-hidden="true"></div>
+    <div class="footer-meta">
+      <div class="footer-made">
+        <p class="footer-label">Made by</p>
+        <p class="footer-value">Christine Uy</p>
+      </div>
+      <address class="footer-links">
+        <div class="footer-link-group">
+          <p class="footer-label">Email</p>
+          <a class="footer-value" href="mailto:hi@christine-uy.com">hi@christine-uy.com</a>
+        </div>
+        <div class="footer-link-group">
+          <p class="footer-label">Instagram</p>
+          <a class="footer-value" href="https://www.instagram.com/creatvetin" target="_blank" rel="noreferrer">creatvetin</a>
+        </div>
+        <div class="footer-link-group">
+          <p class="footer-label">LinkedIn</p>
+          <a class="footer-value" href="https://www.linkedin.com/in/christine-uy" target="_blank" rel="noreferrer">christine-uy</a>
+        </div>
+      </address>
+    </div>
+  </div>
+</footer>
+
+<button class="back-to-top" type="button" aria-label="Back to top" data-node-id="249:229">
+  <img src="/img/back-to-top.svg" alt="" aria-hidden="true">
+</button>
+
+<script src="/mymind-command-demo.js" defer></script>
+<script src="/cursor.js" defer></script>
+</body>
+</html>

@@ -48,7 +48,6 @@
 
  <nav class="nav-links" id="primary-navigation">
     <a href="/product">Product</a>
-    <a href="/brand">Brand</a>
     <a href="/notes/">Notes</a>
     <a href="/about">About</a>
     <a href="/contact">Contact</a>
@@ -112,16 +111,115 @@
 
   </section>
 
+<!-- Work -->
+<main class="work-section" id="product" aria-label="Selected work" data-node-id="65:179">
 
+<!-- MyMind AI Workflow-->
+ <article class="featured-work featured-work--mymind fade-in-up" data-case-study-url="/product-mymind" data-tooltip="View Case Study" role="link" tabindex="0">
+      <div class="featured-work__header">
+        <div class="featured-work__copy">
+          <h2 class="work-section__title">Designing and developing an AI-ready canvas app workspace.</h2>
+          <p>
+            Built with React and the Canvas API after years of switching between Miro, Whimsical,
+            Lucidchart, and FigJam. It brings process flows, mind maps, idea capture, rich content, and
+            offline ownership into one workspace, then adds natural-language creation with editable output.
+          </p>
 
+          <div class="project-tags" aria-label="Project disciplines">
+            <span>AI Workflows</span>
+            <span>Codex, Claude</span>
+            <span>Agentic UX</span>
+            <span>Natural Language Interface</span>
+            <span>Product Prototype</span>
+            <span>Interaction Design</span>
+          </div>
+        </div>
+      </div>
 
+      <figure class="mymind-command-demo" aria-label="Animated demonstration of MyMind command search">
+        <div class="mymind-command-demo__stage">
+          <div class="mymind-command-demo__shortcut" aria-hidden="true">
+            <small>Open command search</small>
+            <span><kbd>⌘</kbd><i>+</i><kbd>K</kbd></span>
+          </div>
+          <div class="mymind-command-demo__palette">
+            <div class="mymind-command-demo__search">
+              <canvas class="mymind-command-demo__orb" width="32" height="32" aria-hidden="true"></canvas>
+              <span class="mymind-command-demo__query" data-placeholder="What do you want to create?"></span>
+              <i class="mymind-command-demo__caret" aria-hidden="true"></i>
+            </div>
+            <div class="mymind-command-demo__results" aria-hidden="true">
+              <div class="mymind-command-demo__result is-active" data-command="generate process flow from text"><span class="mymind-command-demo__icon">✦</span><strong>Generate process flow from text</strong></div>
+              <div class="mymind-command-demo__result" data-command="add idea node"><span class="mymind-command-demo__icon">◇</span><strong>Add idea node</strong><kbd>N</kbd></div>
+              <div class="mymind-command-demo__result" data-command="add code block"><span class="mymind-command-demo__icon">&lt;/&gt;</span><strong>Add code block</strong></div>
+              <div class="mymind-command-demo__result" data-command="import csv or excel"><span class="mymind-command-demo__icon">▦</span><strong>Import CSV or Excel</strong></div>
+              <div class="mymind-command-demo__result" data-command="add text"><span class="mymind-command-demo__icon">T</span><strong>Add text</strong><kbd>T</kbd></div>
+              <div class="mymind-command-demo__result" data-command="add image"><span class="mymind-command-demo__icon">▧</span><strong>Add image</strong><kbd>P</kbd></div>
+            </div>
+          </div>
+          <div class="mymind-command-demo__generating" aria-hidden="true"><span>✦</span> Generating an editable flow…</div>
+          <div class="mymind-command-demo__flow" aria-hidden="true">
+            <svg class="mymind-command-demo__connections" viewBox="0 0 1120 520" preserveAspectRatio="none">
+              <g data-edge="e1"><path pathLength="1" d="M208 266 C250 266 270 266 312 266"/><text x="260" y="247">Payins</text></g>
+              <g data-edge="e2"><path pathLength="1" d="M498 266 C552 266 560 155 622 155"/><text x="548" y="205">Transfers</text></g>
+              <g data-edge="e3"><path pathLength="1" d="M808 155 C850 155 870 155 912 155"/><text x="860" y="136">Payouts</text></g>
+              <g data-edge="e4"><path pathLength="1" d="M498 266 C552 266 560 390 622 390"/><text x="548" y="337">Issuing</text></g>
+              <g data-edge="e5"><path pathLength="1" d="M808 390 C850 390 870 390 912 390"/><text x="860" y="371" textLength="82" lengthAdjust="spacingAndGlyphs">Outbound payment</text></g>
+            </svg>
+            <div class="mymind-command-demo__flow-node mymind-command-demo__flow-node--customer" data-node="customer"><span class="mymind-command-demo__node-icon">●</span><span><strong>Customer</strong><small>Starts a payment</small></span></div>
+            <div class="mymind-command-demo__flow-node mymind-command-demo__flow-node--platform" data-node="platform"><span class="mymind-command-demo__node-icon">◆</span><span><strong>Platform</strong><small>Routes the request</small></span></div>
+            <div class="mymind-command-demo__flow-node mymind-command-demo__flow-node--account" data-node="account"><span class="mymind-command-demo__node-icon">◆</span><span><strong>Connected account</strong><small>Receives payout</small></span></div>
+            <div class="mymind-command-demo__flow-node mymind-command-demo__flow-node--financial" data-node="financial"><span class="mymind-command-demo__node-icon">◆</span><span><strong>Financial account</strong><small>Settlement</small></span></div>
+            <div class="mymind-command-demo__flow-node mymind-command-demo__flow-node--cardholder" data-node="cardholder"><span class="mymind-command-demo__node-icon">●</span><span><strong>Cardholder</strong><small>Issuing balance</small></span></div>
+            <div class="mymind-command-demo__flow-node mymind-command-demo__flow-node--external" data-node="external"><span class="mymind-command-demo__node-icon">◆</span><span><strong>External account</strong><small>Third party</small></span></div>
+          </div>
 
+          <div class="mymind-command-demo__ideation" aria-hidden="true">
+            <div class="mymind-command-demo__ideation-bar">
+              <span><i></i> Visual ideation</span>
+              <div>
+                <button type="button" data-view="colour"><b></b> Sort by colour</button>
+                <button type="button" data-view="masonry">▦ Masonry</button>
+                <button type="button" data-view="draw">✎ Draw</button>
+              </div>
+            </div>
+            <div class="mymind-command-demo__moodboard">
+              <figure class="mymind-command-demo__image mymind-command-demo__image--one" style="--sort-colour:#7b2d1a">
+                <img src="https://media.gettyimages.com/id/2272197589/photo/mature-man-pouring-pellet-in-a-pellet-boiler.jpg?s=2048x2048&amp;w=gi&amp;k=20&amp;c=Gw7cQapCPP5s1dwG_u0dftIGoNvqM8ZxfNYZCt_QYEY=" alt="" loading="lazy" decoding="async">
+              </figure>
+              <figure class="mymind-command-demo__image mymind-command-demo__image--two" style="--sort-colour:#762b14">
+                <img src="https://media.gettyimages.com/id/2267035977/photo/asian-musicians-performing-on-illuminated-glass-stage-during-live-concert-event.jpg?s=2048x2048&amp;w=gi&amp;k=20&amp;c=10CIP73BmDiCjj_xGroulScY6ONJ59oMGNLqQQ3zLeM=" alt="" loading="lazy" decoding="async">
+              </figure>
+              <figure class="mymind-command-demo__image mymind-command-demo__image--three" style="--sort-colour:#805a48">
+                <img src="https://media.gettyimages.com/id/2263966725/photo/little-venice-mykonos-at-dusk-colorful-waterfront-houses-with-balconies-overlooking-the.jpg?s=2048x2048&amp;w=gi&amp;k=20&amp;c=T62I5EjSU3KxcPpyu1Zq5h7XRLz8yCT5D7IaL8VNYe0=" alt="" loading="lazy" decoding="async">
+              </figure>
+              <figure class="mymind-command-demo__image mymind-command-demo__image--four" style="--sort-colour:#a67e31">
+                <img src="https://media.gettyimages.com/id/2273042783/photo/crowd-crossing-street-at-hong-kong-pedestrian-crosswalk.jpg?s=2048x2048&amp;w=gi&amp;k=20&amp;c=uuGQZyOgHaOupzswS0mkFVG9UUy8Dq8NuKvVX9Ccbus=" alt="" loading="lazy" decoding="async">
+              </figure>
+              <figure class="mymind-command-demo__image mymind-command-demo__image--five" style="--sort-colour:#232812">
+                <img src="https://media.gettyimages.com/id/2279883836/photo/wide-shot-view-male-impala-standing-in-south-african-game-reserve.jpg?s=2048x2048&amp;w=gi&amp;k=20&amp;c=uR6RMQn_CwWB9h7gZP4wp8FP8B3E-VLSZo-URzXGKdI=" alt="" loading="lazy" decoding="async">
+              </figure>
+              <figure class="mymind-command-demo__image mymind-command-demo__image--six" style="--sort-colour:#6f8e9a">
+                <img src="https://media.gettyimages.com/id/2272933642/photo/hi-from-unbelievable-iceland.jpg?s=2048x2048&amp;w=gi&amp;k=20&amp;c=uo_z0685s9sAQ76nU4Ol0kvDvzsgVoqnP7--j097YgI=" alt="" loading="lazy" decoding="async">
+              </figure>
+              <svg class="mymind-command-demo__drawing" viewBox="0 0 1000 500" preserveAspectRatio="none">
+                <path pathLength="1" d="M681 102 C735 68 832 77 855 135 C872 180 827 215 755 211 C690 208 646 174 654 132 C658 117 667 107 681 102Z"/>
+              </svg>
+              <span class="mymind-command-demo__pen" aria-hidden="true">✎</span>
+            </div>
+          </div>
+        </div>
+        <video class="mymind-command-demo__mobile-video" autoplay muted loop playsinline preload="metadata" poster="/vid/mymind/mymind-demo-desktop-poster.jpg" aria-label="MyMind creates a connected workflow, organizes an image board by colour and masonry, then circles an image with the drawing tool">
+          <source src="/vid/mymind/mymind-demo-mobile.mp4" type="video/mp4" media="(max-width: 640px)">
+          <source src="/vid/mymind/mymind-demo-desktop.mp4" type="video/mp4">
+        </video>
+        <figcaption>Generated from live AI prompt with Remotion and Diffusion Skills.</figcaption>
+      </figure>
 
+    </article>
 
-  <!-- Work -->
-  <main class="work-section" id="product" aria-label="Selected work" data-node-id="65:179">
-
-    <article class="featured-work fade-in-up" data-case-study-url="/product-ewa" data-tooltip="View Case Study" role="link" tabindex="0">
+<!-- EWA -->
+    <article class="featured-work featured-work--ewa fade-in-up" data-case-study-url="/product-ewa" data-tooltip="View Case Study" role="link" tabindex="0">
       <div class="featured-work__header">
         <div class="featured-work__copy" data-node-id="793:1347">
           <h2 class="work-section__title">Modernizing an insurance ecosystem to reduce policy issuance from 3 days to 1 day.</h2>
@@ -180,6 +278,9 @@
       </div>
     </article>
 
+
+
+
 <!-- Design System-->    
     <article class="featured-work featured-work--design-system fade-in-up" data-case-study-url="/product-design-system" data-tooltip="View Case Study" role="link" tabindex="0">
       <div class="featured-work__header">
@@ -205,6 +306,8 @@
       </figure>
 
     </article>
+
+
 
 
   </main>
@@ -245,28 +348,6 @@
           <p>UI/UX</p>
         </div>
       </article>
-
-      <article class="brand-other-card fade-in-up" role="button" tabindex="0"
-            aria-label="Open Pinoy Therapy project" 
-            data-project-modal data-project-title="Pinoy Therapy"
-            data-project-category="UI/UX" data-project-image="img/freelance/pinoy-therapy.png"
-            data-project-video="img/pt/pt_onboarding.mp4"
-            data-project-alt="Pinoy Therapy Onboarding experience shown on a laptop"
-            data-project-description="A mental health startup focused on making therapy more accessible and culturally relevant for the Filipino community. The work included a full onboarding experience design, from user flows to high-fidelity mockups, that guides users through understanding therapy, assessing their needs, and connecting with the right therapists."
-            data-project-meta="Healthcare, UI/UX, Onboarding, Webapp"
-            data-project-gallery='[{"src":"img/pt/pt_01.jpg","alt":"Pinoy Therapy full width modal image one","layout":"full"},
-            {"src":"img/pt/pt_02.jpg","alt":"Pinoy Therapy image one","layout":"half"},
-            {"src":"img/pt/pt_05.jpg","alt":"Pinoy Therapy image two","layout":"half"},
-            {"src":"img/pt/pt_04.jpg","alt":"Pinoy Therapy image three","layout":"full"}]'>
-        <div class="brand-other-card__media" data-node-id="1089:476">
-          <img src="/img/pt/pt_thumb.jpg" alt="Pinoy Therapy">
-        </div>
-        <div class="brand-other-card__copy" data-node-id="1089:483">
-          <h3>Pinoy Therapy</h3>
-          <p>UI/UX</p>
-        </div>
-      </article>
-
 
       <article class="brand-other-card fade-in-up" role="button" tabindex="0"
             aria-label="Open Web Design & UI/UX Collection" 
@@ -456,6 +537,7 @@
     <img src="/img/back-to-top.svg" alt="" aria-hidden="true">
   </button>
  
+ <script src="/mymind-command-demo.js" defer></script>
  <script src="/cursor.js" defer></script>
 
 </body>

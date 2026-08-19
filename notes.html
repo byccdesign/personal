@@ -27,7 +27,7 @@
   </script>
 </head>
 
-<body>
+<body class="notes-page">
 <div class="cursor"></div>
 <div class="cursor-ring"></div>
 
@@ -45,7 +45,6 @@
 
  <nav class="nav-links" id="primary-navigation">
     <a href="/product">Product</a>
-    <a href="/brand">Brand</a>
     <a href="/notes/" aria-current="page">Notes</a>
     <a href="/about">About</a>
     <a href="/contact">Contact</a>
@@ -53,27 +52,72 @@
 
 </header>
 
-  <!-- Notes Hero -->
-  <section class="notes-hero" aria-labelledby="notes-title" data-node-id="377:628">
-    <div class="notes-hero__content">
-      <figure class="notes-hero__photo" aria-hidden="true">
-        <img src="/img/notes-hero-photo.gif" alt="">
-      </figure>
+  <main class="notes-main">
+    <section class="notes-intro" aria-labelledby="notes-title">
+      <div class="notes-intro__copy">
+        <h1 id="notes-title" aria-label="Notes"><span data-typewriter-copy="Notes">Notes</span></h1>
+        <p>From substack - thoughts on art, design, making, and the useful mess between an idea and a finished thing.</p>
+      </div>
 
-      <h1 class="notes-hero__title" id="notes-title" aria-label="No thoughts, Writing soon..">
-        <span data-typewriter-text="No thoughts,"></span>
-        <span data-typewriter-text="Writing soon.."></span>
-      </h1>
-    </div>
-  </section>
+      <div class="notes-filter" aria-label="Filter Substack entries">
+        <button class="notes-filter__button is-active" type="button" data-notes-filter="all" aria-label="Everything" aria-pressed="true"><span data-label="Everything">Everything</span></button>
+        <button class="notes-filter__button" type="button" data-notes-filter="post" aria-label="Posts" aria-pressed="false"><span data-label="Posts">Posts</span></button>
+        <button class="notes-filter__button" type="button" data-notes-filter="note" aria-label="Quick notes" aria-pressed="false"><span data-label="Quick notes">Quick notes</span></button>
+      </div>
+    </section>
 
+    <section class="notes-feed" aria-label="Substack posts and notes">
+      <div class="notes-masonry" id="notes-masonry">
+        <article class="notes-card notes-card--post" data-notes-kind="post">
+          <a class="notes-card__link" href="https://creatvetin.substack.com/p/exploration-designing-and-building" target="_blank" rel="noreferrer" aria-label="Read Exploration: Designing and building my own Canvas app with AI-assisted development on Substack">
+            <figure class="notes-card__media notes-card__media--landscape">
+              <img src="https://substackcdn.com/image/fetch/$s_!rmp8!,w_1040,h_545,c_fill,f_webp,q_auto:good,fl_progressive:steep,g_auto/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fd0afd071-9082-4d44-a85d-fd91fed3c285_1640x976.png" alt="A MyMind canvas app interface with connected cards" loading="eager">
+            </figure>
+            <div class="notes-card__body">
+              <div class="notes-card__meta"><span>Field note 01</span><time datetime="2026-08-04">Aug 4, 2026</time></div>
+              <h2>Exploration: Designing and building my own Canvas app with AI-assisted development.</h2>
+              <p>A little bit of this and that — Miro, Whimsical, Lucidchart, and FigJam.</p>
+              <span class="notes-card__action">Read the post on Substack</span>
+            </div>
+          </a>
+        </article>
 
+        <article class="notes-card notes-card--note notes-card--lavender" data-notes-kind="note">
+          <a class="notes-card__link" href="https://substack.com/@creatvetin/note/c-310703808" target="_blank" rel="noreferrer" aria-label="Read the masonry inspiration note on Substack">
+            <div class="notes-card__body notes-card__body--quote">
+              <div class="notes-card__meta"><span>Quick note</span><time datetime="2026-08-08">Aug 8, 2026</time></div>
+              <p class="notes-card__quote">“When dumping images for inspiration, allow a selected group of elements to sort by colour and display as masonry.”</p>
+            </div>
+            <figure class="notes-card__media notes-card__media--portrait">
+              <img src="https://substack-video.s3.amazonaws.com/video_upload/user/389627769/5957edaa-de5d-451e-b0ff-a4c20a523df0/transcoded-00001.png" alt="Masonry colour-sorting canvas prototype" loading="lazy">
+              <span class="notes-card__media-label">Prototype clip</span>
+            </figure>
+            <div class="notes-card__footer"><span>Open this note on Substack</span></div>
+          </a>
+        </article>
 
+        <article class="notes-card notes-card--note notes-card--ink" data-notes-kind="note">
+          <a class="notes-card__link" href="https://substack.com/@creatvetin/note/c-308005224" target="_blank" rel="noreferrer" aria-label="Read Sample demo of my canvas app on Substack">
+            <figure class="notes-card__media notes-card__media--square">
+              <img src="https://substack-video.s3.amazonaws.com/video_upload/user/389627769/7c9d6785-1606-4e3b-935b-ddf80ab341db/transcoded-00001.png" alt="MyMind canvas app demo" loading="lazy">
+              <span class="notes-card__media-label">App demo</span>
+            </figure>
+            <div class="notes-card__body">
+              <div class="notes-card__meta"><span>Quick note</span><time datetime="2026-08-04">Aug 4, 2026</time></div>
+              <h2>Sample demo of my canvas app</h2>
+              <span class="notes-card__action">Watch on Substack</span>
+            </div>
+          </a>
+        </article>
+      </div>
 
+      <div class="notes-feed__end">
+        <p>More sketches, systems, and unfinished thoughts live on Substack.</p>
+        <a href="https://substack.com/@creatvetin" target="_blank" rel="noreferrer">Follow @creatvetin</a>
+      </div>
+    </section>
+  </main>
 
-
-
-  
 <!-- Footer -->
 <footer class="site-footer fade-in-up" id="contact">
   <div class="footer-inner">
@@ -130,6 +174,77 @@
   </button>
  
  <script src="/cursor.js" defer></script>
+ <script>
+  const noteFilters = document.querySelectorAll('[data-notes-filter]');
+  const noteCards = document.querySelectorAll('[data-notes-kind]');
+  const notesMasonry = document.querySelector('#notes-masonry');
+  const typewriterTarget = document.querySelector('[data-typewriter-copy]');
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let filterTimer;
+
+  const playHeadline = async () => {
+    if (!typewriterTarget || reducedMotion) return;
+
+    const copy = typewriterTarget.dataset.typewriterCopy || typewriterTarget.textContent;
+    typewriterTarget.textContent = '';
+    typewriterTarget.classList.add('is-typing');
+
+    await new Promise((resolve) => window.setTimeout(resolve, 220));
+
+    for (const character of copy) {
+      typewriterTarget.textContent += character;
+      await new Promise((resolve) => window.setTimeout(resolve, character === ' ' ? 76 : 58));
+    }
+
+    window.setTimeout(() => typewriterTarget.classList.remove('is-typing'), 520);
+  };
+
+  playHeadline();
+
+  noteFilters.forEach((button) => {
+    button.addEventListener('click', () => {
+      const filter = button.dataset.notesFilter;
+
+      if (button.classList.contains('is-active')) return;
+
+      window.clearTimeout(filterTimer);
+
+      noteFilters.forEach((item) => {
+        const active = item === button;
+        item.classList.toggle('is-active', active);
+        item.setAttribute('aria-pressed', String(active));
+      });
+
+      button.classList.add('is-settling');
+      window.setTimeout(() => button.classList.remove('is-settling'), 240);
+
+      if (reducedMotion) {
+        noteCards.forEach((card) => {
+          card.hidden = filter !== 'all' && card.dataset.notesKind !== filter;
+        });
+        return;
+      }
+
+      notesMasonry.classList.add('is-filtering');
+      noteCards.forEach((card) => {
+        if (!card.hidden) card.classList.add('is-leaving');
+      });
+
+      filterTimer = window.setTimeout(() => {
+        noteCards.forEach((card) => {
+          card.hidden = filter !== 'all' && card.dataset.notesKind !== filter;
+          card.classList.remove('is-leaving');
+          if (!card.hidden) card.classList.add('is-entering');
+        });
+
+        notesMasonry.classList.remove('is-filtering');
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          noteCards.forEach((card) => card.classList.remove('is-entering'));
+        }));
+      }, 140);
+    });
+  });
+ </script>
 
 </body>
 </html>
