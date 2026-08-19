@@ -712,6 +712,7 @@ function readImageFile(file, { metadataOnly = false } = {}) {
 const nowLabel = () => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(new Date());
 const uid = (prefix = "id") => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 const slugify = (value) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "untitled-canvas";
+const documentSlug = (title, id) => `${slugify(title)}-${String(id || "canvas").slice(-4)}`;
 
 function processTemplate() {
   return {
@@ -2024,6 +2025,13 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
       return next;
     });
   }, [enqueueRemoteSave, publicView]);
+
+  useEffect(() => {
+    if (isPublicLink) return;
+    const expectedSlug = documentSlug(document.title, document.id);
+    if (document.slug === expectedSlug) return;
+    updateDocument((doc) => ({ ...doc, slug: expectedSlug }), { immediate: true });
+  }, [document.id, document.slug, document.title, isPublicLink, updateDocument]);
 
   const showFeedback = useCallback((type, count = 1) => {
     clearTimeout(feedbackTimer.current);
@@ -3991,7 +3999,17 @@ function Editor({ initialDocument, publicView: isPublicLink, embedMode = false, 
     {!embedMode && <header className="topbar editor-topbar">
       <div className="editor-title-row">
         {!isPublicLink && <button className="editor-back-button" aria-label="Back to dashboard" onClick={() => navigate("/")}><ArrowLeft size={16} /></button>}
-        <input className="document-title" value={document.title} readOnly={isPublicLink} aria-readonly={isPublicLink} onChange={(e) => updateDocument((doc) => ({ ...doc, title: e.target.value }))} />
+        <input
+          className="document-title"
+          value={document.title}
+          readOnly={isPublicLink}
+          aria-readonly={isPublicLink}
+          onChange={(event) => {
+            const title = event.target.value;
+            updateDocument((doc) => ({ ...doc, title, slug: documentSlug(title, doc.id) }));
+          }}
+          onBlur={() => updateDocument((doc) => ({ ...doc, slug: documentSlug(doc.title, doc.id) }), { immediate: true })}
+        />
       </div>
       <div className="topbar-actions">
         {(!isPublicLink || visibleParticipants.length > 0) && <span className="topbar-presence" title={[...(!isPublicLink ? ["Christine"] : []), ...visibleParticipants.map((participant) => participant.name)].join(", ")} aria-label={`${visibleParticipants.length + 1} ${visibleParticipants.length ? "people" : "person"} currently here`}>

@@ -199,6 +199,21 @@ function document_select_columns(): string
     return 'd.id, d.title, d.slug, d.is_shared, d.graph_json, d.updated_at, COALESCE(s.revision, 0) AS revision';
 }
 
+function shared_document_row(PDO $pdo, string $slug, string $columns, bool $withSync = false, bool $forUpdate = false): array|false
+{
+    $slug = substr(trim($slug), 0, 96);
+    $suffix = preg_match('/-([a-z0-9]{4})$/i', $slug, $matches) ? strtolower($matches[1]) : '';
+    $join = $withSync ? ' LEFT JOIN mind_document_sync s ON s.document_id = d.id' : '';
+    $lock = $forUpdate ? ' FOR UPDATE' : '';
+    $statement = $pdo->prepare(
+        'SELECT ' . $columns . ' FROM mind_documents d' . $join .
+        ' WHERE d.is_shared = 1 AND (d.slug = ? OR (? <> "" AND RIGHT(d.id, 4) = ?))' .
+        ' ORDER BY CASE WHEN d.slug = ? THEN 0 ELSE 1 END LIMIT 1' . $lock
+    );
+    $statement->execute([$slug, $suffix, $suffix, $slug]);
+    return $statement->fetch();
+}
+
 function document_list_select_columns(): string
 {
     // JSON_VALID prevents one malformed legacy row from failing the whole list,
@@ -444,9 +459,7 @@ try {
 
     if ($action === 'shared' && $_SERVER['REQUEST_METHOD'] === 'GET') {
         $slug = trim((string) ($_GET['slug'] ?? ''));
-        $statement = $pdo->prepare('SELECT ' . document_select_columns() . ' FROM mind_documents d LEFT JOIN mind_document_sync s ON s.document_id = d.id WHERE d.slug = ? AND d.is_shared = 1 LIMIT 1');
-        $statement->execute([$slug]);
-        $row = $statement->fetch();
+        $row = shared_document_row($pdo, $slug, document_select_columns(), true);
         $row ? reply(['document' => document_from_row($row)]) : reply(['error' => 'Canvas not found'], 404);
     }
 
@@ -470,10 +483,9 @@ try {
         } else {
             if (trim((string) ($_GET['id'] ?? '')) !== '') reply(['error' => 'Authentication required'], 401);
             $slug = substr(trim((string) ($_GET['slug'] ?? '')), 0, 96);
-            $statement = $pdo->prepare('SELECT ' . document_select_columns() . ' FROM mind_documents d LEFT JOIN mind_document_sync s ON s.document_id = d.id WHERE d.slug = ? AND d.is_shared = 1 LIMIT 1');
-            $statement->execute([$slug]);
+            $row = shared_document_row($pdo, $slug, document_select_columns(), true);
         }
-        $row = $statement->fetch();
+        if ($authenticated) $row = $statement->fetch();
         $row ? reply(['document' => document_from_row($row)]) : reply(['error' => 'Canvas not found'], 404);
     }
 
@@ -489,9 +501,7 @@ try {
             $role = 'owner';
             $displayName = 'Christine';
         } else {
-            $statement = $pdo->prepare('SELECT id, graph_json FROM mind_documents WHERE slug = ? AND is_shared = 1 LIMIT 1');
-            $statement->execute([substr((string) ($payload['slug'] ?? ''), 0, 96)]);
-            $row = $statement->fetch();
+            $row = shared_document_row($pdo, (string) ($payload['slug'] ?? ''), 'd.id, d.graph_json');
             $documentId = (string) ($row['id'] ?? '');
             $graph = $row ? json_decode((string) $row['graph_json'], true) : null;
             $role = is_array($graph) && !empty($graph['guestEditable']) ? 'editor' : 'viewer';
@@ -523,11 +533,10 @@ try {
         if ($authenticated) {
             $statement = $pdo->prepare('SELECT id, title, slug, is_shared, graph_json FROM mind_documents WHERE id = ? LIMIT 1 FOR UPDATE');
             $statement->execute([substr((string) ($incoming['id'] ?? ''), 0, 96)]);
+            $row = $statement->fetch();
         } else {
-            $statement = $pdo->prepare('SELECT id, title, slug, is_shared, graph_json FROM mind_documents WHERE slug = ? AND is_shared = 1 LIMIT 1 FOR UPDATE');
-            $statement->execute([substr((string) ($payload['slug'] ?? ''), 0, 96)]);
+            $row = shared_document_row($pdo, (string) ($payload['slug'] ?? ''), 'd.id, d.title, d.slug, d.is_shared, d.graph_json', false, true);
         }
-        $row = $statement->fetch();
         if (!$row) { $pdo->rollBack(); reply(['error' => 'Canvas not found'], 404); }
         $graph = json_decode((string) $row['graph_json'], true);
         if (!is_array($graph)) $graph = [];
@@ -607,9 +616,7 @@ try {
         $incoming = is_array($payload['document'] ?? null) ? $payload['document'] : [];
         if ($slug === '' || !$incoming) reply(['error' => 'Invalid canvas update'], 422);
         $pdo->beginTransaction();
-        $statement = $pdo->prepare('SELECT id, graph_json FROM mind_documents WHERE slug = ? AND is_shared = 1 LIMIT 1 FOR UPDATE');
-        $statement->execute([$slug]);
-        $row = $statement->fetch();
+        $row = shared_document_row($pdo, $slug, 'd.id, d.graph_json', false, true);
         if (!$row) { $pdo->rollBack(); reply(['error' => 'Canvas not found'], 404); }
         $graph = json_decode((string) $row['graph_json'], true);
         if (!is_array($graph) || empty($graph['guestEditable'])) { $pdo->rollBack(); reply(['error' => 'Guest editing is disabled'], 403); }
@@ -677,10 +684,8 @@ try {
         $recentComments = array_values(array_filter((array) ($_SESSION['mymind_comment_times'] ?? []), static fn ($time) => is_int($time) && $time > $now - 60));
         if (count($recentComments) >= 10) reply(['error' => 'Please wait before adding another comment'], 429);
 
-        $statement = $pdo->prepare('SELECT id, graph_json FROM mind_documents WHERE slug = ? AND is_shared = 1 LIMIT 1 FOR UPDATE');
         $pdo->beginTransaction();
-        $statement->execute([$slug]);
-        $row = $statement->fetch();
+        $row = shared_document_row($pdo, $slug, 'd.id, d.graph_json', false, true);
         if (!$row) { $pdo->rollBack(); reply(['error' => 'Canvas not found'], 404); }
         $graph = json_decode((string) $row['graph_json'], true);
         if (!is_array($graph)) $graph = ['nodes' => [], 'edges' => [], 'drawings' => [], 'annotations' => []];
@@ -724,9 +729,7 @@ try {
         if ($slug === '' || $annotationId === '' || !in_array($operation, $allowed, true)) reply(['error' => 'Invalid annotation request'], 422);
 
         $pdo->beginTransaction();
-        $statement = $pdo->prepare('SELECT id, graph_json FROM mind_documents WHERE slug = ? AND is_shared = 1 LIMIT 1 FOR UPDATE');
-        $statement->execute([$slug]);
-        $row = $statement->fetch();
+        $row = shared_document_row($pdo, $slug, 'd.id, d.graph_json', false, true);
         if (!$row) { $pdo->rollBack(); reply(['error' => 'Canvas not found'], 404); }
         $graph = json_decode((string) $row['graph_json'], true);
         if (!is_array($graph)) $graph = [];
@@ -804,9 +807,7 @@ try {
     if ($action === 'media-upload' && $_SERVER['REQUEST_METHOD'] === 'POST') {
         if (empty($_SESSION['mymind_authenticated'])) {
             $guestSlug = substr(trim((string) ($_POST['slug'] ?? '')), 0, 96);
-            $statement = $pdo->prepare('SELECT graph_json FROM mind_documents WHERE slug = ? AND is_shared = 1 LIMIT 1');
-            $statement->execute([$guestSlug]);
-            $guestRow = $statement->fetch();
+            $guestRow = shared_document_row($pdo, $guestSlug, 'd.graph_json');
             $guestGraph = $guestRow ? json_decode((string) $guestRow['graph_json'], true) : null;
             if ($guestSlug === '' || !is_array($guestGraph) || empty($guestGraph['guestEditable'])) reply(['error' => 'Authentication required'], 401);
         }

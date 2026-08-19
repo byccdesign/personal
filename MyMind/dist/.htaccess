@@ -13,13 +13,15 @@ RewriteEngine On
 
 <IfModule mod_headers.c>
     Header always set X-Robots-Tag "noindex, nofollow, noarchive"
+    Header always unset X-Frame-Options
 
     <FilesMatch "\.(?:css|js|mjs|webp|png|jpe?g|gif|svg|woff2?|mp4)$">
         Header set Cache-Control "public, max-age=31536000, immutable"
     </FilesMatch>
     <FilesMatch "^index\.html$">
         Header set Cache-Control "no-cache, must-revalidate"
-        Header set Content-Security-Policy "frame-ancestors 'self' https://christine-uy.com https://www.christine-uy.com"
+        # Shared canvases may be embedded on HTTPS case studies and local previews.
+        Header always set Content-Security-Policy "frame-ancestors 'self' https: http://localhost:* http://127.0.0.1:*"
     </FilesMatch>
 </IfModule>
 
