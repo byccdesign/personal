@@ -4732,9 +4732,15 @@ function ChecklistNode({ node, onChange, onDueDateChange }) {
 function TableNode({ node, onChange }) {
   const contentRef = useRef(null);
   const contextMenuRef = useRef(null);
+  const resizeRef = useRef(null);
   const [contextMenu, setContextMenu] = useState(null);
   const rows = Array.isArray(node.rows) && node.rows.length ? node.rows : [["Column 1"]];
   const columnCount = Math.max(1, ...rows.map((row) => row.length));
+  const tableNodeWidth = nodeDimensions(node).width;
+  const defaultColumnWidth = Math.max(128, (tableNodeWidth - 2) / columnCount);
+  const columnWidths = Array.from({ length: columnCount }, (_, index) => Math.max(96, Math.min(720, Number(node.columnWidths?.[index]) || defaultColumnWidth)));
+  const rowHeights = Array.from({ length: rows.length }, (_, index) => Math.max(38, Math.min(360, Number(node.rowHeights?.[index]) || (index === 0 ? 46 : 58))));
+  const tableContentWidth = columnWidths.reduce((total, width) => total + width, 0);
   useEffect(() => {
     if (!contextMenu) return undefined;
     const close = () => setContextMenu(null);
@@ -4748,8 +4754,56 @@ function TableNode({ node, onChange }) {
     if (!onChange) return;
     onChange({ rows: rows.map((row, currentRow) => currentRow === rowIndex ? Array.from({ length: columnCount }, (_, currentColumn) => currentColumn === columnIndex ? value : row[currentColumn] || "") : row) });
   };
-  const addRow = () => onChange?.({ rows: [...rows, Array.from({ length: columnCount }, () => "")] });
-  const addColumn = () => onChange?.({ rows: rows.map((row, rowIndex) => [...Array.from({ length: columnCount }, (_, columnIndex) => row[columnIndex] || ""), rowIndex === 0 ? `Column ${columnCount + 1}` : ""]), columnTones: [...(node.columnTones || []), null] });
+  const addRow = () => onChange?.({ rows: [...rows, Array.from({ length: columnCount }, () => "")], rowHeights: [...rowHeights, 58] });
+  const addColumn = () => onChange?.({ rows: rows.map((row, rowIndex) => [...Array.from({ length: columnCount }, (_, columnIndex) => row[columnIndex] || ""), rowIndex === 0 ? `Column ${columnCount + 1}` : ""]), columnTones: [...(node.columnTones || []), null], columnWidths: [...columnWidths, Math.max(128, Math.min(240, defaultColumnWidth))] });
+  const resizeColumnBy = (index, delta) => {
+    const nextWidths = [...columnWidths];
+    nextWidths[index] = Math.max(96, Math.min(720, nextWidths[index] + delta));
+    onChange?.({ columnWidths: nextWidths });
+  };
+  const resizeRowBy = (index, delta) => {
+    const nextHeights = [...rowHeights];
+    nextHeights[index] = Math.max(38, Math.min(360, nextHeights[index] + delta));
+    onChange?.({ rowHeights: nextHeights });
+  };
+  const startResize = (event, type, index) => {
+    if (!onChange) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const content = contentRef.current;
+    const bounds = content?.getBoundingClientRect();
+    if (!content || !bounds) return;
+    resizeRef.current = {
+      type,
+      index,
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      initial: type === "column" ? columnWidths[index] : rowHeights[index],
+      scaleX: bounds.width / Math.max(1, content.offsetWidth),
+      scaleY: bounds.height / Math.max(1, content.offsetHeight),
+    };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+  const moveResize = (event) => {
+    const resize = resizeRef.current;
+    if (!resize || resize.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    if (resize.type === "column") {
+      const nextWidths = [...columnWidths];
+      nextWidths[resize.index] = Math.max(96, Math.min(720, resize.initial + (event.clientX - resize.startX) / Math.max(.01, resize.scaleX)));
+      onChange?.({ columnWidths: nextWidths });
+    } else {
+      const nextHeights = [...rowHeights];
+      nextHeights[resize.index] = Math.max(38, Math.min(360, resize.initial + (event.clientY - resize.startY) / Math.max(.01, resize.scaleY)));
+      onChange?.({ rowHeights: nextHeights });
+    }
+  };
+  const endResize = (event) => {
+    if (resizeRef.current?.pointerId !== event.pointerId) return;
+    resizeRef.current = null;
+    event.currentTarget.releasePointerCapture?.(event.pointerId);
+  };
   const openContextMenu = (event, type, index) => {
     if (!onChange) return;
     event.preventDefault();
@@ -4765,9 +4819,9 @@ function TableNode({ node, onChange }) {
     if (!contextMenu) return;
     if (contextMenu.type === "column") {
       if (columnCount <= 1) return;
-      onChange?.({ rows: rows.map((row) => row.filter((_, index) => index !== contextMenu.index)), columnTones: (node.columnTones || []).filter((_, index) => index !== contextMenu.index) });
+      onChange?.({ rows: rows.map((row) => row.filter((_, index) => index !== contextMenu.index)), columnTones: (node.columnTones || []).filter((_, index) => index !== contextMenu.index), columnWidths: columnWidths.filter((_, index) => index !== contextMenu.index) });
     } else {
-      onChange?.({ rows: rows.filter((_, index) => index !== contextMenu.index), rowTones: (node.rowTones || []).filter((_, index) => index !== contextMenu.index) });
+      onChange?.({ rows: rows.filter((_, index) => index !== contextMenu.index), rowTones: (node.rowTones || []).filter((_, index) => index !== contextMenu.index), rowHeights: rowHeights.filter((_, index) => index !== contextMenu.index) });
     }
     setContextMenu(null);
   };
@@ -4791,12 +4845,15 @@ function TableNode({ node, onChange }) {
         <button type="button" title="Add column" aria-label="Add table column" onClick={addColumn}><Plus size={12} /><span>Column</span></button>
       </div>}
     </div>
-    <div className="table-node-scroll" tabIndex="0" role="region" aria-label={`${node.label || "Spreadsheet"} data. Scroll horizontally and vertically.`} onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
-      <table><tbody>{rows.map((row, rowIndex) => <tr key={rowIndex}>{Array.from({ length: columnCount }, (_, columnIndex) => row[columnIndex] || "").map((cell, columnIndex) => {
+    <div className="table-node-scroll" tabIndex="0" role="region" aria-label={`${node.label || "Spreadsheet"} data. Scroll horizontally and vertically. Column widths and row heights can be resized.`} onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
+      <table style={{ width: tableContentWidth }}><colgroup>{columnWidths.map((width, index) => <col key={index} style={{ width }} />)}</colgroup><tbody>{rows.map((row, rowIndex) => <tr key={rowIndex} style={{ height: rowHeights[rowIndex] }}>{Array.from({ length: columnCount }, (_, columnIndex) => row[columnIndex] || "").map((cell, columnIndex) => {
         const Cell = rowIndex === 0 ? "th" : "td";
         const toneName = rowIndex > 0 && node.rowTones?.[rowIndex] ? node.rowTones[rowIndex] : node.columnTones?.[columnIndex];
         const tone = toneName ? palette[toneName] : null;
-        return <Cell key={columnIndex} style={tone ? { "--table-column": tone.soft, "--table-column-strong": tone.accent } : undefined} onContextMenu={(event) => openContextMenu(event, rowIndex === 0 ? "column" : "row", rowIndex === 0 ? columnIndex : rowIndex)}>{onChange ? <textarea aria-label={`Row ${rowIndex + 1}, column ${columnIndex + 1}`} value={cell} rows="1" spellCheck="false" onChange={(event) => updateCell(rowIndex, columnIndex, event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") event.currentTarget.blur(); }} /> : <span>{cell}</span>}</Cell>;
+        return <Cell key={columnIndex} style={{ ...(tone ? { "--table-column": tone.soft, "--table-column-strong": tone.accent } : {}), width: columnWidths[columnIndex], height: rowHeights[rowIndex] }} onContextMenu={(event) => openContextMenu(event, rowIndex === 0 ? "column" : "row", rowIndex === 0 ? columnIndex : rowIndex)}>{onChange ? <textarea aria-label={`Row ${rowIndex + 1}, column ${columnIndex + 1}`} value={cell} rows="1" spellCheck="false" onChange={(event) => updateCell(rowIndex, columnIndex, event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") event.currentTarget.blur(); }} /> : <span>{cell}</span>}
+          {onChange && rowIndex === 0 && <button type="button" className="table-column-resize-handle" aria-label={`Resize column ${columnIndex + 1}`} title="Drag to resize column" onPointerDown={(event) => startResize(event, "column", columnIndex)} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize} onKeyDown={(event) => { if (["ArrowLeft", "ArrowRight"].includes(event.key)) { event.preventDefault(); resizeColumnBy(columnIndex, event.key === "ArrowLeft" ? -8 : 8); } }} />}
+          {onChange && columnIndex === 0 && <button type="button" className="table-row-resize-handle" style={{ "--table-row-handle-width": `${tableContentWidth}px` }} aria-label={`Resize row ${rowIndex === 0 ? "header" : rowIndex}`} title="Drag to resize row" onPointerDown={(event) => startResize(event, "row", rowIndex)} onPointerMove={moveResize} onPointerUp={endResize} onPointerCancel={endResize} onKeyDown={(event) => { if (["ArrowUp", "ArrowDown"].includes(event.key)) { event.preventDefault(); resizeRowBy(rowIndex, event.key === "ArrowUp" ? -8 : 8); } }} />}
+        </Cell>;
       })}</tr>)}</tbody></table>
     </div>
     {contextMenu && <div ref={contextMenuRef} className="table-cell-context-menu" role="menu" aria-label={`${contextMenu.type === "column" ? "Column" : "Row"} actions`} style={{ left: contextMenu.x, top: contextMenu.y }} onPointerDown={(event) => event.stopPropagation()}>

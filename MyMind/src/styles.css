@@ -412,12 +412,19 @@ button { cursor: pointer; }
 .table-node-scroll { min-width: 0; min-height: 0; overflow: auto; overscroll-behavior: contain; touch-action: pan-x pan-y; scrollbar-width: thin; scrollbar-color: #c5cbd5 transparent; }
 .table-node-scroll:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .table-node-scroll::-webkit-scrollbar { width: 10px; height: 10px; }.table-node-scroll::-webkit-scrollbar-track { background: #f5f6f8; }.table-node-scroll::-webkit-scrollbar-thumb { background: #c5cbd5; border: 3px solid #f5f6f8; border-radius: 999px; }
-.table-node-content table { width: max-content; min-width: 100%; border-collapse: collapse; color: #505865; background: #fff; font-size: 10px; }
-.table-node-content th, .table-node-content td { min-width: 128px; max-width: 220px; height: 34px; padding: 0; overflow: hidden; background: color-mix(in srgb, var(--table-column, #fff) 64%, #fff); border-right: 1px solid #e7eaf0; border-bottom: 1px solid #e7eaf0; text-align: left; vertical-align: top; }
+.table-node-content table { min-width: 0; table-layout: fixed; border-collapse: collapse; color: #505865; background: #fff; font-size: 10px; }
+.table-node-content th, .table-node-content td { position: relative; min-width: 0; max-width: none; padding: 0; overflow: visible; background: color-mix(in srgb, var(--table-column, #fff) 64%, #fff); border-right: 1px solid #e7eaf0; border-bottom: 1px solid #e7eaf0; text-align: left; vertical-align: top; }
 .table-node-content th { color: #414956; background: color-mix(in srgb, var(--table-column-strong, #eef0f4) 16%, #fff); font-weight: 750; }
-.table-node-content td > span, .table-node-content th > span { display: block; padding: 9px 10px; white-space: pre-wrap; }
-.table-node-content textarea { width: 100%; min-width: 128px; min-height: 46px; display: block; padding: 9px 10px; resize: none; overflow: hidden; color: inherit; background: transparent; border: 0; border-radius: 0 !important; outline: 0; font: inherit; line-height: 1.35; white-space: pre-wrap; }
+.table-node-content td > span, .table-node-content th > span { height: 100%; display: block; padding: 9px 10px; overflow: hidden; white-space: pre-wrap; }
+.table-node-content textarea { width: 100%; min-width: 0; height: 100%; min-height: 100%; display: block; box-sizing: border-box; padding: 9px 10px; resize: none; overflow: auto; color: inherit; background: transparent; border: 0; border-radius: 0 !important; outline: 0; font: inherit; line-height: 1.35; white-space: pre-wrap; }
 .table-node-content th textarea { font-weight: 750; }.table-node-content textarea:focus { position: relative; z-index: 1; background: rgba(255,255,255,.82); box-shadow: inset 0 0 0 2px var(--primary); }
+.table-column-resize-handle, .table-row-resize-handle { position: absolute; z-index: 6; display: block; padding: 0; background: transparent; border: 0; touch-action: none; }
+.table-column-resize-handle { top: 0; right: -5px; width: 10px; height: 100%; cursor: col-resize; }
+.table-column-resize-handle::after { content: ""; position: absolute; top: 7px; right: 4px; bottom: 7px; width: 2px; opacity: 0; background: var(--primary); border-radius: 2px; transition: opacity .12s ease; }
+.table-row-resize-handle { left: 0; bottom: -5px; width: var(--table-row-handle-width); height: 10px; cursor: row-resize; }
+.table-row-resize-handle::after { content: ""; position: absolute; right: 7px; bottom: 4px; left: 7px; height: 2px; opacity: 0; background: var(--primary); border-radius: 2px; transition: opacity .12s ease; }
+.table-column-resize-handle:hover::after, .table-column-resize-handle:focus-visible::after, .table-row-resize-handle:hover::after, .table-row-resize-handle:focus-visible::after { opacity: 1; }
+.table-column-resize-handle:focus-visible, .table-row-resize-handle:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .canvas-node[class*="shape-"] { flex-direction: column; justify-content: center; gap: 4px; padding: 8px 14px; background: var(--shape-fill); }
 .canvas-node[class*="shape-"] .node-copy strong { color: var(--shape-text); }
 .canvas-node[class*="shape-"] .node-copy small { color: var(--shape-muted); }
