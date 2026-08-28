@@ -50,6 +50,57 @@
     }
 
     /* =========================
+    OPT-IN IFRAME INTERACTION
+    ========================= */
+    const interactiveEmbeds = [...document.querySelectorAll('[data-interactive-embed]')];
+
+    if (interactiveEmbeds.length) {
+      let activeEmbed = null;
+
+      const releaseEmbed = (embed, { restoreFocus = false } = {}) => {
+        if (!embed) return;
+        const frame = embed.querySelector('iframe');
+        const gate = embed.querySelector('.interactive-embed__gate');
+        embed.classList.remove('is-active');
+        embed.setAttribute('data-embed-active', 'false');
+        frame?.setAttribute('tabindex', '-1');
+        if (activeEmbed === embed) activeEmbed = null;
+        if (restoreFocus) gate?.focus({ preventScroll: true });
+      };
+
+      const activateEmbed = (embed) => {
+        if (activeEmbed && activeEmbed !== embed) releaseEmbed(activeEmbed);
+        const frame = embed.querySelector('iframe');
+        embed.classList.add('is-active');
+        embed.setAttribute('data-embed-active', 'true');
+        frame?.setAttribute('tabindex', '0');
+        activeEmbed = embed;
+        frame?.focus({ preventScroll: true });
+      };
+
+      interactiveEmbeds.forEach((embed) => {
+        const gate = embed.querySelector('.interactive-embed__gate');
+        const release = embed.querySelector('.interactive-embed__release');
+        const frame = embed.querySelector('iframe');
+        embed.classList.add('embed-gating-ready');
+        embed.setAttribute('data-embed-active', 'false');
+        frame?.setAttribute('tabindex', '-1');
+        gate?.addEventListener('click', () => activateEmbed(embed));
+        release?.addEventListener('click', () => releaseEmbed(embed, { restoreFocus: true }));
+      });
+
+      document.addEventListener('pointerdown', (event) => {
+        if (activeEmbed && !activeEmbed.contains(event.target)) releaseEmbed(activeEmbed);
+      });
+
+      window.addEventListener('message', (event) => {
+        if (event.data?.type !== 'mymind:release-embed') return;
+        const embed = interactiveEmbeds.find((item) => item.querySelector('iframe')?.contentWindow === event.source);
+        if (embed) releaseEmbed(embed, { restoreFocus: true });
+      });
+    }
+
+    /* =========================
     TEXT LOOP
     ========================= */
 

@@ -200,6 +200,7 @@ const STORAGE_METADATA_KEY = "mymind.documentMetadata.v3";
 const DOCUMENT_CACHE_DB = "mymind-document-cache";
 const DOCUMENT_CACHE_STORE = "documents";
 const FOLDERS_KEY = "mymind.folders.v1";
+const DOCUMENT_DRAG_TYPE = "application/x-mymind-document-id";
 const ANNOTATION_TOKEN_KEY = "mymind.annotationTokens.v1";
 const PRESENCE_CLIENT_KEY = "mymind.presenceClient.v1";
 const NODE_SIZE = { width: 184, height: 82 };
@@ -371,6 +372,7 @@ function nodeDimensions(node) {
   if (node?.type === "checklist") return { width: node.width || 320, height: node.height || 220 };
   if (node?.type === "code") return { width: node.width || 360, height: node.height || 220 };
   if (node?.type === "table") return { width: node.width || 520, height: node.height || 300 };
+  if (node?.type === "document") return { width: node.width || 600, height: node.height || 440 };
   if (node?.type === "link") return { width: node.width || (node.linkDisplay === "embed" ? 560 : 300), height: node.height || (node.linkDisplay === "embed" ? 340 : 196) };
   if (node?.type === "image") {
     const width = node.width || 280;
@@ -403,10 +405,56 @@ function nodeDimensions(node) {
   return { width, height: Math.max(NODE_SIZE.height, 36 + titleLines * 17 + subtitleLines * 14) };
 }
 
+function isLineNode(node) {
+  return node?.type === "arrow" || (node?.type === "basic-shape" && node.shapeKind === "line");
+}
+
+function lineStrokeColor(node) {
+  return node?.outlineColor || toneForNode(node).accent || "#5367ef";
+}
+
+function lineEndpointShape(node, side) {
+  const value = node?.[side === "start" ? "startShape" : "endShape"];
+  if (value) return value;
+  return side === "end" && node?.type === "arrow" ? "arrow" : "none";
+}
+
+function lineGeometry(node, size = nodeDimensions(node)) {
+  const centerY = size.height / 2;
+  const curve = Number(node?.curve) || 0;
+  return {
+    curve,
+    path: curve ? `M 0 ${centerY} Q ${size.width / 2} ${centerY + curve} ${size.width} ${centerY}` : `M 0 ${centerY} L ${size.width} ${centerY}`,
+    midpointY: centerY + curve / 2,
+  };
+}
+
+function lineVisualBounds(node) {
+  const size = nodeDimensions(node);
+  const radians = Number(node.rotation || 0) * Math.PI / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const centerX = node.x + size.width / 2;
+  const centerY = node.y + size.height / 2;
+  const localCenterY = size.height / 2;
+  const points = [[0, localCenterY], [size.width, localCenterY], [size.width / 2, localCenterY + (Number(node.curve) || 0) / 2]].map(([x, y]) => {
+    const dx = x - size.width / 2;
+    const dy = y - size.height / 2;
+    return { x: centerX + dx * cos - dy * sin, y: centerY + dx * sin + dy * cos };
+  });
+  const padding = Math.max(10, (node.strokeWidth || 3) * 3);
+  return {
+    minX: Math.min(...points.map((point) => point.x)) - padding,
+    minY: Math.min(...points.map((point) => point.y)) - padding,
+    maxX: Math.max(...points.map((point) => point.x)) + padding,
+    maxY: Math.max(...points.map((point) => point.y)) + padding,
+  };
+}
+
 function nodeAllowsConnections(node) {
   if (!node) return false;
-  if (["table", "arrow", "checklist"].includes(node.type)) return false;
-  return !(node.type === "basic-shape" && node.shapeKind === "line");
+  if (["table", "document", "checklist"].includes(node.type) || isLineNode(node)) return false;
+  return true;
 }
 
 function nodeBounds(node) {
@@ -710,6 +758,17 @@ function readImageFile(file, { metadataOnly = false } = {}) {
 }
 
 const nowLabel = () => new Intl.DateTimeFormat("en", { month: "short", day: "numeric", year: "numeric" }).format(new Date());
+const taskDueDateFormatter = new Intl.DateTimeFormat("en", { month: "short", day: "numeric" });
+const formatTaskDueDate = (value) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) return "";
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime()) ? "" : taskDueDateFormatter.format(date);
+};
+const todayDateKey = () => {
+  const date = new Date();
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 10);
+};
 const uid = (prefix = "id") => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 const slugify = (value) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "untitled-canvas";
 const documentSlug = (title, id) => `${slugify(title)}-${String(id || "canvas").slice(-4)}`;
@@ -888,6 +947,15 @@ async function parseTabularFile(file) {
   const rows = extension === "csv" ? parseCsv((await file.text()).replace(/^\uFEFF/, "")) : parseXlsx(await file.arrayBuffer());
   if (!rows.length) throw new Error("This spreadsheet does not contain any visible rows.");
   return rows.slice(0, 500).map((row) => row.slice(0, 50).map((cell) => String(cell ?? "")));
+}
+
+function parseDocxText(buffer) {
+  const files = unzipSync(new Uint8Array(buffer));
+  const source = xmlText(files, "word/document.xml");
+  if (!source) throw new Error("This Word document does not contain readable content.");
+  const documentXml = new DOMParser().parseFromString(source, "application/xml");
+  const paragraphs = [...documentXml.getElementsByTagNameNS("*", "p")].map((paragraph) => [...paragraph.getElementsByTagNameNS("*", "t")].map((item) => item.textContent || "").join("").trim()).filter(Boolean);
+  return paragraphs.join("\n\n").slice(0, 100000);
 }
 
 function pageContent(source = {}) {
@@ -1524,12 +1592,19 @@ export function App() {
     apiRequest("folder-delete", { id: folderId }).catch(() => {});
   };
 
-  const moveDocument = (documentId, folderId) => {
+  const moveDocument = async (documentId, folderId) => {
     const current = documents.find((doc) => doc.id === documentId);
     const changed = current ? { ...current, folderId: folderId || null } : null;
     if (!changed) return;
+    const previousFolderId = current.folderId || null;
+    const nextFolderId = folderId || null;
     commitDocuments((items) => items.map((doc) => doc.id === documentId ? changed : doc));
-    apiRequest("document-folder", { id: documentId, folderId: folderId || null }).catch(() => {});
+    try {
+      await apiRequest("document-folder", { id: documentId, folderId: nextFolderId });
+    } catch (error) {
+      commitDocuments((items) => items.map((doc) => doc.id === documentId && (doc.folderId || null) === nextFolderId ? { ...doc, folderId: previousFolderId } : doc));
+      throw error;
+    }
   };
 
   const createDocument = async (template) => {
@@ -1667,7 +1742,7 @@ function Login({ onLogin, serviceUnavailable = false }) {
       catch (loginError) { setError(loginError?.status === 401 ? "That password didn’t work. Please try again." : "MyMind could not reach its database. Please try again in a moment."); }
       finally { setBusy(false); }
     }}>
-      <span className="login-icon"><LucideIcons.Lock size={31} strokeWidth={1.7} /></span>
+      <span className="login-icon"><MyMindLogo label="MyMind" /></span>
       {serviceUnavailable && <div className="login-warning">The workspace is locked because its database is currently unavailable.</div>}
       <label className="sr-only" htmlFor="mymind-password">Password</label>
       <input id="mymind-password" type="password" autoFocus autoComplete="current-password" placeholder="••••••••" aria-describedby={error ? "login-error" : undefined} value={password} onChange={(event) => setPassword(event.target.value)} />
@@ -1684,9 +1759,20 @@ function Dashboard({ documents, folders, onNew, onImport, onDelete, onSaveFolder
   const [editingFolderId, setEditingFolderId] = useState(null);
   const [folderDraft, setFolderDraft] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [draggedDocumentId, setDraggedDocumentId] = useState(null);
+  const [folderDropTarget, setFolderDropTarget] = useState(null);
+  const [dashboardToast, setDashboardToast] = useState(null);
   const dashboardImportRef = useRef(null);
   const folderEditCommittingRef = useRef(false);
+  const dashboardToastTimerRef = useRef(null);
   const filtered = documents.filter((doc) => doc.title.toLowerCase().includes(query.toLowerCase()) && (selectedFolder === "all" || (selectedFolder === "unfiled" ? !doc.folderId : doc.folderId === selectedFolder)));
+  const draggedDocument = documents.find((doc) => doc.id === draggedDocumentId);
+  useEffect(() => () => window.clearTimeout(dashboardToastTimerRef.current), []);
+  const showDashboardToast = (type, message) => {
+    window.clearTimeout(dashboardToastTimerRef.current);
+    setDashboardToast({ id: Date.now(), type, message });
+    dashboardToastTimerRef.current = window.setTimeout(() => setDashboardToast(null), 2800);
+  };
   const beginFolderEdit = (folder = null) => {
     folderEditCommittingRef.current = false;
     setEditingFolderId(folder?.id || "new");
@@ -1718,6 +1804,57 @@ function Dashboard({ documents, folders, onNew, onImport, onDelete, onSaveFolder
     } else onDelete(confirmDelete.item.id);
     setConfirmDelete(null);
   };
+  const folderDropKey = (folderId) => folderId || "unfiled";
+  const draggedIdFromEvent = (event) => event.dataTransfer.getData(DOCUMENT_DRAG_TYPE) || draggedDocumentId;
+  const canDropDocumentInFolder = (folderId, documentId = draggedDocumentId) => {
+    const document = documents.find((item) => item.id === documentId);
+    return Boolean(document && (document.folderId || null) !== (folderId || null));
+  };
+  const moveDocumentWithFeedback = async (documentId, folderId) => {
+    const document = documents.find((item) => item.id === documentId);
+    const folder = folders.find((item) => item.id === folderId);
+    if (!document || (document.folderId || null) === (folderId || null)) return false;
+    try {
+      await onMoveDocument(documentId, folderId || "");
+      showDashboardToast("success", `Moved “${document.title}” to ${folder?.name || "Unfiled"}.`);
+      return true;
+    } catch {
+      showDashboardToast("error", `Couldn’t move “${document.title}”. Your previous folder was restored.`);
+      return false;
+    }
+  };
+  const folderDropClass = (folderId) => {
+    if (!draggedDocument) return "";
+    if (!canDropDocumentInFolder(folderId)) return " is-drop-unavailable";
+    return ` is-drop-ready${folderDropTarget === folderDropKey(folderId) ? " is-drop-active" : ""}`;
+  };
+  const folderDropProps = (folderId) => ({
+    onDragEnter: (event) => {
+      const documentId = draggedIdFromEvent(event);
+      if (canDropDocumentInFolder(folderId, documentId)) setFolderDropTarget(folderDropKey(folderId));
+    },
+    onDragOver: (event) => {
+      const documentId = draggedIdFromEvent(event);
+      if (!canDropDocumentInFolder(folderId, documentId)) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "move";
+      if (folderDropTarget !== folderDropKey(folderId)) setFolderDropTarget(folderDropKey(folderId));
+    },
+    onDragLeave: (event) => {
+      if (event.currentTarget.contains(event.relatedTarget)) return;
+      if (folderDropTarget === folderDropKey(folderId)) setFolderDropTarget(null);
+    },
+    onDrop: async (event) => {
+      event.preventDefault();
+      const documentId = draggedIdFromEvent(event);
+      const document = documents.find((item) => item.id === documentId);
+      if (document && canDropDocumentInFolder(folderId, documentId)) {
+        await moveDocumentWithFeedback(documentId, folderId);
+      }
+      setDraggedDocumentId(null);
+      setFolderDropTarget(null);
+    },
+  });
   return (
     <div className="app-shell dashboard-shell">
       <header className="topbar dashboard-topbar">
@@ -1727,14 +1864,14 @@ function Dashboard({ documents, folders, onNew, onImport, onDelete, onSaveFolder
       </header>
       <div className="dashboard-body">
         <aside className="folder-sidebar" aria-label="Canvas folders">
-            <div className="folder-sidebar-heading"><strong>Folders</strong><button aria-label="Add folder" title="Add folder" onClick={() => beginFolderEdit()}><Plus size={16} /></button></div>
-            <button className={selectedFolder === "all" ? "active" : ""} onClick={() => setSelectedFolder("all")}><Squares2X2Icon width="16" /><span>All canvases</span><small>{documents.length}</small></button>
-            <button className={selectedFolder === "unfiled" ? "active" : ""} onClick={() => setSelectedFolder("unfiled")}><FolderOpen size={16} /><span>Unfiled</span></button>
+            <div className="folder-sidebar-heading"><strong>{draggedDocument ? "Drop into a folder" : "Folders"}</strong><button aria-label="Add folder" title="Add folder" onClick={() => beginFolderEdit()}><Plus size={16} /></button></div>
+            <button className={`${selectedFolder === "all" ? "active" : ""}${draggedDocument ? " is-drop-unavailable" : ""}`} onClick={() => setSelectedFolder("all")}><Squares2X2Icon width="16" /><span>All canvases</span><small>{documents.length}</small></button>
+            <button {...folderDropProps("")} className={`${selectedFolder === "unfiled" ? "active" : ""}${folderDropClass("")}`} onClick={() => setSelectedFolder("unfiled")}><FolderOpen size={16} /><span>Unfiled</span></button>
             <div className="folder-list">
               {editingFolderId === "new" && <form className="folder-row folder-edit-row" onSubmit={(event) => { event.preventDefault(); finishFolderEdit(); }}><FolderOpen size={16} /><input autoFocus value={folderDraft} aria-label="New folder name" onFocus={(event) => event.currentTarget.select()} onChange={(event) => setFolderDraft(event.target.value)} onBlur={finishFolderEdit} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); cancelFolderEdit(); } }} /></form>}
               {folders.map((folder) => editingFolderId === folder.id
                 ? <form key={folder.id} className={`folder-row folder-edit-row ${selectedFolder === folder.id ? "active" : ""}`} onSubmit={(event) => { event.preventDefault(); finishFolderEdit(); }}><FolderOpen size={16} /><input autoFocus value={folderDraft} aria-label={`Rename ${folder.name}`} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setFolderDraft(event.target.value)} onBlur={finishFolderEdit} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); cancelFolderEdit(); } }} /></form>
-                : <div key={folder.id} className={`folder-row ${selectedFolder === folder.id ? "active" : ""}`}><button onClick={() => setSelectedFolder(folder.id)}><FolderOpen size={16} /><span>{folder.name}</span></button><div><button aria-label={`Rename ${folder.name}`} onClick={() => beginFolderEdit(folder)}><Pen size={13} /></button><button aria-label={`Delete ${folder.name}`} onClick={() => setConfirmDelete({ type: "folder", item: folder })}><Trash size={13} /></button></div></div>)}
+                : <div {...folderDropProps(folder.id)} key={folder.id} className={`folder-row ${selectedFolder === folder.id ? "active" : ""}${folderDropClass(folder.id)}`}><button onClick={() => setSelectedFolder(folder.id)}><FolderOpen size={16} /><span>{folder.name}</span></button><div><button aria-label={`Rename ${folder.name}`} onClick={() => beginFolderEdit(folder)}><Pen size={13} /></button><button aria-label={`Delete ${folder.name}`} onClick={() => setConfirmDelete({ type: "folder", item: folder })}><Trash size={13} /></button></div></div>)}
             </div>
         </aside>
         <main className="dashboard">
@@ -1760,31 +1897,131 @@ function Dashboard({ documents, folders, onNew, onImport, onDelete, onSaveFolder
             </section>
             <div className="dashboard-content">
               <section className="document-grid">
-                {filtered.map((doc) => <DocumentCard key={doc.id} document={doc} folders={folders} onMove={onMoveDocument} onDelete={() => setConfirmDelete({ type: "file", item: doc })} />)}
+                {filtered.map((doc) => <DocumentCard key={doc.id} document={doc} folders={folders} onMove={moveDocumentWithFeedback} onDelete={() => setConfirmDelete({ type: "file", item: doc })} isDragging={draggedDocumentId === doc.id} onDragStart={(documentId) => { setDraggedDocumentId(documentId); setFolderDropTarget(null); }} onDragEnd={() => { setDraggedDocumentId(null); setFolderDropTarget(null); }} />)}
                 <button className="new-card" onClick={onNew}><span><Plus size={22} /></span><strong>Create a canvas</strong><small>Start blank or use a template</small></button>
               </section>
             </div>
           </div>
         </main>
       </div>
+      {dashboardToast && <div key={dashboardToast.id} className={`dashboard-toast is-${dashboardToast.type}`} role={dashboardToast.type === "error" ? "alert" : "status"} aria-live={dashboardToast.type === "error" ? "assertive" : "polite"}>{dashboardToast.type === "success" ? <Check size={17} /> : <X size={17} />}<span>{dashboardToast.message}</span></div>}
       {confirmDelete && <ConfirmDialog title={confirmDelete.type === "folder" ? `Delete “${confirmDelete.item.name}”?` : `Delete “${confirmDelete.item.title}”?`} message={confirmDelete.type === "folder" ? "The folder will be deleted. Its canvases will remain available in All canvases." : "This canvas and its saved content will be permanently deleted."} confirmLabel={confirmDelete.type === "folder" ? "Delete folder" : "Delete canvas"} onClose={() => setConfirmDelete(null)} onConfirm={confirmDashboardDelete} />}
     </div>
   );
 }
 
 function Brand({ interactive = true }) {
-  const content = <><span className="brand-mark"><Brain size={23} weight="duotone" /></span><span>MyMind</span></>;
-  return interactive ? <button className="brand" onClick={() => navigate("/")}>{content}</button> : <span className="brand">{content}</span>;
+  const content = <span className="brand-mark"><MyMindLogo /></span>;
+  return interactive ? <button className="brand" aria-label="MyMind" onClick={() => navigate("/")}>{content}</button> : <span className="brand" aria-label="MyMind">{content}</span>;
 }
 
-function DocumentCard({ document, folders, onMove, onDelete }) {
+function MyMindLogo({ label = "" }) {
+  return <img className="mymind-logo" src={`${APP_BASE}mymind-logo.svg`} alt={label} />;
+}
+
+function previewFromDocument(document) {
+  if (Array.isArray(document?.nodes) || Array.isArray(document?.drawings)) {
+    return { nodes: document.nodes || [], edges: document.edges || [], drawings: document.drawings || [] };
+  }
+  const pages = Array.isArray(document?.pages) ? document.pages : [];
+  if (!pages.length) return null;
+  const page = pages.find((item) => item.id === document.activePageId) || pages[0];
+  return { nodes: page.nodes || [], edges: page.edges || [], drawings: page.drawings || [] };
+}
+
+function CanvasDocumentPreview({ document }) {
+  const [preview, setPreview] = useState(() => previewFromDocument(document));
+  useEffect(() => {
+    const supplied = previewFromDocument(document);
+    setPreview(supplied);
+    if (supplied) return undefined;
+    let active = true;
+    const controller = new AbortController();
+    void (async () => {
+      const cached = await readLocalDocument(document.id);
+      if (!active) return;
+      const cachedPreview = previewFromDocument(cached);
+      if (cachedPreview) setPreview(cachedPreview);
+      if (cachedPreview && Number(cached?.revision || 0) === Number(document.revision || 0)) return;
+      try {
+        const result = await apiRequest(`document-preview&id=${encodeURIComponent(document.id)}`, undefined, { signal: controller.signal });
+        if (active && result?.preview) setPreview(result.preview);
+      } catch (error) {
+        if (error.name !== "AbortError" && active && !cachedPreview) setPreview({ nodes: [], edges: [], drawings: [] });
+      }
+    })();
+    return () => { active = false; controller.abort(); };
+  }, [document.id, document.revision]);
+
+  if (!preview) return <div className="document-preview-loading" aria-hidden="true"><i /><i /><i /></div>;
+  const nodes = (preview.nodes || []).slice(0, 32);
+  const edges = (preview.edges || []).slice(0, 64);
+  const drawings = (preview.drawings || []).filter((drawing) => drawing.points?.length).slice(0, 12);
+  if (!nodes.length && !drawings.length) return <span className="document-preview-empty">Empty canvas</span>;
+
+  const sizedNodes = nodes.map((node) => {
+    const dimensions = nodeDimensions(node);
+    return { ...node, x: Number(node.x) || 0, y: Number(node.y) || 0, width: Number(dimensions.width) || NODE_SIZE.width, height: Number(dimensions.height) || NODE_SIZE.height };
+  });
+  const nodeMap = Object.fromEntries(sizedNodes.map((node) => [node.id, node]));
+  const bounds = [];
+  sizedNodes.forEach((node) => {
+    const visual = isLineNode(node) ? lineVisualBounds(node) : { minX: Number(node.x) || 0, minY: Number(node.y) || 0, maxX: (Number(node.x) || 0) + node.width, maxY: (Number(node.y) || 0) + node.height };
+    bounds.push({ x: visual.minX, y: visual.minY });
+    bounds.push({ x: visual.maxX, y: visual.maxY });
+  });
+  drawings.forEach((drawing) => (drawing.points || []).forEach((point) => bounds.push({ x: Number(point.x) || 0, y: Number(point.y) || 0 })));
+  const minX = Math.min(...bounds.map((point) => point.x));
+  const minY = Math.min(...bounds.map((point) => point.y));
+  const maxX = Math.max(...bounds.map((point) => point.x));
+  const maxY = Math.max(...bounds.map((point) => point.y));
+  const padding = Math.max(34, Math.max(maxX - minX, maxY - minY) * .06);
+  const viewBox = `${minX - padding} ${minY - padding} ${Math.max(120, maxX - minX + padding * 2)} ${Math.max(80, maxY - minY + padding * 2)}`;
+
+  return <svg className="document-preview-art" viewBox={viewBox} preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+    <defs><marker id={`thumbnail-arrow-${document.id}`} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 Z" fill="#a9b1c0" /></marker><marker id={`thumbnail-circle-${document.id}`} markerWidth="9" markerHeight="9" refX="4.5" refY="4.5" orient="auto"><circle cx="4.5" cy="4.5" r="3.2" fill="#fff" stroke="#a9b1c0" strokeWidth="1.5" /></marker></defs>
+    <g className="document-preview-edges">{edges.map((edge) => {
+      const source = nodeMap[edge.source];
+      const target = nodeMap[edge.target];
+      if (!source || !target) return null;
+      const sx = source.x + source.width / 2;
+      const sy = source.y + source.height / 2;
+      const tx = target.x + target.width / 2;
+      const ty = target.y + target.height / 2;
+      const bend = Math.max(30, Math.abs(tx - sx) * .42);
+      return <path key={edge.id} d={`M ${sx} ${sy} C ${sx + bend} ${sy}, ${tx - bend} ${ty}, ${tx} ${ty}`} markerEnd={`url(#thumbnail-arrow-${document.id})`} />;
+    })}</g>
+    <g className="document-preview-drawings">{drawings.map((drawing) => <path key={drawing.id} d={drawingPath(drawing.points)} style={{ stroke: drawing.color || "#697386", strokeWidth: drawing.width || 2.4, opacity: drawing.mode === "highlighter" ? .45 : .82 }} />)}</g>
+    <g className="document-preview-nodes">{sizedNodes.map((node) => {
+      const x = Number(node.x) || 0;
+      const y = Number(node.y) || 0;
+      const tone = palette[node.color] || palette.slate;
+      const transform = node.rotation ? `rotate(${node.rotation} ${x + node.width / 2} ${y + node.height / 2})` : undefined;
+      if (isLineNode(node)) {
+        const centerY = y + node.height / 2;
+        const curve = Number(node.curve) || 0;
+        const path = curve ? `M ${x} ${centerY} Q ${x + node.width / 2} ${centerY + curve} ${x + node.width} ${centerY}` : `M ${x} ${centerY} L ${x + node.width} ${centerY}`;
+        const marker = (side) => lineEndpointShape(node, side) === "arrow" ? `url(#thumbnail-arrow-${document.id})` : lineEndpointShape(node, side) === "circle" ? `url(#thumbnail-circle-${document.id})` : undefined;
+        return <path key={node.id} d={path} fill="none" stroke={lineStrokeColor(node)} strokeWidth={node.strokeWidth || 3} strokeLinecap="round" strokeDasharray={node.lineStyle === "dashed" ? "9 7" : undefined} markerStart={marker("start")} markerEnd={marker("end")} transform={transform} />;
+      }
+      if (node.type === "basic-shape") {
+        const fill = node.fillColor === "transparent" ? "none" : node.fillColor || tone.soft;
+        const stroke = node.outlineColor === "transparent" ? "none" : node.outlineColor || tone.accent;
+        if (node.shapeKind === "circle") return <ellipse key={node.id} cx={x + node.width / 2} cy={y + node.height / 2} rx={node.width / 2} ry={node.height / 2} fill={fill} stroke={stroke} strokeWidth={node.strokeWidth || 3} transform={transform} />;
+        if (node.shapeKind === "triangle") return <path key={node.id} d={`M ${x + node.width / 2} ${y} L ${x + node.width} ${y + node.height} L ${x} ${y + node.height} Z`} fill={fill} stroke={stroke} strokeWidth={node.strokeWidth || 3} transform={transform} />;
+        return <rect key={node.id} x={x} y={y} width={node.width} height={node.height} rx={Math.min(18, node.height * .16)} fill={fill} stroke={stroke} strokeWidth={node.strokeWidth || 3} transform={transform} />;
+      }
+      if (node.shape === "decision") return <path key={node.id} d={`M ${x + node.width / 2} ${y} L ${x + node.width} ${y + node.height / 2} L ${x + node.width / 2} ${y + node.height} L ${x} ${y + node.height / 2} Z`} fill={tone.soft} stroke={tone.accent} strokeWidth="3" transform={transform} />;
+      if (node.type === "text") return <g key={node.id} transform={transform}><rect x={x} y={y + node.height * .22} width={node.width * .86} height={Math.max(5, node.height * .12)} rx="3" fill={tone.accent} /><rect x={x} y={y + node.height * .48} width={node.width * .62} height={Math.max(4, node.height * .09)} rx="3" fill={tone.accent} opacity=".42" /></g>;
+      const special = ["image", "link", "table", "document", "code", "checklist"].includes(node.type);
+      return <g key={node.id} transform={transform}><rect x={x} y={y} width={node.width} height={node.height} rx={Math.min(18, node.height * .18)} fill={special ? tone.soft : "#fff"} stroke={tone.accent} strokeWidth="2.5" /><circle cx={x + Math.min(28, node.width * .16)} cy={y + node.height / 2} r={Math.min(9, node.height * .12)} fill={tone.accent} /><rect x={x + Math.min(46, node.width * .25)} y={y + node.height * .34} width={node.width * .48} height={Math.max(4, node.height * .08)} rx="3" fill={tone.accent} opacity=".78" /><rect x={x + Math.min(46, node.width * .25)} y={y + node.height * .56} width={node.width * .32} height={Math.max(3, node.height * .06)} rx="3" fill={tone.accent} opacity=".3" /></g>;
+    })}</g>
+  </svg>;
+}
+
+function DocumentCard({ document, folders, onMove, onDelete, isDragging, onDragStart, onDragEnd }) {
   // The dashboard list endpoint intentionally returns metadata only. Full graph
-  // data is fetched when a canvas opens, so cards must also render without it.
-  const nodes = Array.isArray(document.nodes) ? document.nodes : [];
-  const edges = Array.isArray(document.edges) ? document.edges : [];
-  const previewNodes = nodes.slice(0, 5);
-  const minNodeX = previewNodes.length ? Math.min(...previewNodes.map((node) => Number(node.x) || 0)) : 0;
-  const minNodeY = previewNodes.length ? Math.min(...previewNodes.map((node) => Number(node.y) || 0)) : 0;
+  // data is fetched when a canvas opens, so thumbnail data is loaded separately.
   const [folderOpen, setFolderOpen] = useState(false);
   const folderPickerRef = useRef(null);
   const selectedFolder = folders.find((folder) => folder.id === document.folderId);
@@ -1801,21 +2038,18 @@ function DocumentCard({ document, folders, onMove, onDelete }) {
     setFolderOpen(false);
   };
   return (
-    <article className={`document-card ${folderOpen ? "folder-menu-open" : ""}`} onClick={() => navigate(`/editor/${document.id}`)}>
+    <article className={`document-card ${folderOpen ? "folder-menu-open" : ""}${isDragging ? " is-dragging" : ""}`} draggable onDragStart={(event) => {
+      if (event.target.closest?.("button, input, a, [role='option']")) {
+        event.preventDefault();
+        return;
+      }
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData(DOCUMENT_DRAG_TYPE, document.id);
+      event.dataTransfer.setData("text/plain", document.title);
+      onDragStart(document.id);
+    }} onDragEnd={onDragEnd} onClick={() => navigate(`/editor/${document.id}`)}>
       <div className="document-preview">
-        <svg className="preview-lines" viewBox="0 0 300 150" aria-hidden="true">
-          {edges.slice(0, 5).map((edge) => {
-            const source = nodes.find((node) => node.id === edge.source);
-            const target = nodes.find((node) => node.id === edge.target);
-            if (!source || !target) return null;
-            const sx = 35 + ((Number(source.x) || 0) - minNodeX) * .24;
-            const sy = 30 + ((Number(source.y) || 0) - minNodeY) * .24;
-            const tx = 35 + ((Number(target.x) || 0) - minNodeX) * .24;
-            const ty = 30 + ((Number(target.y) || 0) - minNodeY) * .24;
-            return <path key={edge.id} d={`M ${sx} ${sy} C ${(sx + tx) / 2} ${sy}, ${(sx + tx) / 2} ${ty}, ${tx} ${ty}`} />;
-          })}
-        </svg>
-        {previewNodes.map((node) => <span key={node.id} className={`preview-node tone-${node.color}`} style={{ left: `${24 + ((Number(node.x) || 0) - minNodeX) * .24}px`, top: `${18 + ((Number(node.y) || 0) - minNodeY) * .24}px` }} />)}
+        <CanvasDocumentPreview document={document} />
       </div>
       <div className="document-meta">
         <div><h2>{document.title}</h2><p>Updated {new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(document.updatedAt))}</p><div ref={folderPickerRef} className={`folder-picker ${folderOpen ? "open" : ""}`} onClick={(event) => event.stopPropagation()}><button type="button" className="folder-picker-trigger" aria-label={`Move ${document.title} to a folder`} aria-haspopup="listbox" aria-expanded={folderOpen} onClick={() => setFolderOpen((open) => !open)}><FolderOpen size={13} /><span>{selectedFolder?.name || "Unfiled"}</span><CaretDown size={11} /></button>{folderOpen && <div className="folder-picker-menu" role="listbox" aria-label={`Choose folder for ${document.title}`}><strong>Move to folder</strong><button role="option" aria-selected={!document.folderId} className={!document.folderId ? "selected" : ""} onClick={() => moveToFolder("")}><span className="folder-option-check">{!document.folderId && <Check size={13} />}</span><FolderOpen size={14} /><span>Unfiled</span></button>{folders.map((folder) => <button key={folder.id} role="option" aria-selected={document.folderId === folder.id} className={document.folderId === folder.id ? "selected" : ""} onClick={() => moveToFolder(folder.id)}><span className="folder-option-check">{document.folderId === folder.id && <Check size={13} />}</span><FolderOpen size={14} /><span>{folder.name}</span></button>)}</div>}</div></div>
@@ -1937,6 +2171,15 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
   const historyRef = useRef({ past: [], future: [] });
   const publicView = embedMode || (isPublicLink && !document.guestEditable);
   const collaborationEnabled = Boolean(initialDocument && (isPublicLink || document.shared));
+
+  useEffect(() => {
+    if (!embedMode || window.parent === window) return undefined;
+    const releaseOnEscape = (event) => {
+      if (event.key === "Escape") window.parent.postMessage({ type: "mymind:release-embed" }, "*");
+    };
+    window.addEventListener("keydown", releaseOnEscape);
+    return () => window.removeEventListener("keydown", releaseOnEscape);
+  }, [embedMode]);
 
   const wantsDrawingToolbar = tool === "pen" || drawingSelection.length > 0;
   useEffect(() => {
@@ -2364,6 +2607,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
       height,
       label: "Task list",
       color: "slate",
+      dueDate: "",
       items: [{ id: uid("task"), text: "", completed: false }],
     };
     updateDocument((doc) => ({ ...doc, nodes: [...doc.nodes, node] }));
@@ -2374,23 +2618,70 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
     setTool("select");
   }, [pan.x, pan.y, updateDocument, zoom]);
 
-  const addTableFile = useCallback(async (file) => {
+  const addTableNode = useCallback(() => {
+    const viewportWidth = (canvasRef.current?.clientWidth || 620) / zoom;
+    const width = Math.min(620, Math.max(420, viewportWidth - 64));
+    const height = 300;
+    const x = (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - width / 2;
+    const y = (canvasRef.current?.clientHeight / 2 - pan.y) / zoom - height / 2;
+    const node = {
+      id: uid("table"),
+      type: "table",
+      x,
+      y,
+      width,
+      height,
+      label: "Table",
+      color: "slate",
+      columnTones: ["slate", "aqua", "blue"],
+      rows: [["Column 1", "Column 2", "Column 3"], ["", "", ""], ["", "", ""]],
+    };
+    updateDocument((doc) => ({ ...doc, nodes: [...doc.nodes, node] }));
+    setSelection([node.id]);
+    setDrawingSelection([]);
+    setEdgeSelection([]);
+    setNodeMenu(false);
+    setTool("select");
+  }, [pan.x, pan.y, updateDocument, zoom]);
+
+  const addImportedFile = useCallback(async (file) => {
     try {
-      const rows = await parseTabularFile(file);
-      const width = Math.min(760, Math.max(420, (canvasRef.current?.clientWidth || 760) / zoom - 64));
-      const height = Math.min(420, Math.max(240, 54 + Math.min(rows.length, 12) * 32));
+      const extension = file.name.split(".").pop()?.toLowerCase();
+      if (!["csv", "xlsx", "pdf", "doc", "docx"].includes(extension)) throw new Error("Choose a CSV, Excel, PDF, or Word file.");
+      if (["csv", "xlsx"].includes(extension)) {
+        const rows = await parseTabularFile(file);
+        const width = Math.min(760, Math.max(420, (canvasRef.current?.clientWidth || 760) / zoom - 64));
+        const height = Math.min(420, Math.max(240, 54 + Math.min(rows.length, 12) * 32));
+        const x = (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - width / 2;
+        const y = (canvasRef.current?.clientHeight / 2 - pan.y) / zoom - height / 2;
+        const node = { id: uid("table"), type: "table", x, y, width, height, label: file.name.replace(/\.(csv|xlsx)$/i, ""), fileName: file.name, rows };
+        updateDocument((doc) => ({ ...doc, nodes: [...doc.nodes, node] }));
+        setSelection([node.id]);
+        setDrawingSelection([]);
+        setEdgeSelection([]);
+        setTool("select");
+        return;
+      }
+      if (file.size > 25 * 1024 * 1024) throw new Error("PDF and Word files are limited to 25 MB.");
+      setMediaUpload({ name: file.name, progress: 2, status: "Preparing document…" });
+      const documentText = extension === "docx" ? parseDocxText(await file.arrayBuffer()) : "";
+      const fileUrl = await uploadMediaFile(file, (progress) => setMediaUpload({ name: file.name, progress, status: progress < 100 ? "Uploading document…" : "Finishing…" }), isPublicLink ? document.slug : "");
+      const width = Math.min(760, Math.max(480, (canvasRef.current?.clientWidth || 760) / zoom - 64));
+      const height = Math.min(560, Math.max(340, (canvasRef.current?.clientHeight || 620) / zoom - 120));
       const x = (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - width / 2;
       const y = (canvasRef.current?.clientHeight / 2 - pan.y) / zoom - height / 2;
-      const node = { id: uid("table"), type: "table", x, y, width, height, label: file.name.replace(/\.(csv|xlsx)$/i, ""), fileName: file.name, rows };
+      const node = { id: uid("document"), type: "document", documentKind: extension === "pdf" ? "pdf" : "word", x, y, width, height, label: file.name.replace(/\.(pdf|docx?)$/i, ""), fileName: file.name, fileUrl, mimeType: file.type, documentText };
       updateDocument((doc) => ({ ...doc, nodes: [...doc.nodes, node] }));
       setSelection([node.id]);
       setDrawingSelection([]);
       setEdgeSelection([]);
       setTool("select");
+      setMediaUpload(null);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "MyMind could not import this spreadsheet.");
+      setMediaUpload(null);
+      window.alert(error instanceof Error ? error.message : "MyMind could not import this file.");
     }
-  }, [pan.x, pan.y, updateDocument, zoom]);
+  }, [document.slug, isPublicLink, pan.x, pan.y, updateDocument, zoom]);
 
   const addIconNode = useCallback((iconName) => {
     const width = 64;
@@ -2404,26 +2695,29 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
     setIconBrowserOpen(false);
   }, [pan.x, pan.y, updateDocument, zoom]);
 
-  const addArrowShape = useCallback(() => {
+  const addLineShape = useCallback(() => {
+    if (publicView) return;
     const width = 220;
     const x = (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - width / 2;
-    const y = (canvasRef.current?.clientHeight / 2 - pan.y) / zoom - 22;
-    const node = { id: uid("arrow"), type: "arrow", x, y, width, height: 44, color: "slate", lineStyle: "solid", label: "Arrow line" };
+    const height = 24;
+    const y = (canvasRef.current?.clientHeight / 2 - pan.y) / zoom - height / 2;
+    const node = { id: uid("line"), type: "basic-shape", shapeKind: "line", x, y, width, height, rotation: 0, fillColor: "transparent", outlineColor: "#5367ef", strokeWidth: 3, lineStyle: "solid", startShape: "none", endShape: "none", curve: 0, label: "" };
     updateDocument((doc) => ({ ...doc, nodes: [...doc.nodes, node] }));
     setSelection([node.id]);
     setEdgeSelection([]);
     setDrawingSelection([]);
-  }, [pan.x, pan.y, updateDocument, zoom]);
+    setShapeMenuOpen(false);
+    setTool("select");
+  }, [pan.x, pan.y, publicView, updateDocument, zoom]);
 
   const addBasicShape = useCallback((shapeKind) => {
     if (publicView) return;
     const proportional = ["circle", "square"].includes(shapeKind);
-    const isLine = shapeKind === "line";
-    const width = isLine ? 220 : proportional ? 140 : 180;
-    const height = isLine ? 24 : proportional ? 140 : 120;
+    const width = proportional ? 140 : 180;
+    const height = proportional ? 140 : 120;
     const x = (canvasRef.current?.clientWidth / 2 - pan.x) / zoom - width / 2;
     const y = (canvasRef.current?.clientHeight / 2 - pan.y) / zoom - height / 2;
-    const node = { id: uid("shape"), type: "basic-shape", shapeKind, x, y, width, height, rotation: 0, fillColor: isLine ? "transparent" : "#eef1ff", outlineColor: "#5367ef", strokeWidth: isLine ? 3 : undefined, label: "" };
+    const node = { id: uid("shape"), type: "basic-shape", shapeKind, x, y, width, height, rotation: 0, fillColor: "#eef1ff", outlineColor: "#5367ef", label: "" };
     updateDocument((doc) => ({ ...doc, nodes: [...doc.nodes, node] }));
     setSelection([node.id]);
     setEdgeSelection([]);
@@ -2625,6 +2919,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
 
   const startAnnotationDrag = (annotation, event) => {
     if (tool !== "select" || !canManageAnnotation(annotation.id)) return;
+    event.preventDefault();
     dragRef.current = { type: "annotation", id: annotation.id, startX: event.clientX, startY: event.clientY, annotationX: annotation.x, annotationY: annotation.y };
     event.currentTarget.setPointerCapture(event.pointerId);
   };
@@ -2698,6 +2993,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
   };
 
   const startSelectionDrag = (event, nodeIds, drawingIds) => {
+    event.preventDefault();
     dragRef.current = {
       type: "selection",
       startX: event.clientX,
@@ -2722,6 +3018,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
     setShapeMenuOpen(false);
     const wantsToPan = tool === "hand" || event.button === 1 || spaceHeld;
     if (wantsToPan) {
+      event.preventDefault();
       dragRef.current = { type: "pan", startX: event.clientX, startY: event.clientY, panX: pan.x, panY: pan.y };
       event.currentTarget.setPointerCapture(event.pointerId);
       return;
@@ -2732,6 +3029,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
       return;
     }
     if (tool === "pen" && !publicView) {
+      event.preventDefault();
       const bounds = canvasRef.current.getBoundingClientRect();
       const point = { x: (event.clientX - bounds.left - pan.x) / zoom, y: (event.clientY - bounds.top - pan.y) / zoom };
       setDraftDrawing({ id: uid("drawing"), points: [{ ...point, pressure: event.pressure || .5 }], color: penColor, width: penWidth, streamline: penStreamline, mode: penMode });
@@ -2741,6 +3039,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
     }
     if (event.target !== event.currentTarget && !event.target.classList.contains("edge-layer")) return;
     if (tool === "select" && !publicView) {
+      event.preventDefault();
       const bounds = canvasRef.current.getBoundingClientRect();
       const point = { x: (event.clientX - bounds.left - pan.x) / zoom, y: (event.clientY - bounds.top - pan.y) / zoom };
       const additive = event.shiftKey;
@@ -2834,6 +3133,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
 
   const onDrawingPointerDown = (event, drawing) => {
     if (publicView) return;
+    event.preventDefault();
     setPenWidth(drawing.width || 2.4);
     setPenColor(drawing.color || "#3f4652");
     setPenStreamline(drawing.streamline ?? .65);
@@ -2855,7 +3155,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
   };
 
   const startElementResize = (corner, event) => {
-    const node = selection.length === 1 ? document.nodes.find((item) => item.id === selection[0] && ["image", "text", "code", "checklist", "table", "arrow", "icon", "link", "basic-shape"].includes(item.type)) : null;
+    const node = selection.length === 1 ? document.nodes.find((item) => item.id === selection[0] && ["image", "text", "code", "checklist", "table", "document", "arrow", "icon", "link", "basic-shape"].includes(item.type)) : null;
     if (!node) return;
     event.preventDefault();
     event.stopPropagation();
@@ -2920,7 +3220,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
   };
 
   const startLineEndpointDrag = (side, event) => {
-    const node = selection.length === 1 ? document.nodes.find((item) => item.id === selection[0] && item.type === "basic-shape" && item.shapeKind === "line") : null;
+    const node = selection.length === 1 ? document.nodes.find((item) => item.id === selection[0] && isLineNode(item)) : null;
     if (!node) return;
     event.preventDefault();
     event.stopPropagation();
@@ -2933,6 +3233,24 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
     const left = { x: centerX - axisX * size.width / 2, y: centerY - axisY * size.width / 2 };
     const right = { x: centerX + axisX * size.width / 2, y: centerY + axisY * size.width / 2 };
     dragRef.current = { type: "line-endpoint", id: node.id, side, anchor: side === "left" ? right : left, axisX, axisY, height: size.height };
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+  };
+
+  const startLineCurveDrag = (event) => {
+    const node = selection.length === 1 ? document.nodes.find((item) => item.id === selection[0] && isLineNode(item)) : null;
+    if (!node) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const size = nodeDimensions(node);
+    const radians = Number(node.rotation || 0) * Math.PI / 180;
+    dragRef.current = {
+      type: "line-curve",
+      id: node.id,
+      centerX: node.x + size.width / 2,
+      centerY: node.y + size.height / 2,
+      normalX: -Math.sin(radians),
+      normalY: Math.cos(radians),
+    };
     event.currentTarget.setPointerCapture?.(event.pointerId);
   };
 
@@ -2983,6 +3301,16 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
       }));
       return;
     }
+    if (dragRef.current?.type === "line-curve") {
+      const drag = dragRef.current;
+      const bounds = canvasRef.current.getBoundingClientRect();
+      const point = { x: (event.clientX - bounds.left - pan.x) / zoom, y: (event.clientY - bounds.top - pan.y) / zoom };
+      let curve = 2 * ((point.x - drag.centerX) * drag.normalX + (point.y - drag.centerY) * drag.normalY);
+      curve = Math.max(-1200, Math.min(1200, curve));
+      if (Math.abs(curve) < 8) curve = 0;
+      updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === drag.id ? { ...node, curve } : node) }));
+      return;
+    }
     if (dragRef.current?.type === "element-resize") {
       const drag = dragRef.current;
       const bounds = canvasRef.current.getBoundingClientRect();
@@ -3019,14 +3347,14 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
         x = drag.signX < 0 ? drag.anchorX - width : drag.anchorX;
         y = drag.signY < 0 ? drag.anchorY - height : drag.anchorY;
       } else {
-        const minimumWidth = ["code", "checklist", "table"].includes(drag.elementType) ? 220 : 80;
-        const minimumHeight = ["code", "checklist", "table"].includes(drag.elementType) ? 120 : 40;
+        const minimumWidth = ["code", "checklist", "table", "document"].includes(drag.elementType) ? 220 : 80;
+        const minimumHeight = ["code", "checklist", "table", "document"].includes(drag.elementType) ? 120 : 40;
         width = Math.max(minimumWidth, Math.min(1600, extentX));
         height = Math.max(minimumHeight, Math.min(1200, extentY));
         x = drag.signX < 0 ? drag.anchorX - width : drag.anchorX;
         y = drag.signY < 0 ? drag.anchorY - height : drag.anchorY;
       }
-      updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === drag.id ? { ...node, x, y, width, ...(["text", "code", "checklist", "table", "arrow", "icon", "link", "basic-shape"].includes(drag.elementType) ? { height } : {}), ...(drag.elementType === "text" ? { textFit: "free" } : {}) } : node) }));
+      updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === drag.id ? { ...node, x, y, width, ...(["text", "code", "checklist", "table", "document", "arrow", "icon", "link", "basic-shape"].includes(drag.elementType) ? { height } : {}), ...(drag.elementType === "text" ? { textFit: "free" } : {}) } : node) }));
       return;
     }
     if (dragRef.current?.type === "selection-resize") {
@@ -3491,7 +3819,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
     }
     if (!keepGroup) { setSelection([node.id]); setDrawingSelection([]); setEdgeSelection([]); }
     const bounds = canvasRef.current?.getBoundingClientRect();
-    setContextMenu({ x: Math.max(8, Math.min((bounds?.width || 900) - 224, event.clientX - (bounds?.left || 0))), y: Math.max(8, Math.min((bounds?.height || 700) - 326, event.clientY - (bounds?.top || 0))), nodeIds, drawingIds, rotateNodeId: ["arrow", "basic-shape"].includes(node.type) && node.shapeKind !== "line" ? node.id : null, rotateLabel: node.type === "basic-shape" ? "Rotate shape" : "Rotate arrow" });
+    setContextMenu({ x: Math.max(8, Math.min((bounds?.width || 900) - 224, event.clientX - (bounds?.left || 0))), y: Math.max(8, Math.min((bounds?.height || 700) - 326, event.clientY - (bounds?.top || 0))), nodeIds, drawingIds, rotateNodeId: ["arrow", "basic-shape"].includes(node.type) && !isLineNode(node) ? node.id : null, rotateLabel: "Rotate shape" });
   };
 
   const openDrawingContextMenu = (event, drawing) => {
@@ -3600,6 +3928,13 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
         zoomAtCenter(m[event.key]);
       }
       if (!publicView && !modalOpen && !isTyping && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") { event.preventDefault(); duplicateSelection(); }
+      if (!publicView && !modalOpen && !isTyping && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
+        event.preventDefault();
+        setSelection(document.nodes.filter((node) => !collapsedNodeIds.has(node.id)).map((node) => node.id));
+        setDrawingSelection((document.drawings || []).map((drawing) => drawing.id));
+        setEdgeSelection([]);
+        setSelectedAnnotationId(null);
+      }
       if (!publicView && !modalOpen && !isTyping && (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "g") {
         event.preventDefault();
         if (event.shiftKey) ungroupSelection();
@@ -3654,7 +3989,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-  }, [addArrowShape, addConnectedNode, addNode, addTextNode, applyHistory, changeStacking, commandPaletteOpen, connectionSource, deleteSelection, document.nodes, duplicateSelection, edgeToolbarMenu, editingEdge, editingNode, exportOpen, flowGeneratorOpen, groupSelection, imageSourceOpen, linkOpen, nodeToolbarMenu, pendingAnnotation, publicView, selection, shareOpen, shortcutsOpen, tool, ungroupSelection, zoom, zoomAtCenter]);
+  }, [addConnectedNode, addNode, addTextNode, applyHistory, changeStacking, collapsedNodeIds, commandPaletteOpen, connectionSource, deleteSelection, document.drawings, document.nodes, duplicateSelection, edgeToolbarMenu, editingEdge, editingNode, exportOpen, flowGeneratorOpen, groupSelection, imageSourceOpen, linkOpen, nodeToolbarMenu, pendingAnnotation, publicView, selection, shareOpen, shortcutsOpen, tool, ungroupSelection, zoom, zoomAtCenter]);
 
   useEffect(() => {
     const dismissFloatingPanels = (event) => {
@@ -3740,11 +4075,11 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
     if (!nodes.length && !drawings.length) return;
     let minNodeX = Infinity, minNodeY = Infinity, maxNodeX = -Infinity, maxNodeY = -Infinity;
     nodes.forEach((node) => {
-      const size = nodeDimensions(node);
-      minNodeX = Math.min(minNodeX, node.x);
-      minNodeY = Math.min(minNodeY, node.y);
-      maxNodeX = Math.max(maxNodeX, node.x + size.width);
-      maxNodeY = Math.max(maxNodeY, node.y + size.height);
+      const visual = isLineNode(node) ? lineVisualBounds(node) : nodeBounds(node);
+      minNodeX = Math.min(minNodeX, visual.minX);
+      minNodeY = Math.min(minNodeY, visual.minY);
+      maxNodeX = Math.max(maxNodeX, visual.maxX);
+      maxNodeY = Math.max(maxNodeY, visual.maxY);
     });
     drawings.forEach((drawing) => (drawing.points || []).forEach((point) => {
       minNodeX = Math.min(minNodeX, point.x);
@@ -3802,16 +4137,27 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
         const fit = node.cropAspect && node.cropAspect !== "original" ? "slice" : "meet";
         return `<image href="${href}" x="${x}" y="${y}" width="${size.width}" height="${size.height}" preserveAspectRatio="xMidYMid ${fit}"/>`;
       }
-      if (node.type === "arrow") {
-        const strokeWidth = Math.max(2, size.height / 14.7);
-        return `<g transform="rotate(${node.rotation || 0} ${x + size.width / 2} ${y + size.height / 2})" fill="none" stroke="${tone.accent}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round" ${node.lineStyle === "dashed" ? 'stroke-dasharray="9 7"' : ""}><line x1="${x + 4}" y1="${y + size.height / 2}" x2="${x + size.width - size.height * .36}" y2="${y + size.height / 2}"/><polyline points="${x + size.width - size.height * .68},${y + size.height * .18} ${x + size.width - size.height * .34},${y + size.height / 2} ${x + size.width - size.height * .68},${y + size.height * .82}"/></g>`;
+      if (isLineNode(node)) {
+        const stroke = escape(lineStrokeColor(node));
+        const strokeWidth = node.strokeWidth || 3;
+        const centerY = y + size.height / 2;
+        const curve = Number(node.curve) || 0;
+        const path = curve ? `M ${x} ${centerY} Q ${x + size.width / 2} ${centerY + curve} ${x + size.width} ${centerY}` : `M ${x} ${centerY} L ${x + size.width} ${centerY}`;
+        const markerKey = String(node.id || "line").replace(/[^a-z0-9_-]/gi, "-");
+        const arrowId = `export-line-arrow-${markerKey}`;
+        const circleId = `export-line-circle-${markerKey}`;
+        const markerAttribute = (side) => {
+          const shape = lineEndpointShape(node, side);
+          if (shape === "arrow") return ` marker-${side}="url(#${arrowId})"`;
+          if (shape === "circle") return ` marker-${side}="url(#${circleId})"`;
+          return "";
+        };
+        return `<g transform="rotate(${node.rotation || 0} ${x + size.width / 2} ${y + size.height / 2})"><defs><marker id="${arrowId}" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 Z" fill="${stroke}"/></marker><marker id="${circleId}" markerWidth="9" markerHeight="9" refX="4.5" refY="4.5" orient="auto"><circle cx="4.5" cy="4.5" r="3.2" fill="#fff" stroke="${stroke}" stroke-width="1.5"/></marker></defs><path d="${path}" fill="none" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round" stroke-linejoin="round"${node.lineStyle === "dashed" ? ' stroke-dasharray="9 7"' : ""}${markerAttribute("start")}${markerAttribute("end")}/></g>`;
       }
       if (node.type === "basic-shape") {
         const fill = escape(node.fillColor || "#eef1ff");
         const outline = escape(node.outlineColor || "#5367ef");
-        const surface = node.shapeKind === "line"
-          ? `<line x1="${x}" y1="${y + size.height / 2}" x2="${x + size.width}" y2="${y + size.height / 2}" stroke="${outline}" stroke-width="${node.strokeWidth || 3}" stroke-linecap="round"/>`
-          : node.shapeKind === "circle"
+        const surface = node.shapeKind === "circle"
           ? `<ellipse cx="${x + size.width / 2}" cy="${y + size.height / 2}" rx="${size.width / 2}" ry="${size.height / 2}" fill="${fill}" stroke="${outline}" stroke-width="3"/>`
           : node.shapeKind === "triangle"
             ? `<polygon points="${x + size.width / 2},${y} ${x + size.width},${y + size.height} ${x},${y + size.height}" fill="${fill}" stroke="${outline}" stroke-width="3"/>`
@@ -3823,8 +4169,21 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
         const rows = (node.rows || []).slice(0, Math.max(1, Math.floor((size.height - 38) / 30)));
         const columnCount = Math.max(1, ...rows.map((row) => row.length));
         const columnWidth = size.width / columnCount;
-        const cells = rows.map((row, rowIndex) => row.map((cell, columnIndex) => `<rect x="${x + columnIndex * columnWidth}" y="${y + 38 + rowIndex * 30}" width="${columnWidth}" height="30" fill="${rowIndex === 0 ? "#f1f3f7" : "#ffffff"}" stroke="#eceef2"/><text x="${x + columnIndex * columnWidth + 8}" y="${y + 57 + rowIndex * 30}" font-family="Inter,Arial" font-size="10" font-weight="${rowIndex === 0 ? 700 : 400}" fill="#505865">${escape(String(cell).slice(0, 24))}</text>`).join("")).join("");
+        const cells = rows.map((row, rowIndex) => row.map((cell, columnIndex) => {
+          const toneName = rowIndex > 0 && node.rowTones?.[rowIndex] ? node.rowTones[rowIndex] : node.columnTones?.[columnIndex];
+          const tone = toneName ? palette[toneName] : null;
+          const fill = rowIndex === 0 ? (tone ? tone.soft : "#f1f3f7") : (tone ? tone.soft : "#ffffff");
+          return `<rect x="${x + columnIndex * columnWidth}" y="${y + 38 + rowIndex * 30}" width="${columnWidth}" height="30" fill="${fill}" stroke="#eceef2"/><text x="${x + columnIndex * columnWidth + 8}" y="${y + 57 + rowIndex * 30}" font-family="Inter,Arial" font-size="10" font-weight="${rowIndex === 0 ? 700 : 400}" fill="#505865">${escape(String(cell).slice(0, 24))}</text>`;
+        }).join("")).join("");
         return `<g><rect x="${x}" y="${y}" width="${size.width}" height="${size.height}" rx="12" fill="#fff" stroke="#dfe3e9"/><rect x="${x}" y="${y}" width="${size.width}" height="38" rx="12" fill="#f7f8fb"/><text x="${x + 12}" y="${y + 24}" font-family="Inter,Arial" font-size="11" font-weight="700" fill="#596373">${escape(node.label || "Spreadsheet")}</text>${cells}</g>`;
+      }
+      if (node.type === "document") {
+        const title = escape(node.fileName || node.label || "Document");
+        const kind = node.documentKind === "pdf" ? "PDF" : "WORD";
+        const preview = String(node.documentText || "").replace(/\s+/g, " ").trim();
+        const lines = wrapSvgText(preview || (kind === "PDF" ? "PDF document embedded in this canvas" : "Open the original file to read this document"), Math.max(20, Math.floor(size.width / 8))).slice(0, Math.max(2, Math.floor((size.height - 80) / 18)));
+        const copy = lines.map((line, index) => `<text x="${x + 24}" y="${y + 76 + index * 18}" font-family="${kind === "WORD" ? "Georgia,serif" : "Inter,Arial"}" font-size="11" fill="#596373">${escape(line)}</text>`).join("");
+        return `<g><rect x="${x}" y="${y}" width="${size.width}" height="${size.height}" rx="12" fill="#fff" stroke="#dfe3e9"/><rect x="${x}" y="${y}" width="${size.width}" height="40" rx="12" fill="#f7f8fb"/><text x="${x + 14}" y="${y + 25}" font-family="Inter,Arial" font-size="11" font-weight="700" fill="#596373">${title}</text><text x="${x + size.width - 14}" y="${y + 25}" text-anchor="end" font-family="Inter,Arial" font-size="8" font-weight="800" fill="#5367ef">${kind}</text>${copy}</g>`;
       }
       if (node.type === "checklist") {
         const items = (node.items || []).slice(0, Math.max(1, Math.floor((size.height - 52) / 28)));
@@ -3834,10 +4193,13 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
             ? `<rect x="${x + 13}" y="${rowY - 11}" width="13" height="13" rx="3" fill="#66707d"/><path d="M${x + 16} ${rowY - 5}l2.3 2.4 4.8-5" fill="none" stroke="#fff" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>`
             : `<rect x="${x + 13}" y="${rowY - 11}" width="13" height="13" rx="3" fill="#fff" stroke="#cbd1da"/>`;
           const text = escape(String(item.text || "").slice(0, Math.max(12, Math.floor((size.width - 56) / 6.5))));
-          const strike = item.completed && text ? `<line x1="${x + 35}" y1="${rowY - 4}" x2="${Math.min(x + size.width - 14, x + 35 + text.length * 6.2)}" y2="${rowY - 4}" stroke="#69717d" stroke-width="1" opacity=".48"/>` : "";
+          const textLimit = x + size.width - 14;
+          const strike = item.completed && text ? `<line x1="${x + 35}" y1="${rowY - 4}" x2="${Math.min(textLimit, x + 35 + text.length * 6.2)}" y2="${rowY - 4}" stroke="#69717d" stroke-width="1" opacity=".48"/>` : "";
           return `<g opacity="${item.completed ? ".48" : "1"}">${checked}<text x="${x + 35}" y="${rowY}" font-family="Inter,Arial" font-size="11" fill="#4f5764">${text}</text>${strike}</g>`;
         }).join("");
-        return `<g><rect x="${x}" y="${y}" width="${size.width}" height="${size.height}" rx="14" fill="#fff" stroke="#dfe3e9"/><path d="M${x} ${y + 38}H${x + size.width}" stroke="#e2e5eb"/><text x="${x + 13}" y="${y + 24}" font-family="Inter,Arial" font-size="11" font-weight="700" fill="#596373">${escape(node.label || "Task list")}</text>${rows}</g>`;
+        const dueDate = formatTaskDueDate(node.dueDate || (node.items || []).find((item) => item.dueDate)?.dueDate);
+        const due = dueDate ? `<text x="${x + size.width - 14}" y="${y + 24}" text-anchor="end" font-family="Inter,Arial" font-size="9" font-weight="700" fill="#7d8592">Due ${escape(dueDate)}</text>` : "";
+        return `<g><rect x="${x}" y="${y}" width="${size.width}" height="${size.height}" rx="14" fill="#fff" stroke="#dfe3e9"/><path d="M${x} ${y + 38}H${x + size.width}" stroke="#e2e5eb"/><text x="${x + 13}" y="${y + 24}" font-family="Inter,Arial" font-size="11" font-weight="700" fill="#596373">${escape(node.label || "Task list")}</text>${due}${rows}</g>`;
       }
       if (node.type === "icon") {
         const HeroIcon = LucideIcons[node.iconName] || HeroOutlineIcons[node.iconName] || LucideIcons.SparklesIcon;
@@ -3947,13 +4309,13 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
     { id: "add-idea", label: "Add idea node", icon: Lightbulb, shortcut: "N", run: () => addNode("idea") },
     { id: "add-code", label: "Add code block", icon: Code, run: addCodeNode },
     { id: "add-checklist", label: "Add checklist or task list", icon: LucideIcons.ListChecks, run: addChecklistNode },
-    { id: "import-table", label: "Import CSV or Excel", icon: LucideIcons.Table2, run: () => tableInputRef.current?.click() },
+    { id: "add-table", label: "Add editable table", icon: LucideIcons.Table2, run: addTableNode },
+    { id: "import-file", label: "Import CSV, Excel, PDF, or Word", icon: LucideIcons.FileUp, run: () => tableInputRef.current?.click() },
     { id: "add-text", label: "Add text", icon: TextBlock, shortcut: "T", run: () => addTextNode() },
     { id: "add-image", label: "Add image", icon: Photo, shortcut: "P", run: () => setImageSourceOpen(true) },
     { id: "add-link", label: "Add link", icon: LinkSimple, shortcut: "K", run: () => setLinkOpen(true) },
     { id: "add-shapes", label: "Add shapes", icon: LucideIcons.Shapes, shortcut: "S", run: () => setShapeMenuOpen(true) },
-    { id: "add-arrow", label: "Add arrow", icon: ArrowLine, run: () => addArrowShape() },
-    { id: "add-line", label: "Add line shape", icon: LucideIcons.Minus, run: () => addBasicShape("line") },
+    { id: "add-line", label: "Add line or arrow", icon: ArrowLine, run: addLineShape },
     { id: "add-rectangle", label: "Add rectangle shape", icon: LucideIcons.RectangleHorizontal, run: () => addBasicShape("rectangle") },
     { id: "add-circle", label: "Add circular shape", icon: LucideIcons.Circle, run: () => addBasicShape("circle") },
     { id: "add-triangle", label: "Add triangle shape", icon: LucideIcons.Triangle, run: () => addBasicShape("triangle") },
@@ -4062,6 +4424,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
             <button onClick={() => addNode("outcome")}><span className="menu-node amber"><Check size={18} /></span><span><strong>Outcome</strong><small>Result or decision</small></span></button>
             <button onClick={addCodeNode}><span className="menu-node slate"><Code size={18} /></span><span><strong>Code block</strong><small>Write or paste code</small></span></button>
             <button onClick={addChecklistNode}><span className="menu-node slate"><LucideIcons.ListChecks size={18} /></span><span><strong>Task list</strong><small>Checklist with completion states</small></span></button>
+            <button onClick={addTableNode}><span className="menu-node aqua"><LucideIcons.Table2 size={18} /></span><span><strong>Table</strong><small>Editable rows and columns</small></span></button>
             <div className="node-menu-divider"><span>Flowchart</span></div>
             <button onClick={() => addNode("terminator")}><span className="menu-node violet"><Flag size={18} /></span><span><strong>Start / End</strong><small>Beginning or end</small></span></button>
             <button onClick={() => addNode("decision")}><span className="menu-node amber"><Check size={18} /></span><span><strong>Decision</strong><small>Branch the flow</small></span></button>
@@ -4073,8 +4436,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
         <div className="toolbar-popover-wrap shape-tool-wrap">
           <button className={shapeMenuOpen ? "active" : ""} title="Add shapes · S" aria-label="Add shapes" aria-keyshortcuts="S" aria-expanded={shapeMenuOpen} onClick={() => { setPagesOpen(false); setNodeMenu(false); setShapeMenuOpen((open) => !open); }}><LucideIcons.Shapes size={21} /></button>
           {shapeMenuOpen && <div className="node-menu basic-shape-menu"><p>Add shapes</p>
-            <button onClick={() => { addArrowShape(); setShapeMenuOpen(false); }}><span className="menu-node slate"><ArrowLine size={18} /></span><span><strong>Arrow line</strong><small>Directional line</small></span></button>
-            <button onClick={() => addBasicShape("line")}><span className="menu-node slate"><LucideIcons.Minus size={18} /></span><span><strong>Line</strong><small>Resize and rotate from either end</small></span></button>
+            <button onClick={addLineShape}><span className="menu-node slate"><ArrowLine size={18} /></span><span><strong>Line</strong><small>Add arrow ends or bend into a curve</small></span></button>
             <button onClick={() => addBasicShape("rectangle")}><span className="menu-node blue"><LucideIcons.RectangleHorizontal size={18} /></span><span><strong>Rectangle</strong><small>Free width and height</small></span></button>
             <button onClick={() => addBasicShape("circle")}><span className="menu-node aqua"><LucideIcons.Circle size={18} /></span><span><strong>Circular</strong><small>Proportional resize</small></span></button>
             <button onClick={() => addBasicShape("triangle")}><span className="menu-node amber"><LucideIcons.Triangle size={18} /></span><span><strong>Triangle</strong><small>Free width and height</small></span></button>
@@ -4082,10 +4444,11 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
           </div>}
         </div>
         <button title="Add picture · P" aria-label="Add picture from URL or file" aria-keyshortcuts="P" onClick={() => setImageSourceOpen(true)}><Photo size={21} /></button>
-        <button title="Import CSV or Excel" aria-label="Import CSV or Excel into canvas" onClick={() => tableInputRef.current?.click()}><LucideIcons.Table2 size={21} /></button>
+        <button title="Add editable table" aria-label="Add editable table" onClick={addTableNode}><LucideIcons.Table2 size={21} /></button>
+        <button title="Import CSV, Excel, PDF or Word" aria-label="Import CSV, Excel, PDF or Word into canvas" onClick={() => tableInputRef.current?.click()}><LucideIcons.FileUp size={21} /></button>
         <button title="Add link · K" aria-label="Add link" aria-keyshortcuts="K" onClick={() => setLinkOpen(true)}><LinkSimple size={21} /></button>
         <input ref={imageInputRef} className="visually-hidden-input" type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (file) { addImageFile(file); setImageSourceOpen(false); } event.target.value = ""; }} />
-        <input ref={tableInputRef} className="visually-hidden-input" type="file" accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void addTableFile(file); }} />
+        <input ref={tableInputRef} className="visually-hidden-input" type="file" accept=".csv,.xlsx,.pdf,.doc,.docx,text/csv,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (file) void addImportedFile(file); }} />
         <span />
         <button title="Delete selected" disabled={!selection.length && !edgeSelection.length && !drawingSelection.length} onClick={deleteSelection}><Trash size={20} /></button>
         <button title="Keyboard shortcuts · ?" aria-label="Keyboard shortcuts" aria-keyshortcuts="?" onClick={() => setShortcutsOpen(true)}><HelpCircle size={21} /></button>
@@ -4124,12 +4487,12 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
           <button onClick={() => { addTextNode(); setMobileInsertOpen(false); }}><HeadingOne size={20} /><span>Text</span></button>
           <button onClick={() => { addCodeNode(); setMobileInsertOpen(false); }}><Code size={20} /><span>Code</span></button>
           <button onClick={() => { addChecklistNode(); setMobileInsertOpen(false); }}><LucideIcons.ListChecks size={20} /><span>List</span></button>
+          <button onClick={() => { addTableNode(); setMobileInsertOpen(false); }}><LucideIcons.Table2 size={20} /><span>Table</span></button>
           <button onClick={() => { setIconBrowserOpen(true); setMobileInsertOpen(false); }}><Cube size={20} /><span>Icon</span></button>
           <button onClick={() => { setImageSourceOpen(true); setMobileInsertOpen(false); }}><Photo size={20} /><span>Picture</span></button>
           <button onClick={() => { setLinkOpen(true); setMobileInsertOpen(false); }}><LinkSimple size={20} /><span>Link</span></button>
-          <button onClick={() => { tableInputRef.current?.click(); setMobileInsertOpen(false); }}><LucideIcons.Table2 size={20} /><span>Table</span></button>
-          <button onClick={() => { addArrowShape(); setMobileInsertOpen(false); }}><ArrowLine size={20} /><span>Arrow</span></button>
-          <button onClick={() => { addBasicShape("line"); setMobileInsertOpen(false); }}><LucideIcons.Minus size={20} /><span>Line</span></button>
+          <button onClick={() => { tableInputRef.current?.click(); setMobileInsertOpen(false); }}><LucideIcons.FileUp size={20} /><span>Import file</span></button>
+          <button onClick={() => { addLineShape(); setMobileInsertOpen(false); }}><ArrowLine size={20} /><span>Line</span></button>
           <button onClick={() => { addBasicShape("rectangle"); setMobileInsertOpen(false); }}><LucideIcons.RectangleHorizontal size={20} /><span>Rectangle</span></button>
           <button onClick={() => { addBasicShape("circle"); setMobileInsertOpen(false); }}><LucideIcons.Circle size={20} /><span>Circle</span></button>
           <button onClick={() => { setShortcutsOpen(true); setMobileInsertOpen(false); }}><HelpCircle size={20} /><span>Help</span></button>
@@ -4148,13 +4511,13 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
           <svg className="drawing-layer drawing-layer-back" width="4000" height="2400" viewBox="-1000 -600 4000 2400">
             {(document.drawings || []).filter((drawing) => drawing.stackLevel === "back").map((drawing) => <DrawingStroke key={drawing.id} drawing={drawing} selected={drawingSelection.includes(drawing.id)} passive={spaceHeld || tool !== "select"} onSelect={(event) => onDrawingPointerDown(event, drawing)} onContextMenu={(event) => openDrawingContextMenu(event, drawing)} />)}
           </svg>
-          {document.nodes.filter((node) => !collapsedNodeIds.has(node.id) || vanishingNodeIds.has(node.id)).map((node) => <CanvasNode key={node.id} node={node} hiding={collapsedNodeIds.has(node.id)} hiddenConnectionCount={document.edges.filter((edge) => (edge.source === node.id || edge.target === node.id) && edge.hidden).length} onShowHidden={() => showHiddenConnections(node.id)} selected={selection.includes(node.id)} connecting={connectionSource?.nodeId === node.id} dropTarget={connectionTargetId === node.id} editing={editingNode === node.id} onEdit={() => { if (!publicView && !["image", "arrow", "icon", "table", "checklist"].includes(node.type) && !(node.type === "basic-shape" && node.shapeKind === "line")) { setNodeToolbarMenu(null); setEditingNode(node.id); } }} onSaveEdit={(patch) => { const fitted = node.type === "text" && node.textFit !== "free" ? fittedTextDimensions(patch.label, node.fontSize || 24) : {}; updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, ...patch, ...fitted } : item) })); setEditingNode(null); }} onCancelEdit={() => setEditingNode(null)} onTableChange={publicView ? null : (rows) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, rows } : item) }))} onChecklistChange={publicView ? null : (items) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, items } : item) }))} onPointerDown={onNodePointerDown} onContextMenu={(event) => openNodeContextMenu(event, node)} onKeyDown={(event) => { if (event.target instanceof Element && event.target.closest("input,textarea,select,[contenteditable='true']")) return; if (!publicView && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setSelection([node.id]); setEdgeSelection([]); setDrawingSelection([]); } }} />)}
+          {document.nodes.filter((node) => !collapsedNodeIds.has(node.id) || vanishingNodeIds.has(node.id)).map((node) => <CanvasNode key={node.id} node={node} hiding={collapsedNodeIds.has(node.id)} hiddenConnectionCount={document.edges.filter((edge) => (edge.source === node.id || edge.target === node.id) && edge.hidden).length} onShowHidden={() => showHiddenConnections(node.id)} selected={selection.includes(node.id)} connecting={connectionSource?.nodeId === node.id} dropTarget={connectionTargetId === node.id} editing={editingNode === node.id} onEdit={() => { if (!publicView && !["image", "arrow", "icon", "table", "document", "checklist"].includes(node.type) && !(node.type === "basic-shape" && node.shapeKind === "line")) { setNodeToolbarMenu(null); setEditingNode(node.id); } }} onSaveEdit={(patch) => { const fitted = node.type === "text" && node.textFit !== "free" ? fittedTextDimensions(patch.label, node.fontSize || 24) : {}; updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, ...patch, ...fitted } : item) })); setEditingNode(null); }} onCancelEdit={() => setEditingNode(null)} onTableChange={publicView ? null : (patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, ...patch } : item) }))} onChecklistChange={publicView ? null : (items) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, items } : item) }))} onChecklistDueDateChange={publicView ? null : (dueDate) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, dueDate } : item) }))} onPointerDown={onNodePointerDown} onContextMenu={(event) => openNodeContextMenu(event, node)} onKeyDown={(event) => { if (event.target instanceof Element && event.target.closest("input,textarea,select,[contenteditable='true']")) return; if (!publicView && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setSelection([node.id]); setEdgeSelection([]); setDrawingSelection([]); } }} />)}
           <svg className="drawing-layer" width="4000" height="2400" viewBox="-1000 -600 4000 2400">
             {(document.drawings || []).filter((drawing) => drawing.stackLevel !== "back").map((drawing) => <DrawingStroke key={drawing.id} drawing={drawing} selected={drawingSelection.includes(drawing.id)} passive={spaceHeld || tool !== "select"} onSelect={(event) => onDrawingPointerDown(event, drawing)} onContextMenu={(event) => openDrawingContextMenu(event, drawing)} />)}
             {draftDrawing && <DrawingStroke drawing={draftDrawing} passive />}
           </svg>
           {!publicView && marquee && <SelectionMarquee bounds={marquee} zoom={zoom} />}
-          {!publicView && selectedBounds && <SelectionFrame bounds={selectedBounds} zoom={zoom} count={selection.length + drawingSelection.length} resizable={(selectionCanScale || ["image", "text", "code", "checklist", "table", "icon", "arrow", "link", "basic-shape"].includes(selectedNode?.type)) && selectedNode?.shapeKind !== "line" && rotationModeId !== selectedNode?.id} rotatable={["arrow", "basic-shape"].includes(selectedNode?.type) && selectedNode?.shapeKind !== "line" && rotationModeId === selectedNode.id} lineEndpoints={!selectionCanScale && selectedNode?.type === "basic-shape" && selectedNode.shapeKind === "line"} horizontalHandles={!selectionCanScale && selectedNode?.type === "basic-shape" && selectedNode.shapeKind === "rectangle" && rotationModeId !== selectedNode.id} rotation={selectedNode?.rotation || 0} resizeLabel={selectionCanScale ? "selection" : selectedNode?.type || "element"} rotateLabel={selectedNode?.type === "basic-shape" ? "shape" : "arrow"} onResizeStart={selectionCanScale ? startSelectionResize : startElementResize} onRotateStart={startElementRotate} onLineEndpointStart={startLineEndpointDrag} />}
+          {!publicView && selectedBounds && <SelectionFrame bounds={selectedBounds} zoom={zoom} count={selection.length + drawingSelection.length} resizable={(selectionCanScale || ["image", "text", "code", "checklist", "table", "document", "icon", "arrow", "link", "basic-shape"].includes(selectedNode?.type)) && !isLineNode(selectedNode) && rotationModeId !== selectedNode?.id} rotatable={["arrow", "basic-shape"].includes(selectedNode?.type) && !isLineNode(selectedNode) && rotationModeId === selectedNode.id} lineEndpoints={!selectionCanScale && isLineNode(selectedNode)} lineCurve={selectedNode?.curve || 0} horizontalHandles={!selectionCanScale && selectedNode?.type === "basic-shape" && selectedNode.shapeKind === "rectangle" && rotationModeId !== selectedNode.id} rotation={selectedNode?.rotation || 0} resizeLabel={selectionCanScale ? "selection" : selectedNode?.type || "element"} rotateLabel={selectedNode?.type === "basic-shape" ? "shape" : "arrow"} onResizeStart={selectionCanScale ? startSelectionResize : startElementResize} onRotateStart={startElementRotate} onLineEndpointStart={startLineEndpointDrag} onLineCurveStart={startLineCurveDrag} />}
           {!embedMode && annotationsVisible && (document.annotations || []).map((annotation) => <AnnotationMarker key={annotation.id} annotation={annotation} selected={annotation.id === selectedAnnotationId} draggable={canManageAnnotation(annotation.id)} onDragStart={(event) => startAnnotationDrag(annotation, event)} onSelect={() => { setSelectedAnnotationId(annotation.id); setSelection([]); setEdgeSelection([]); setDrawingSelection([]); }} />)}
         </div>
         {!publicView && alignToolbarMounted && <div className={`alignment-toolbar ${alignToolbarExiting ? "is-exiting" : ""}`} role="toolbar" aria-label="Align selected elements" onPointerDown={(event) => event.stopPropagation()}>
@@ -4179,8 +4542,8 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
         {!publicView && selectedNode?.type === "code" && !editingNode && <CodeStyleToolbar style={nodeToolbarStyle} onEdit={() => setEditingNode(selectedNode.id)} onDelete={deleteSelection} />}
         {!publicView && selectedNode?.type === "image" && <ImageStyleToolbar node={selectedNode} style={imageToolbarStyle} popoverPlacement={imageToolbarBelow ? "below" : "above"} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
         {!publicView && selectedNode?.type === "icon" && <IconStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
-        {!publicView && selectedNode?.type === "arrow" && <ArrowStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
-        {!publicView && selectedNode?.type === "basic-shape" && !editingNode && <BasicShapeToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onEdit={() => setEditingNode(selectedNode.id)} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
+        {!publicView && isLineNode(selectedNode) && <LineStyleToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
+        {!publicView && selectedNode?.type === "basic-shape" && selectedNode.shapeKind !== "line" && !editingNode && <BasicShapeToolbar node={selectedNode} style={nodeToolbarStyle} openMenu={nodeToolbarMenu} setOpenMenu={setNodeToolbarMenu} onEdit={() => setEditingNode(selectedNode.id)} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
         {!publicView && selectedNode?.type === "link" && !editingNode && <LinkStyleToolbar node={selectedNode} style={nodeToolbarStyle} onChange={(patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((node) => node.id === selectedNode.id ? { ...node, ...patch } : node) }))} onDelete={deleteSelection} />}
         {!publicView && selectedEdge && selectedEdgeGeometry && !editingEdge && <EdgeStyleToolbar edge={selectedEdge} style={edgeToolbarStyle} openMenu={edgeToolbarMenu} setOpenMenu={setEdgeToolbarMenu} onEditLabel={() => { setEdgeToolbarMenu(null); setEditingEdge(selectedEdge.id); }} onChange={(patch) => updateDocument((doc) => ({ ...doc, edges: doc.edges.map((edge) => edge.id === selectedEdge.id ? { ...edge, ...patch } : edge) }))} onHide={hideSelectedConnection} onDelete={deleteSelection} />}
         {!publicView && selectedEdge && selectedEdgeScreenPoint && editingEdge === selectedEdge.id && <EdgeLabelEditor edge={selectedEdge} style={{ left: selectedEdgeScreenPoint.x, top: selectedEdgeScreenPoint.y }} onSave={(label) => { updateDocument((doc) => ({ ...doc, edges: doc.edges.map((edge) => edge.id === selectedEdge.id ? { ...edge, label } : edge) })); setEditingEdge(null); }} onCancel={() => setEditingEdge(null)} />}
@@ -4272,18 +4635,15 @@ function LinkThumbnail({ node }) {
   }} />;
 }
 
-function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, connecting, dropTarget, editing, hiding, onEdit, onSaveEdit, onCancelEdit, onTableChange, onChecklistChange, onPointerDown, onContextMenu, onKeyDown }) {
+function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, connecting, dropTarget, editing, hiding, onEdit, onSaveEdit, onCancelEdit, onTableChange, onChecklistChange, onChecklistDueDateChange, onPointerDown, onContextMenu, onKeyDown }) {
   const tone = toneForNode(node);
   const shapeColors = accessibleShapeColors(tone.accent);
   const size = nodeDimensions(node);
   return <article className={`canvas-node ${node.type ? `node-type-${node.type}` : ""} ${node.isSvg ? "is-svg" : ""} ${node.cropAspect && node.cropAspect !== "original" ? "is-cropped" : ""} ${node.shape ? `shape-${node.shape}` : ""} ${selected ? "selected" : ""} ${connecting ? "connecting" : ""} ${dropTarget ? "connection-drop-target" : ""} ${editing ? "editing" : ""} ${hiding ? "is-vanishing" : ""}`} role="button" tabIndex="0" data-node-id={node.id} aria-label={`${node.label}. ${node.subtitle || ""}. Press Enter to select, then Tab to add a connected node.`} style={{ left: node.x, top: node.y, width: size.width, height: size.height, zIndex: node.stackLevel === "front" ? 12 : node.stackLevel === "back" ? 1 : undefined, transform: ["arrow", "basic-shape"].includes(node.type) ? `rotate(${node.rotation || 0}deg)` : undefined, "--node-accent": tone.accent, "--node-soft": tone.soft, "--shape-fill": tone.accent, "--shape-text": shapeColors.text, "--shape-muted": shapeColors.muted, "--text-size": `${node.fontSize || 24}px`, "--text-background": node.textBackground || "transparent", "--text-align": node.textAlign || "left" }} onPointerDown={(event) => onPointerDown(event, node)} onContextMenu={onContextMenu} onKeyDown={editing ? undefined : onKeyDown} onDoubleClick={(event) => { event.stopPropagation(); onEdit(); }}>
     {node.type === "image" && (node.isGif || node.mimeType === "image/gif" ? <GifImageNode node={node} /> : <span className="image-node-viewport"><img src={node.imageData} alt={node.label || "Canvas image"} draggable="false" style={{ objectPosition: "50% 50%", transform: `scale(${node.cropZoom || 1})` }} /></span>)}
     {node.type === "icon" && (() => { const HeroIcon = LucideIcons[node.iconName] || HeroOutlineIcons[node.iconName] || LucideIcons.SparklesIcon; return <HeroIcon className="standalone-icon" aria-hidden="true" />; })()}
-    {node.type === "arrow" && (() => {
-      const size = nodeDimensions(node);
-      return <svg className={`arrow-shape ${node.lineStyle === "dashed" ? "dashed" : ""}`} viewBox={`0 0 ${size.width} ${size.height}`} aria-hidden="true" style={{ "--arrow-stroke": Math.max(2, size.height / 14.7) }}><line x1="4" y1={size.height / 2} x2={size.width - size.height * .36} y2={size.height / 2} /><polyline points={`${size.width - size.height * .68},${size.height * .18} ${size.width - size.height * .34},${size.height / 2} ${size.width - size.height * .68},${size.height * .82}`} /></svg>;
-    })()}
-    {node.type === "basic-shape" && <BasicShapeGraphic node={node} size={size} />}
+    {isLineNode(node) && <LineShapeGraphic node={node} size={size} />}
+    {node.type === "basic-shape" && node.shapeKind !== "line" && <BasicShapeGraphic node={node} size={size} />}
     {editing ? <InlineNodeEditor node={node} onSave={onSaveEdit} onCancel={onCancelEdit} /> : <>
       {node.type === "text" && <span className="text-node-copy">{node.label}</span>}
       {node.type === "basic-shape" && node.label && <span className="basic-shape-label">{node.label}</span>}
@@ -4292,7 +4652,8 @@ function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, conne
         <pre><code>{node.label}</code></pre>
       </div>}
       {node.type === "table" && <TableNode node={node} onChange={onTableChange} />}
-      {node.type === "checklist" && <ChecklistNode node={node} onChange={onChecklistChange} />}
+      {node.type === "document" && <DocumentFileNode node={node} />}
+      {node.type === "checklist" && <ChecklistNode node={node} onChange={onChecklistChange} onDueDateChange={onChecklistDueDateChange} />}
       {node.type === "link" && (node.linkDisplay === "embed" ? <EmbeddedLinkNode node={node} /> : <div className="link-card-content">
         <div className={`link-card-thumbnail ${node.thumbnailKind === "favicon" ? "is-favicon" : ""} ${node.mediaKind ? "is-media" : ""}`}><GlobeHemisphereWest size={30} />{node.embedUrl && !node.thumbnail ? <iframe src={node.embedUrl} title={`${node.label} preview`} loading="lazy" tabIndex="-1" /> : <LinkThumbnail node={node} />}{node.mediaKind && <span className="media-play"><Play size={14} /></span>}</div>
         <div className="link-card-copy"><strong>{node.label}</strong><small>{node.subtitle}</small><span>{node.domain}</span></div>
@@ -4305,10 +4666,13 @@ function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, conne
   </article>;
 }
 
-function ChecklistNode({ node, onChange }) {
+function ChecklistNode({ node, onChange, onDueDateChange }) {
   const listRef = useRef(null);
+  const dueDateInputRef = useRef(null);
   const items = Array.isArray(node.items) && node.items.length ? node.items : [{ id: "task-empty", text: "", completed: false }];
   const completedCount = items.filter((item) => item.completed).length;
+  const dueDate = node.dueDate || items.find((item) => item.dueDate)?.dueDate || "";
+  const today = todayDateKey();
   const commit = (nextItems) => onChange?.(nextItems);
   const focusTask = (taskId) => window.requestAnimationFrame(() => {
     const row = Array.from(listRef.current?.querySelectorAll("[data-task-id]") || []).find((item) => item.dataset.taskId === taskId);
@@ -4333,9 +4697,23 @@ function ChecklistNode({ node, onChange }) {
     commit(items.filter((_, itemIndex) => itemIndex !== index));
     if (focusId) focusTask(focusId);
   };
+  const openDueDatePicker = () => {
+    const input = dueDateInputRef.current;
+    if (!input) return;
+    try { if (typeof input.showPicker === "function") input.showPicker(); else input.click(); }
+    catch { input.click(); }
+  };
 
   return <div className="checklist-card-content">
-    <div className="checklist-card-header" title="Drag to move this list"><LucideIcons.ListChecks size={14} /><strong>{node.label || "Task list"}</strong><small>{completedCount}/{items.length}</small></div>
+    <div className="checklist-card-header" title="Drag to move this list"><LucideIcons.ListChecks size={14} /><strong>{node.label || "Task list"}</strong>
+      {(onDueDateChange || dueDate) && <span className="checklist-card-due-control" onPointerDown={(event) => event.stopPropagation()}>
+        <button type="button" className={`checklist-card-due-date ${dueDate ? "has-date" : ""} ${completedCount < items.length && dueDate && dueDate < today ? "is-overdue" : ""}`} title={dueDate ? `Change due date · ${formatTaskDueDate(dueDate)}` : "Set list due date"} aria-label={dueDate ? `Change due date for ${node.label || "task list"}, currently ${formatTaskDueDate(dueDate)}` : `Set due date for ${node.label || "task list"}`} onClick={openDueDatePicker}>
+          <CalendarDaysIcon width="13" aria-hidden="true" /><span>{formatTaskDueDate(dueDate) || "Due"}</span>
+        </button>
+        {onDueDateChange && <input ref={dueDateInputRef} className="checklist-card-due-input" type="date" value={dueDate} tabIndex="-1" aria-hidden="true" onChange={(event) => onDueDateChange(event.target.value)} />}
+      </span>}
+      <small>{completedCount}/{items.length}</small>
+    </div>
     <div ref={listRef} className="checklist-items" role="list" aria-label={node.label || "Task list"} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
       {items.map((item, index) => <div key={item.id} data-task-id={item.id} className={`checklist-item ${item.completed ? "completed" : ""}`} role="listitem">
         <input type="checkbox" checked={Boolean(item.completed)} disabled={!onChange} aria-label={`Mark ${item.text || `task ${index + 1}`} ${item.completed ? "incomplete" : "complete"}`} onChange={(event) => updateTask(index, { completed: event.target.checked })} />
@@ -4352,21 +4730,108 @@ function ChecklistNode({ node, onChange }) {
 }
 
 function TableNode({ node, onChange }) {
+  const contentRef = useRef(null);
+  const contextMenuRef = useRef(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const rows = Array.isArray(node.rows) && node.rows.length ? node.rows : [["Column 1"]];
+  const columnCount = Math.max(1, ...rows.map((row) => row.length));
+  useEffect(() => {
+    if (!contextMenu) return undefined;
+    const close = () => setContextMenu(null);
+    const closeOnEscape = (event) => { if (event.key === "Escape") close(); };
+    const focusMenu = window.requestAnimationFrame(() => contextMenuRef.current?.querySelector("button")?.focus());
+    window.document.addEventListener("pointerdown", close);
+    window.addEventListener("keydown", closeOnEscape);
+    return () => { window.cancelAnimationFrame(focusMenu); window.document.removeEventListener("pointerdown", close); window.removeEventListener("keydown", closeOnEscape); };
+  }, [contextMenu]);
   const updateCell = (rowIndex, columnIndex, value) => {
     if (!onChange) return;
-    const rows = (node.rows || []).map((row, currentRow) => currentRow === rowIndex ? row.map((cell, currentColumn) => currentColumn === columnIndex ? value : cell) : row);
-    onChange(rows);
+    onChange({ rows: rows.map((row, currentRow) => currentRow === rowIndex ? Array.from({ length: columnCount }, (_, currentColumn) => currentColumn === columnIndex ? value : row[currentColumn] || "") : row) });
   };
-  return <div className="table-node-content">
-    <div className="table-node-header"><LucideIcons.Table2 size={14} /><strong>{node.label || "Spreadsheet"}</strong><small>{node.rows?.length || 0} rows</small></div>
+  const addRow = () => onChange?.({ rows: [...rows, Array.from({ length: columnCount }, () => "")] });
+  const addColumn = () => onChange?.({ rows: rows.map((row, rowIndex) => [...Array.from({ length: columnCount }, (_, columnIndex) => row[columnIndex] || ""), rowIndex === 0 ? `Column ${columnCount + 1}` : ""]), columnTones: [...(node.columnTones || []), null] });
+  const openContextMenu = (event, type, index) => {
+    if (!onChange) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const content = contentRef.current;
+    const bounds = content?.getBoundingClientRect();
+    if (!content || !bounds) return;
+    const scaleX = bounds.width / Math.max(1, content.offsetWidth);
+    const scaleY = bounds.height / Math.max(1, content.offsetHeight);
+    setContextMenu({ type, index, x: Math.max(8, Math.min(content.offsetWidth - 188, (event.clientX - bounds.left) / scaleX)), y: Math.max(42, Math.min(content.offsetHeight - 220, (event.clientY - bounds.top) / scaleY)) });
+  };
+  const deleteContextTarget = () => {
+    if (!contextMenu) return;
+    if (contextMenu.type === "column") {
+      if (columnCount <= 1) return;
+      onChange?.({ rows: rows.map((row) => row.filter((_, index) => index !== contextMenu.index)), columnTones: (node.columnTones || []).filter((_, index) => index !== contextMenu.index) });
+    } else {
+      onChange?.({ rows: rows.filter((_, index) => index !== contextMenu.index), rowTones: (node.rowTones || []).filter((_, index) => index !== contextMenu.index) });
+    }
+    setContextMenu(null);
+  };
+  const setContextTone = (toneName) => {
+    if (!contextMenu) return;
+    if (contextMenu.type === "column") {
+      const columnTones = Array.from({ length: columnCount }, (_, index) => node.columnTones?.[index] || null);
+      columnTones[contextMenu.index] = toneName;
+      onChange?.({ columnTones });
+    } else {
+      const rowTones = Array.from({ length: rows.length }, (_, index) => node.rowTones?.[index] || null);
+      rowTones[contextMenu.index] = toneName;
+      onChange?.({ rowTones });
+    }
+    setContextMenu(null);
+  };
+  return <div ref={contentRef} className="table-node-content">
+    <div className="table-node-header"><LucideIcons.Table2 size={14} /><strong>{node.label || "Spreadsheet"}</strong><small>{Math.max(0, rows.length - 1)} rows · {columnCount} cols</small>
+      {onChange && <div className="table-node-actions" onPointerDown={(event) => event.stopPropagation()}>
+        <button type="button" title="Add row" aria-label="Add table row" onClick={addRow}><Plus size={12} /><span>Row</span></button>
+        <button type="button" title="Add column" aria-label="Add table column" onClick={addColumn}><Plus size={12} /><span>Column</span></button>
+      </div>}
+    </div>
     <div className="table-node-scroll" tabIndex="0" role="region" aria-label={`${node.label || "Spreadsheet"} data. Scroll horizontally and vertically.`} onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
-      <table><tbody>{(node.rows || []).map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, columnIndex) => {
+      <table><tbody>{rows.map((row, rowIndex) => <tr key={rowIndex}>{Array.from({ length: columnCount }, (_, columnIndex) => row[columnIndex] || "").map((cell, columnIndex) => {
         const Cell = rowIndex === 0 ? "th" : "td";
-        const toneName = node.columnTones?.[columnIndex];
+        const toneName = rowIndex > 0 && node.rowTones?.[rowIndex] ? node.rowTones[rowIndex] : node.columnTones?.[columnIndex];
         const tone = toneName ? palette[toneName] : null;
-        return <Cell key={columnIndex} style={tone ? { "--table-column": tone.soft, "--table-column-strong": tone.accent } : undefined}>{onChange ? <textarea aria-label={`Row ${rowIndex + 1}, column ${columnIndex + 1}`} value={cell} rows="1" spellCheck="false" onChange={(event) => updateCell(rowIndex, columnIndex, event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") event.currentTarget.blur(); }} /> : <span>{cell}</span>}</Cell>;
+        return <Cell key={columnIndex} style={tone ? { "--table-column": tone.soft, "--table-column-strong": tone.accent } : undefined} onContextMenu={(event) => openContextMenu(event, rowIndex === 0 ? "column" : "row", rowIndex === 0 ? columnIndex : rowIndex)}>{onChange ? <textarea aria-label={`Row ${rowIndex + 1}, column ${columnIndex + 1}`} value={cell} rows="1" spellCheck="false" onChange={(event) => updateCell(rowIndex, columnIndex, event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") event.currentTarget.blur(); }} /> : <span>{cell}</span>}</Cell>;
       })}</tr>)}</tbody></table>
     </div>
+    {contextMenu && <div ref={contextMenuRef} className="table-cell-context-menu" role="menu" aria-label={`${contextMenu.type === "column" ? "Column" : "Row"} actions`} style={{ left: contextMenu.x, top: contextMenu.y }} onPointerDown={(event) => event.stopPropagation()}>
+      <strong>{contextMenu.type === "column" ? `Column ${contextMenu.index + 1}` : `Row ${contextMenu.index}`}</strong>
+      <span>Background colour</span>
+      <div className="table-context-colors" role="group" aria-label="Background colour">
+        <button type="button" role="menuitem" className="clear" aria-label="Clear background colour" title="No colour" onClick={() => setContextTone(null)} />
+        {Object.entries(palette).map(([name, tone]) => <button key={name} type="button" role="menuitem" aria-label={`${name} background`} title={name} style={{ "--swatch": tone.soft, "--swatch-border": tone.accent }} onClick={() => setContextTone(name)} />)}
+      </div>
+      <button type="button" className="table-context-delete" role="menuitem" disabled={contextMenu.type === "column" && columnCount <= 1} onClick={deleteContextTarget}><Trash size={14} /> Delete {contextMenu.type}</button>
+    </div>}
+  </div>;
+}
+
+function DocumentFileNode({ node }) {
+  const isPdf = node.documentKind === "pdf";
+  const paragraphs = String(node.documentText || "").split(/\n{2,}/).filter(Boolean);
+  let absoluteFileUrl = "";
+  try { absoluteFileUrl = node.fileUrl ? new URL(node.fileUrl, window.location.origin).href : ""; }
+  catch { absoluteFileUrl = node.fileUrl || ""; }
+  const externallyReachable = absoluteFileUrl && /^https:/i.test(absoluteFileUrl) && !["localhost", "127.0.0.1", "::1"].includes(window.location.hostname);
+  const officePreviewUrl = !isPdf && externallyReachable ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(absoluteFileUrl)}` : "";
+  const viewerUrl = isPdf && absoluteFileUrl ? `${absoluteFileUrl}#toolbar=1&navpanes=0&view=FitH` : officePreviewUrl;
+  const [viewerLoaded, setViewerLoaded] = useState(false);
+  useEffect(() => setViewerLoaded(false), [viewerUrl]);
+  return <div className={`document-file-content is-${isPdf ? "pdf" : "word"}`}>
+    <div className="document-file-header" title="Drag to move this document">
+      {isPdf ? <LucideIcons.FileType2 size={15} /> : <LucideIcons.FileText size={15} />}
+      <strong>{node.fileName || node.label || (isPdf ? "PDF document" : "Word document")}</strong>
+      <span>{isPdf ? "PDF" : "WORD"}</span>
+      {node.fileUrl && <a href={node.fileUrl} target="_blank" rel="noopener noreferrer" aria-label={`Open ${node.fileName || node.label}`} title="Open original file" onPointerDown={(event) => event.stopPropagation()}><OpenExternal size={14} /></a>}
+    </div>
+    {viewerUrl ? <div className="document-frame-viewer">{!viewerLoaded && <div className="document-viewer-loading" role="status"><LucideIcons.LoaderCircle size={22} /><span>Loading preview…</span></div>}<iframe className={isPdf ? "document-pdf-frame" : "document-office-frame"} src={viewerUrl} title={`${node.fileName || (isPdf ? "PDF document" : "Word document")} preview`} loading="lazy" referrerPolicy="strict-origin-when-cross-origin" onLoad={() => setViewerLoaded(true)} /></div> : <div className="document-word-preview" tabIndex="0" role="region" aria-label={`${node.fileName || "Word document"} preview`} onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
+      {paragraphs.length ? paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>) : <div className="document-preview-message"><LucideIcons.FileText size={30} /><strong>{node.fileName || "Word document"}</strong><span>A preview is unavailable for older .doc files. Open the original document to read it.</span></div>}
+    </div>}
   </div>;
 }
 
@@ -4374,10 +4839,30 @@ function BasicShapeGraphic({ node, size }) {
   const common = { fill: node.fillColor || "#eef1ff", stroke: node.outlineColor || "#5367ef", strokeWidth: 3, vectorEffect: "non-scaling-stroke" };
   const inset = 0;
   return <svg className="basic-shape-graphic" viewBox={`0 0 ${size.width} ${size.height}`} aria-hidden="true">
-    {node.shapeKind === "line" && <line x1="0" y1={size.height / 2} x2={size.width} y2={size.height / 2} stroke={node.outlineColor || "#5367ef"} strokeWidth={node.strokeWidth || 3} strokeLinecap="round" vectorEffect="non-scaling-stroke" />}
     {node.shapeKind === "circle" && <ellipse cx={size.width / 2} cy={size.height / 2} rx={Math.max(1, size.width / 2 - inset)} ry={Math.max(1, size.height / 2 - inset)} {...common} />}
     {node.shapeKind === "triangle" && <polygon points={`${size.width / 2},${inset} ${size.width - inset},${size.height - inset} ${inset},${size.height - inset}`} {...common} />}
     {!["line", "circle", "triangle"].includes(node.shapeKind) && <rect x="0" y="0" width={size.width} height={size.height} rx={node.shapeKind === "square" ? 5 : 9} {...common} />}
+  </svg>;
+}
+
+function LineShapeGraphic({ node, size }) {
+  const geometry = lineGeometry(node, size);
+  const stroke = lineStrokeColor(node);
+  const markerKey = String(node.id || "line").replace(/[^a-z0-9_-]/gi, "-");
+  const arrowId = `line-arrow-${markerKey}`;
+  const circleId = `line-circle-${markerKey}`;
+  const marker = (side) => {
+    const shape = lineEndpointShape(node, side);
+    if (shape === "arrow") return `url(#${arrowId})`;
+    if (shape === "circle") return `url(#${circleId})`;
+    return undefined;
+  };
+  return <svg className={`arrow-shape line-shape ${node.lineStyle === "dashed" ? "dashed" : ""}`} viewBox={`0 0 ${size.width} ${size.height}`} aria-hidden="true">
+    <defs>
+      <marker id={arrowId} markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 Z" fill={stroke} /></marker>
+      <marker id={circleId} markerWidth="9" markerHeight="9" refX="4.5" refY="4.5" orient="auto"><circle cx="4.5" cy="4.5" r="3.2" fill="#fff" stroke={stroke} strokeWidth="1.5" /></marker>
+    </defs>
+    <path className="line-shape-path" d={geometry.path} fill="none" stroke={stroke} strokeWidth={node.strokeWidth || (node.type === "arrow" ? 3 : 3)} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" markerStart={marker("start")} markerEnd={marker("end")} />
   </svg>;
 }
 
@@ -4614,13 +5099,16 @@ function HeroIconReplacementPicker({ currentIcon, onSelect }) {
   </div>;
 }
 
-function SelectionFrame({ bounds, zoom, count, resizable = false, rotatable = false, lineEndpoints = false, horizontalHandles = false, rotation = 0, resizeLabel = "element", rotateLabel = "element", onResizeStart, onRotateStart, onLineEndpointStart }) {
+function SelectionFrame({ bounds, zoom, count, resizable = false, rotatable = false, lineEndpoints = false, lineCurve = 0, horizontalHandles = false, rotation = 0, resizeLabel = "element", rotateLabel = "element", onResizeStart, onRotateStart, onLineEndpointStart, onLineCurveStart }) {
   const stroke = 2 / zoom;
   const handle = 10 / zoom;
+  const lineHandle = 12 / zoom;
+  const lineHitTarget = 36 / zoom;
   const handles = ["top-left", "top-right", "bottom-left", "bottom-right"];
-  return <div className={`selection-frame ${resizable ? "resizable" : ""} ${rotatable ? "rotatable" : ""} ${lineEndpoints ? "line-selection" : ""}`} aria-hidden={!resizable && !rotatable && !lineEndpoints} style={{ left: bounds.x, top: bounds.y, width: bounds.width, height: bounds.height, borderWidth: stroke, transform: rotation ? `rotate(${rotation}deg)` : undefined, "--selection-handle": `${handle}px`, "--selection-offset": `${-handle / 2 - stroke / 2}px` }}>
+  return <div className={`selection-frame ${resizable ? "resizable" : ""} ${rotatable ? "rotatable" : ""} ${lineEndpoints ? "line-selection" : ""}`} aria-hidden={!resizable && !rotatable && !lineEndpoints} style={{ left: bounds.x, top: bounds.y, width: bounds.width, height: bounds.height, borderWidth: stroke, transform: rotation ? `rotate(${rotation}deg)` : undefined, "--selection-handle": `${handle}px`, "--selection-offset": `${-handle / 2 - stroke / 2}px`, "--line-handle": `${lineHandle}px`, "--line-offset": `${-lineHandle / 2 - stroke / 2}px`, "--line-hit-target": `${lineHitTarget}px` }}>
     {!lineEndpoints && handles.map((corner) => resizable || rotatable ? <button key={corner} type="button" className={`selection-handle ${corner}`} title={rotatable ? `Drag to rotate ${rotateLabel}` : undefined} aria-label={rotatable ? `Rotate ${rotateLabel} from ${corner.replace("-", " ")} corner` : `Resize ${resizeLabel} from ${corner.replace("-", " ")} corner`} onPointerDown={(event) => rotatable ? onRotateStart?.(corner, event) : onResizeStart?.(corner, event)} /> : <i key={corner} className={`selection-handle ${corner}`} />)}
     {lineEndpoints && ["left", "right"].map((side) => <button key={side} type="button" className={`selection-handle line-endpoint ${side}`} title={`Drag to resize and rotate line from the ${side} endpoint`} aria-label={`Resize and rotate line from the ${side} endpoint`} onPointerDown={(event) => onLineEndpointStart?.(side, event)} />)}
+    {lineEndpoints && <button type="button" className="selection-handle line-curve-handle" style={{ top: `calc(50% + ${lineCurve / 2}px)` }} title="Drag to bend or straighten the line" aria-label="Bend or straighten line" onPointerDown={onLineCurveStart} />}
     {horizontalHandles && ["middle-left", "middle-right"].map((position) => <button key={position} type="button" className={`selection-handle ${position}`} aria-label={`Resize ${resizeLabel} width from ${position.replace("-", " ")}`} onPointerDown={(event) => onResizeStart?.(position, event)} />)}
     {count > 1 && <span className="selection-count" style={{ fontSize: `${10 / zoom}px`, height: `${22 / zoom}px`, padding: `0 ${7 / zoom}px`, top: `${-30 / zoom}px` }}>{count} selected</span>}
   </div>;
@@ -4777,27 +5265,33 @@ function IconStyleToolbar({ node, style, openMenu, setOpenMenu, onChange, onDele
   </div>;
 }
 
-function ArrowStyleToolbar({ node, style, openMenu, setOpenMenu, onChange, onDelete }) {
-  const tone = toneForNode(node);
+function LineStyleToolbar({ node, style, openMenu, setOpenMenu, onChange, onDelete }) {
   const toggle = (menu) => setOpenMenu((current) => current === menu ? null : menu);
-  return <div className="node-style-toolbar arrow-style-toolbar" style={style} role="toolbar" aria-label="Arrow line formatting" onPointerDown={(event) => event.stopPropagation()}>
-    <div className="node-toolbar-item"><button className={openMenu === "arrow-colour" ? "active" : ""} aria-label="Arrow colour" onClick={() => toggle("arrow-colour")}><span className="toolbar-colour-dot" style={{ background: tone.accent }} /><CaretDown size={11} /></button>{openMenu === "arrow-colour" && <div className="node-toolbar-popover colour-popover"><ColorControl node={node} tone={tone} onChange={onChange} /></div>}</div>
+  const endpointMenu = (side) => {
+    const value = lineEndpointShape(node, side);
+    const property = side === "start" ? "startShape" : "endShape";
+    return <div className="node-toolbar-item">
+      <button className={openMenu === `line-${side}` ? "active" : ""} aria-label={`Change line ${side} point. Current: ${value}`} title={`${side === "start" ? "Start" : "End"} point: ${value}`} aria-expanded={openMenu === `line-${side}`} onClick={() => toggle(`line-${side}`)}><EndpointIcon shape={value} /><CaretDown size={11} /></button>
+      {openMenu === `line-${side}` && <div className="node-toolbar-popover endpoint-popover"><strong>{side} point</strong><div className="endpoint-toolbar-options">{["none", "arrow", "circle"].map((shape) => <button key={shape} className={value === shape ? "selected" : ""} aria-label={`${shape} ${side} point`} title={shape} onClick={() => { onChange({ [property]: shape }); setOpenMenu(null); }}><EndpointIcon shape={shape} /></button>)}</div></div>}
+    </div>;
+  };
+  return <div className="node-style-toolbar basic-shape-toolbar line-shape-toolbar" style={style} role="toolbar" aria-label="Line formatting" onPointerDown={(event) => event.stopPropagation()}>
+    {endpointMenu("start")}
     <span className="node-toolbar-divider" />
-    <div className="node-toolbar-item"><button className={openMenu === "arrow-line" ? "active" : ""} aria-label="Arrow line style" onClick={() => toggle("arrow-line")}><i className={`line-preview ${node.lineStyle === "dashed" ? "dashed" : "solid"}`} /><CaretDown size={11} /></button>{openMenu === "arrow-line" && <div className="node-toolbar-popover line-style-popover"><strong>Line</strong><div className="line-toolbar-options"><button className={(node.lineStyle || "solid") === "solid" ? "selected" : ""} onClick={() => { onChange({ lineStyle: "solid" }); setOpenMenu(null); }}><i className="line-preview solid" />Solid</button><button className={node.lineStyle === "dashed" ? "selected" : ""} onClick={() => { onChange({ lineStyle: "dashed" }); setOpenMenu(null); }}><i className="line-preview dashed" />Dashed</button></div></div>}</div>
+    <div className="node-toolbar-item"><button className={openMenu === "line-colour" ? "active" : ""} aria-label="Line stroke colour" aria-expanded={openMenu === "line-colour"} onClick={() => toggle("line-colour")}><span className="toolbar-colour-dot" style={{ background: lineStrokeColor(node) }} /><span>Stroke</span><CaretDown size={11} /></button>{openMenu === "line-colour" && <div className="node-toolbar-popover colour-popover"><ShapeColorControl label="Stroke" value={lineStrokeColor(node)} onChange={(outlineColor) => onChange({ outlineColor, customColor: null })} /></div>}</div>
     <span className="node-toolbar-divider" />
-    <button className="toolbar-delete" aria-label="Delete arrow" onClick={onDelete}><Trash size={17} /></button>
+    <div className="node-toolbar-item"><button className={openMenu === "line-thickness" ? "active" : ""} aria-label={`Line thickness ${node.strokeWidth || 3} pixels`} aria-expanded={openMenu === "line-thickness"} onClick={() => toggle("line-thickness")}><LucideIcons.Weight size={16} /><span>{node.strokeWidth || 3}px</span><CaretDown size={11} /></button>{openMenu === "line-thickness" && <div className="node-toolbar-popover line-thickness-popover"><strong>Thickness</strong><div className="inspector-field"><input className="size-range" type="range" min="1" max="24" step="1" value={node.strokeWidth || 3} style={rangeFillStyle(node.strokeWidth || 3, 1, 24)} onChange={(event) => onChange({ strokeWidth: Number(event.target.value) })} /><small>{node.strokeWidth || 3}px</small></div></div>}</div>
+    <span className="node-toolbar-divider" />
+    <div className="node-toolbar-item"><button className={openMenu === "line-style" ? "active" : ""} aria-label="Line style" onClick={() => toggle("line-style")}><i className={`line-preview ${node.lineStyle === "dashed" ? "dashed" : "solid"}`} /><CaretDown size={11} /></button>{openMenu === "line-style" && <div className="node-toolbar-popover line-style-popover"><strong>Line</strong><div className="line-toolbar-options"><button className={(node.lineStyle || "solid") === "solid" ? "selected" : ""} onClick={() => { onChange({ lineStyle: "solid" }); setOpenMenu(null); }}><i className="line-preview solid" />Solid</button><button className={node.lineStyle === "dashed" ? "selected" : ""} onClick={() => { onChange({ lineStyle: "dashed" }); setOpenMenu(null); }}><i className="line-preview dashed" />Dashed</button></div></div>}</div>
+    <span className="node-toolbar-divider" />
+    {endpointMenu("end")}
+    <span className="node-toolbar-divider" />
+    <button className="toolbar-delete" aria-label="Delete line" onClick={onDelete}><Trash size={17} /></button>
   </div>;
 }
 
 function BasicShapeToolbar({ node, style, openMenu, setOpenMenu, onEdit, onChange, onDelete }) {
   const toggle = (menu) => setOpenMenu((current) => current === menu ? null : menu);
-  if (node.shapeKind === "line") return <div className="node-style-toolbar basic-shape-toolbar line-shape-toolbar" style={style} role="toolbar" aria-label="Line formatting" onPointerDown={(event) => event.stopPropagation()}>
-    <div className="node-toolbar-item"><button className={openMenu === "line-colour" ? "active" : ""} aria-label="Line stroke colour" aria-expanded={openMenu === "line-colour"} onClick={() => toggle("line-colour")}><span className="toolbar-colour-dot" style={{ background: node.outlineColor || "#5367ef" }} /><span>Stroke</span><CaretDown size={11} /></button>{openMenu === "line-colour" && <div className="node-toolbar-popover colour-popover"><ShapeColorControl label="Stroke" value={node.outlineColor || "#5367ef"} onChange={(outlineColor) => onChange({ outlineColor })} /></div>}</div>
-    <span className="node-toolbar-divider" />
-    <div className="node-toolbar-item"><button className={openMenu === "line-thickness" ? "active" : ""} aria-label={`Line thickness ${node.strokeWidth || 3} pixels`} aria-expanded={openMenu === "line-thickness"} onClick={() => toggle("line-thickness")}><LucideIcons.Weight size={16} /><span>{node.strokeWidth || 3}px</span><CaretDown size={11} /></button>{openMenu === "line-thickness" && <div className="node-toolbar-popover line-thickness-popover"><strong>Thickness</strong><div className="inspector-field"><input className="size-range" type="range" min="1" max="24" step="1" value={node.strokeWidth || 3} style={rangeFillStyle(node.strokeWidth || 3, 1, 24)} onChange={(event) => onChange({ strokeWidth: Number(event.target.value) })} /><small>{node.strokeWidth || 3}px</small></div></div>}</div>
-    <span className="node-toolbar-divider" />
-    <button className="toolbar-delete" aria-label="Delete line" onClick={onDelete}><Trash size={17} /></button>
-  </div>;
   const fillIsTransparent = String(node.fillColor || "").toLowerCase() === "transparent";
   const outlineIsTransparent = String(node.outlineColor || "").toLowerCase() === "transparent";
   return <div className="node-style-toolbar basic-shape-toolbar" style={style} role="toolbar" aria-label="Basic shape formatting" onPointerDown={(event) => event.stopPropagation()}>
@@ -5083,6 +5577,7 @@ function ShortcutsDialog({ onClose }) {
     ["⇧⌘ Z / Ctrl + Y", "Redo"],
     ["⌘ / Ctrl + X", "Redo (MyMind shortcut)"],
     ["⌘ / Ctrl + D", "Duplicate selected canvas elements"],
+    ["⌘ / Ctrl + A", "Select all canvas elements"],
     ["⌘ / Ctrl + G", "Group selected elements"],
     ["⇧⌘ / Ctrl + G", "Ungroup selected elements"],
     ["⌘ / Ctrl + +", "Zoom in around the canvas centre"],

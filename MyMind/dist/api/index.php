@@ -249,6 +249,64 @@ function document_metadata_from_row(array $row): array
     ];
 }
 
+function document_preview_from_graph(array $graph): array
+{
+    $pages = graph_pages($graph);
+    $activePageId = (string) ($graph['activePageId'] ?? ($pages[0]['id'] ?? 'page-1'));
+    $activePage = $pages[0] ?? ['nodes' => [], 'edges' => [], 'drawings' => []];
+    foreach ($pages as $page) {
+        if ((string) ($page['id'] ?? '') === $activePageId) { $activePage = $page; break; }
+    }
+
+    $allowedNodeFields = array_fill_keys([
+        'id', 'type', 'shape', 'shapeKind', 'x', 'y', 'width', 'height', 'rotation',
+        'color', 'fillColor', 'outlineColor', 'strokeWidth', 'label', 'subtitle',
+        'fontSize', 'textFit', 'linkDisplay', 'aspectRatio', 'cropAspect',
+    ], true);
+    $nodes = [];
+    foreach (array_slice(is_array($activePage['nodes'] ?? null) ? $activePage['nodes'] : [], 0, 32) as $node) {
+        if (!is_array($node) || empty($node['id'])) continue;
+        $nodes[] = array_intersect_key($node, $allowedNodeFields);
+    }
+    $nodeIds = array_fill_keys(array_map(static fn (array $node): string => (string) $node['id'], $nodes), true);
+
+    $edges = [];
+    foreach (array_slice(is_array($activePage['edges'] ?? null) ? $activePage['edges'] : [], 0, 64) as $edge) {
+        if (!is_array($edge)) continue;
+        $source = (string) ($edge['source'] ?? '');
+        $target = (string) ($edge['target'] ?? '');
+        if (!isset($nodeIds[$source], $nodeIds[$target])) continue;
+        $edges[] = ['id' => (string) ($edge['id'] ?? ($source . '-' . $target)), 'source' => $source, 'target' => $target];
+    }
+
+    $drawings = [];
+    foreach (array_slice(is_array($activePage['drawings'] ?? null) ? $activePage['drawings'] : [], 0, 12) as $drawing) {
+        if (!is_array($drawing)) continue;
+        $sourcePoints = is_array($drawing['points'] ?? null) ? array_values($drawing['points']) : [];
+        $pointCount = count($sourcePoints);
+        $step = max(1, (int) ceil($pointCount / 64));
+        $points = [];
+        for ($index = 0; $index < $pointCount; $index += $step) {
+            $point = $sourcePoints[$index];
+            if (!is_array($point)) continue;
+            $points[] = ['x' => (float) ($point['x'] ?? 0), 'y' => (float) ($point['y'] ?? 0)];
+        }
+        if ($pointCount > 1 && ($pointCount - 1) % $step !== 0 && is_array($sourcePoints[$pointCount - 1])) {
+            $point = $sourcePoints[$pointCount - 1];
+            $points[] = ['x' => (float) ($point['x'] ?? 0), 'y' => (float) ($point['y'] ?? 0)];
+        }
+        if ($points) $drawings[] = [
+            'id' => (string) ($drawing['id'] ?? ('drawing-' . count($drawings))),
+            'points' => $points,
+            'color' => (string) ($drawing['color'] ?? '#697386'),
+            'width' => max(.5, min(40, (float) ($drawing['width'] ?? 2.4))),
+            'mode' => (string) ($drawing['mode'] ?? 'pen'),
+        ];
+    }
+
+    return ['nodes' => $nodes, 'edges' => $edges, 'drawings' => $drawings];
+}
+
 function public_http_target(string $value): ?array
 {
     if (!filter_var($value, FILTER_VALIDATE_URL)) return null;
@@ -471,6 +529,18 @@ try {
         $statement->execute([$id]);
         $row = $statement->fetch();
         $row ? reply(['document' => document_metadata_from_row($row)]) : reply(['error' => 'Canvas not found'], 404);
+    }
+
+    if ($action === 'document-preview' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+        if (empty($_SESSION['mymind_authenticated'])) reply(['error' => 'Authentication required'], 401);
+        $id = substr(trim((string) ($_GET['id'] ?? '')), 0, 96);
+        if ($id === '') reply(['error' => 'Missing canvas id'], 422);
+        $statement = $pdo->prepare('SELECT graph_json FROM mind_documents WHERE id = ? LIMIT 1');
+        $statement->execute([$id]);
+        $graphJson = $statement->fetchColumn();
+        if ($graphJson === false) reply(['error' => 'Canvas not found'], 404);
+        $graph = json_decode((string) $graphJson, true);
+        reply(['preview' => document_preview_from_graph(is_array($graph) ? $graph : [])]);
     }
 
     if ($action === 'document' && $_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -813,16 +883,19 @@ try {
         }
         $file = $_FILES['file'] ?? null;
         if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file((string) ($file['tmp_name'] ?? ''))) {
-            reply(['error' => 'Image upload failed'], 422);
+            reply(['error' => 'File upload failed'], 422);
         }
-        if ((int) ($file['size'] ?? 0) < 1 || (int) $file['size'] > 25 * 1024 * 1024) reply(['error' => 'Image must be smaller than 25 MB'], 413);
+        if ((int) ($file['size'] ?? 0) < 1 || (int) $file['size'] > 25 * 1024 * 1024) reply(['error' => 'File must be smaller than 25 MB'], 413);
         $mime = (new finfo(FILEINFO_MIME_TYPE))->file((string) $file['tmp_name']);
-        $extensions = ['image/gif' => 'gif', 'image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp'];
-        if (!isset($extensions[$mime])) reply(['error' => 'Unsupported image type'], 415);
+        $extensions = ['image/gif' => 'gif', 'image/png' => 'png', 'image/jpeg' => 'jpg', 'image/webp' => 'webp', 'application/pdf' => 'pdf', 'application/msword' => 'doc', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx'];
+        $originalExtension = strtolower((string) pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION));
+        if (!isset($extensions[$mime]) && $originalExtension === 'docx' && in_array($mime, ['application/zip', 'application/octet-stream'], true)) $extensions[$mime] = 'docx';
+        if (!isset($extensions[$mime]) && $originalExtension === 'doc' && $mime === 'application/octet-stream') $extensions[$mime] = 'doc';
+        if (!isset($extensions[$mime])) reply(['error' => 'Unsupported file type'], 415);
         $uploadDirectory = dirname(__DIR__) . '/uploads';
         if (!is_dir($uploadDirectory) && !mkdir($uploadDirectory, 0755, true) && !is_dir($uploadDirectory)) reply(['error' => 'Upload directory unavailable'], 500);
         $filename = bin2hex(random_bytes(18)) . '.' . $extensions[$mime];
-        if (!move_uploaded_file((string) $file['tmp_name'], $uploadDirectory . '/' . $filename)) reply(['error' => 'Could not store image'], 500);
+        if (!move_uploaded_file((string) $file['tmp_name'], $uploadDirectory . '/' . $filename)) reply(['error' => 'Could not store file'], 500);
         reply(['url' => ($sessionPath === '/' ? '' : $sessionPath) . '/uploads/' . $filename, 'mimeType' => $mime]);
     }
 
