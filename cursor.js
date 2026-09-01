@@ -50,6 +50,190 @@
     }
 
     /* =========================
+    BEFORE / AFTER SLIDER
+    ========================= */
+    const beforeAfterSliders = document.querySelectorAll('[data-before-after-slider]');
+
+    beforeAfterSliders.forEach((slider) => {
+      const range = slider.querySelector('.case-before-after__range');
+      if (!range) return;
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+      let previewFrame;
+      let previewHasRun = false;
+      let userInteracted = false;
+
+      const setReveal = (nextValue) => {
+        const value = Math.min(100, Math.max(0, Number(nextValue) || 0));
+        range.value = String(value);
+        slider.style.setProperty('--reveal', `${value}%`);
+      };
+
+      const updateReveal = () => setReveal(range.value);
+
+      const stopPreview = () => {
+        userInteracted = true;
+        if (previewFrame) window.cancelAnimationFrame(previewFrame);
+        slider.classList.remove('is-previewing');
+      };
+
+      const previewReveal = () => {
+        if (previewHasRun || userInteracted || reducedMotion.matches) return;
+        previewHasRun = true;
+        slider.classList.add('is-previewing');
+
+        const points = [
+          { value: Number(range.value) || 50, at: 0 },
+          { value: 72, at: 0.34 },
+          { value: 28, at: 0.68 },
+          { value: 50, at: 1 }
+        ];
+        const duration = 1800;
+        const start = performance.now();
+        const ease = (t) => 0.5 - Math.cos(Math.PI * t) / 2;
+
+        const render = (now) => {
+          if (userInteracted) {
+            slider.classList.remove('is-previewing');
+            return;
+          }
+
+          const progress = Math.min(1, (now - start) / duration);
+          let from = points[0];
+          let to = points[points.length - 1];
+
+          for (let i = 0; i < points.length - 1; i += 1) {
+            if (progress >= points[i].at && progress <= points[i + 1].at) {
+              from = points[i];
+              to = points[i + 1];
+              break;
+            }
+          }
+
+          const segmentProgress = (progress - from.at) / Math.max(0.001, to.at - from.at);
+          setReveal(from.value + (to.value - from.value) * ease(segmentProgress));
+
+          if (progress < 1) {
+            previewFrame = window.requestAnimationFrame(render);
+          } else {
+            slider.classList.remove('is-previewing');
+          }
+        };
+
+        previewFrame = window.requestAnimationFrame(render);
+      };
+
+      range.addEventListener('input', updateReveal);
+      ['pointerdown', 'keydown', 'focus'].forEach((eventName) => {
+        range.addEventListener(eventName, stopPreview);
+      });
+      updateReveal();
+
+      const previewObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            previewReveal();
+            previewObserver.unobserve(slider);
+          }
+        });
+      }, { threshold: 0.45, rootMargin: '0px 0px -12% 0px' });
+
+      previewObserver.observe(slider);
+    });
+
+    /* =========================
+    MEDIA SHOWCASE
+    ========================= */
+    const mediaShowcases = document.querySelectorAll('[data-media-showcase]');
+
+    mediaShowcases.forEach((showcase) => {
+      const links = [...showcase.querySelectorAll('[data-showcase-link]')];
+      const image = showcase.querySelector('[data-showcase-image]');
+      const caption = showcase.querySelector('[data-showcase-caption-output]');
+      const media = showcase.querySelector('.case-media-showcase__media');
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+      const shouldAutoplay = showcase.dataset.showcaseAutoplay === 'true' && !reducedMotion.matches;
+      const autoplayDelay = Number(showcase.dataset.showcaseInterval) || 2600;
+      let activeIndex = -1;
+      let transitionTimer;
+      let autoplayTimer;
+      let resumeTimer;
+      let isShowcaseVisible = false;
+
+      if (!links.length || !image || !caption) return;
+      showcase.style.setProperty('--showcase-duration', `${autoplayDelay}ms`);
+
+      const resetProgress = () => {
+        links.forEach((item) => item.classList.remove('is-progressing'));
+        if (!shouldAutoplay || !isShowcaseVisible) return;
+        const activeLink = links[activeIndex];
+        if (!activeLink) return;
+        void activeLink.offsetWidth;
+        activeLink.classList.add('is-progressing');
+      };
+
+      const setActive = (index) => {
+        const nextIndex = Math.min(links.length - 1, Math.max(0, index));
+        if (nextIndex === activeIndex) return;
+
+        const link = links[nextIndex];
+        activeIndex = nextIndex;
+        links.forEach((item, itemIndex) => {
+          item.classList.toggle('is-active', itemIndex === nextIndex);
+          item.setAttribute('aria-current', itemIndex === nextIndex ? 'true' : 'false');
+        });
+
+        media?.classList.add('is-changing');
+        window.clearTimeout(transitionTimer);
+        image.src = link.dataset.showcaseSrc || image.src;
+        image.alt = link.dataset.showcaseAlt || '';
+        caption.textContent = link.dataset.showcaseCaption || link.textContent.trim();
+        transitionTimer = window.setTimeout(() => {
+          media?.classList.remove('is-changing');
+        }, 180);
+        resetProgress();
+      };
+
+      const stopAutoplay = () => {
+        window.clearInterval(autoplayTimer);
+        window.clearTimeout(resumeTimer);
+        autoplayTimer = null;
+        resumeTimer = null;
+        links.forEach((item) => item.classList.remove('is-progressing'));
+      };
+
+      const startAutoplay = () => {
+        if (!shouldAutoplay || autoplayTimer || !isShowcaseVisible) return;
+        resetProgress();
+        autoplayTimer = window.setInterval(() => {
+          setActive(activeIndex + 1 >= links.length ? 0 : activeIndex + 1);
+        }, autoplayDelay);
+      };
+
+      links.forEach((link, index) => {
+        link.addEventListener('click', (event) => {
+          event.preventDefault();
+          stopAutoplay();
+          setActive(index);
+          resumeTimer = window.setTimeout(startAutoplay, autoplayDelay);
+        });
+      });
+
+      setActive(0);
+
+      if (shouldAutoplay) {
+        const showcaseObserver = new IntersectionObserver((entries) => {
+          entries.forEach((entry) => {
+            isShowcaseVisible = entry.isIntersecting;
+            if (isShowcaseVisible) startAutoplay();
+            else stopAutoplay();
+          });
+        }, { threshold: 0.42 });
+
+        showcaseObserver.observe(showcase);
+      }
+    });
+
+    /* =========================
     OPT-IN IFRAME INTERACTION
     ========================= */
     const interactiveEmbeds = [...document.querySelectorAll('[data-interactive-embed]')];
@@ -91,6 +275,10 @@
 
       document.addEventListener('pointerdown', (event) => {
         if (activeEmbed && !activeEmbed.contains(event.target)) releaseEmbed(activeEmbed);
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && activeEmbed) releaseEmbed(activeEmbed, { restoreFocus: true });
       });
 
       window.addEventListener('message', (event) => {
@@ -200,7 +388,7 @@
       }, 220);
     }
 
-    const featuredWorks = document.querySelectorAll('.featured-work[data-case-study-url]');
+    const featuredWorks = document.querySelectorAll('[data-case-study-url]');
     const floatingCaseTooltip = document.querySelector('.floating-case-tooltip');
 
     featuredWorks.forEach((featuredWork) => {

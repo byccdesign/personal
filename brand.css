@@ -8,62 +8,62 @@
   background: #f4fafd;
 }
 
-:is(.brand-page, .mymind-page, .product-page) .navbar:not(.scrolled) .nav-logo a,
-:is(.brand-page, .mymind-page, .product-page) .navbar:not(.scrolled) .nav-links a {
+:is(.brand-page, .product-page) .navbar:not(.scrolled) .nav-logo a,
+:is(.brand-page, .product-page) .navbar:not(.scrolled) .nav-links a {
   color: #fff8e5;
 }
 
-:is(.brand-page, .mymind-page, .product-page) .navbar:not(.scrolled) .nav-links a[aria-current="page"],
-:is(.brand-page, .mymind-page, .product-page) .navbar.scrolled .nav-links a[aria-current="page"] {
+:is(.brand-page, .product-page) .navbar:not(.scrolled) .nav-links a[aria-current="page"],
+:is(.brand-page, .product-page) .navbar.scrolled .nav-links a[aria-current="page"] {
   color: var(--accent);
 }
 
-:is(.brand-page, .mymind-page, .product-page) .navbar:not(.scrolled) .nav-toggle,
-:is(.brand-page, .mymind-page, .product-page) .navbar:not(.scrolled) .nav-toggle span {
+:is(.brand-page, .product-page) .navbar:not(.scrolled) .nav-toggle,
+:is(.brand-page, .product-page) .navbar:not(.scrolled) .nav-toggle span {
   color: #fff8e5;
 }
 
 @media (max-width: 768px) {
-  :is(.brand-page, .mymind-page, .product-page) .navbar {
+  :is(.brand-page, .product-page) .navbar {
     color: #ffffff;
   }
 
-  :is(.brand-page, .mymind-page, .product-page) .navbar .nav-logo a,
-  :is(.brand-page, .mymind-page, .product-page) .navbar .nav-links a {
+  :is(.brand-page, .product-page) .navbar .nav-logo a,
+  :is(.brand-page, .product-page) .navbar .nav-links a {
     color: #ffffff;
   }
 
-  :is(.brand-page, .mymind-page, .product-page) .navbar .nav-links a[aria-current="page"],
-  :is(.brand-page, .mymind-page, .product-page) .navbar.scrolled .nav-links a[aria-current="page"] {
+  :is(.brand-page, .product-page) .navbar .nav-links a[aria-current="page"],
+  :is(.brand-page, .product-page) .navbar.scrolled .nav-links a[aria-current="page"] {
     color: var(--accent);
   }
 
-  :is(.brand-page, .mymind-page, .product-page) .nav-toggle,
-  :is(.brand-page, .mymind-page, .product-page) .nav-toggle span {
+  :is(.brand-page, .product-page) .nav-toggle,
+  :is(.brand-page, .product-page) .nav-toggle span {
     color: #ffffff;
   }
 
-  body:is(.brand-page, .mymind-page, .product-page).nav-open .navbar .nav-logo a,
-  body:is(.brand-page, .mymind-page, .product-page).nav-open .navbar .nav-links a {
+  body:is(.brand-page, .product-page).nav-open .navbar .nav-logo a,
+  body:is(.brand-page, .product-page).nav-open .navbar .nav-links a {
     color: var(--text);
   }
 
-  body:is(.brand-page, .mymind-page, .product-page).nav-open .navbar .nav-links a[aria-current="page"] {
+  body:is(.brand-page, .product-page).nav-open .navbar .nav-links a[aria-current="page"] {
     color: var(--accent);
   }
 
-  body:is(.brand-page, .mymind-page, .product-page).nav-open .nav-toggle,
-  body:is(.brand-page, .mymind-page, .product-page).nav-open .nav-toggle span {
+  body:is(.brand-page, .product-page).nav-open .nav-toggle,
+  body:is(.brand-page, .product-page).nav-open .nav-toggle span {
     color: #111111;
   }
 
-  body:is(.brand-page, .mymind-page, .product-page).nav-open .navbar:not(.scrolled) .nav-toggle,
-  body:is(.brand-page, .mymind-page, .product-page).nav-open .navbar:not(.scrolled) .nav-toggle span {
+  body:is(.brand-page, .product-page).nav-open .navbar:not(.scrolled) .nav-toggle,
+  body:is(.brand-page, .product-page).nav-open .navbar:not(.scrolled) .nav-toggle span {
     color: #111111;
   }
 
-  body:is(.brand-page, .mymind-page, .product-page).nav-open .nav-toggle span,
-  body:is(.brand-page, .mymind-page, .product-page).nav-open .navbar:not(.scrolled) .nav-toggle span {
+  body:is(.brand-page, .product-page).nav-open .nav-toggle span,
+  body:is(.brand-page, .product-page).nav-open .navbar:not(.scrolled) .nav-toggle span {
     background: #111111;
   }
 }
