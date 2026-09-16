@@ -148,7 +148,6 @@
     mediaShowcases.forEach((showcase) => {
       const links = [...showcase.querySelectorAll('[data-showcase-link]')];
       const image = showcase.querySelector('[data-showcase-image]');
-      const caption = showcase.querySelector('[data-showcase-caption-output]');
       const media = showcase.querySelector('.case-media-showcase__media');
       const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
       const shouldAutoplay = showcase.dataset.showcaseAutoplay === 'true' && !reducedMotion.matches;
@@ -159,7 +158,7 @@
       let resumeTimer;
       let isShowcaseVisible = false;
 
-      if (!links.length || !image || !caption) return;
+      if (!links.length || !image) return;
       showcase.style.setProperty('--showcase-duration', `${autoplayDelay}ms`);
 
       const resetProgress = () => {
@@ -186,7 +185,6 @@
         window.clearTimeout(transitionTimer);
         image.src = link.dataset.showcaseSrc || image.src;
         image.alt = link.dataset.showcaseAlt || '';
-        caption.textContent = link.dataset.showcaseCaption || link.textContent.trim();
         transitionTimer = window.setTimeout(() => {
           media?.classList.remove('is-changing');
         }, 180);
