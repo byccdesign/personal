@@ -3392,6 +3392,7 @@ a[href^="mailto:"] {
 
     .title-line {
       display: block;
+      margin-left: -8px;
       font-family: "Plus Jakarta Sans", sans-serif;
       width: 956px;
       font-size: 70px;
@@ -3502,6 +3503,7 @@ a[href^="mailto:"] {
       }
 
       .title-line {
+        margin-left: 0;
         width: 100%;
         max-width: 100%;
         font-size: clamp(40px, 10.8vw, 48px);
