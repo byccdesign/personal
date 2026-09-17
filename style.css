@@ -3446,7 +3446,7 @@ a[href^="mailto:"] {
     /* DESCRIPTION */
     .description {
       position: absolute;
-      top: 500px;
+      top: 430px;
       left: var(--site-edge);
       width: 535px;
       z-index: 3;
