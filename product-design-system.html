@@ -105,7 +105,7 @@
             
             <div>
                 <p class="case-content-meta__label">Platform</p>
-                <p class="case-content-meta__value"><img src="/img/fln/fln-logos.png" alt="" aria-hidden="true"></p>
+                <p class="case-content-meta__value"><img class="case-platform-logos" src="/img/fln/fln-logos.png" alt="" aria-hidden="true"></p>
             </div>
 
             <div class="case-content-meta__wide">
@@ -180,33 +180,6 @@
         </div>
       </div>
 
-      <!-- The System-->
-      <div class="case-content-row case-content-row--reverse" id="system">
-        <div class="case-content-row__label"><h2>The System</h2><p>Architecture</p></div>
-        <div class="case-content-copy">
-          <h3>How might we create one system that remains consistent at its core while allowing individual products to feel distinct?</h3>
-          <p>We created a design system was structured to provide a solid foundation while allowing flexibility for product-specific needs. Each product supplied its own values to those semantic tokens.</p>
-
-          <h3>From primitive values to product experiences</h3>
-          <p>We organized tokens into different levels:</p>
-          <figure class="case-content-media case-content-media--captioned">
-            <img src="/img/fln/fln-theme.png">
-          </figure>
-        </div>
-      </div>
-
-    <!-- Bento Grid -->
-    <div class="case-content-bento case-content-bento--three-two" aria-label="Bits foundations and components">
-     <h4 class="case-content-embed__title">
-      The component's structure, states, interaction and accessibility remained consistent, while its visual expression could change according to the active theme. 
-    </h4>
-      <figure class="case-content-bento__item case-content-bento__item--wide">
-        <img src="/img/fln/fln-architecture.png" alt="Bits color documentation with blue, orange, neutral, and green token scales">
-      </figure>
-    </div>
-
-
-    
     
     <!-- Foundations-->
     <div class="case-content-row" id="foundations">
@@ -233,6 +206,48 @@
         <img src="/img/fln/fln-foundations.jpg" alt="Bits color documentation with blue, orange, neutral, and green token scales">
       </figure>
     </div>
+
+
+      <!-- The System-->
+      <div class="case-content-row case-content-row--reverse" id="system">
+        <div class="case-content-row__label"><h2>The System</h2><p>Architecture</p></div>
+        <div class="case-content-copy">
+          <h3>How might we create one system that remains consistent at its core while allowing individual products to feel distinct?</h3>
+          <p>We created a design system was structured to provide a solid foundation while allowing flexibility for product-specific needs. Each product supplied its own values to those semantic tokens.</p>
+
+          <h3>From primitive values to product experiences</h3>
+          <p>We organized tokens into different levels:</p>
+          <figure class="case-content-media case-content-media--captioned">
+            <img src="/img/fln/fln-theme.png">
+          </figure>
+        </div>
+      </div>
+
+    <!-- Bento Grid -->
+    <div class="case-content-bento case-content-bento--three-two" aria-label="Bits foundations and components">
+     <h4 class="case-content-embed__title">
+      The component's structure, states, interaction and accessibility remained consistent, while its visual expression could change according to the active theme. 
+    </h4>
+      <figure class="case-content-bento__item case-content-bento__item--wide">
+        <img src="/img/fln/fln-architecture.png" alt="Bits color documentation with blue, orange, neutral, and green token scales">
+      </figure>
+    </div>
+
+
+    <!-- Theming-->
+    <div class="case-content-row" id="theming">
+      <div class="case-content-row__label"><h2>Theming</h2><p>Family of Products</p></div>
+      <div class="case-content-copy">
+        <h3>A theme shouldn't become an override for everything</h3>
+        <p>One of the most important constraints was defining what themes were allowed to change.</p>
+        <h3>Theme Level Decisions</h3>
+        <p>This shifted our design system from a static collection of reusable UI into infrastructure for an expanding product ecosystem.</p>
+      <figure class="case-content-media case-content-media--captioned">
+        <img src="/img/fln/fln-system.png">
+      </figure>
+      </div>
+    </div>
+
 
     <!-- Inclusion -->
     <div class="case-content-row case-content-row--reverse" id="inclusion">
@@ -333,6 +348,38 @@
       </div>
     </section>
 
+
+     <!-- Design leadership impact -->
+    <section class="impact-metrics impact-metrics--leadership" aria-labelledby="leadership-title">
+      <div class="impact-metrics__inner impact-metrics__inner--leadership">
+        <div class="impact-metrics__heading">
+          <h2 id="leadership-title">My contributons more than just the numbers </h2>
+        </div>
+        <div class="impact-metrics__leadership-copy">
+          <p class="impact-metrics__leadership-intro">
+            While I mainly assigned to work on core and growth product experiences, I took initiaitves in improving our design system and design practices across teams. 
+            I contributed to the system's foundations, components, and documentation while also helping to establish shared practices, reporting rhythms, and team collaboration habits that improved design consistency and reduced ambiguity across teams.
+          </p>
+
+          <article class="case-leadership-point case-leadership-point--list">
+            <h3>The new system architecture</h3>
+            <ul class="case-leadership-list">
+              <li>Reuse components across multiple products</li>
+              <li>Maintain a shared interaction and accessibility foundation</li>
+              <li>Give individual products their own visual identity</li>
+              <li>Reduce duplicated design and engineering work</li>
+              <li>make system-wide improvements available to every product</li>
+              <li>Support multiple platforms without forcing identical implementations</li>
+              <li>Provide a scalable foundation for future products</li>
+            </ul>
+
+          </article>         
+
+
+        </div>
+      </div>
+    </section>
+
     <section class="case-learnings" aria-labelledby="learnings-heading">
       <div class="case-learnings__inner">
         <div class="case-learnings__label"><h2 id="learnings-heading">Learnings</h2></div>
@@ -340,6 +387,16 @@
           <article class="case-learning"><h3>Adoption depends on usefulness, not completeness.</h3><p>The system earned trust by helping teams solve immediate, recurring product problems with clear and practical guidance.</p></article>
           <article class="case-learning"><h3>Documentation is part of the product.</h3><p>Guidance gave shared components context, helping teams understand when to use them and how to extend them responsibly.</p></article>
           <article class="case-learning"><h3>Inclusion scales best when it is built into the defaults.</h3><p>Accessible and localized patterns reduced the need to rediscover critical requirements late in delivery.</p></article>
+          <article class="case-learning"><h3>Scalability comes from deciding what should stay the same and what should be allowed to change.</h3><p>A design system can look like a library of reusable components.
+
+At larger scale, the harder problem is defining the relationships between products, platforms, brands and those components.
+
+Theming gave us a way to preserve a common foundation while intentionally creating space for variation.
+
+The result was a system that wasn't simply consistent.
+
+It was designed to adapt.</p></article>
+
         </div>
       </div>
     </section>

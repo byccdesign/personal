@@ -5196,6 +5196,41 @@ a[href^="mailto:"] {
       letter-spacing: -0.04em;
     }
 
+    .case-leadership-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px clamp(24px, 4vw, 64px);
+      margin: 0;
+      padding: 0;
+      color: var(--bg);
+      font-size: clamp(16px, 1.12vw, 18px);
+      font-weight: 400;
+      line-height: 1.65;
+      letter-spacing: -0.04em;
+      list-style: none;
+    }
+
+    .case-leadership-point--list {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    .case-leadership-list li {
+      position: relative;
+      padding-left: 18px;
+    }
+
+    .case-leadership-list li::before {
+      position: absolute;
+      top: 0.72em;
+      left: 0;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      content: "";
+    }
+
     .impact-metrics__heading {
       max-width: 100%;
       margin-bottom: 32px;
@@ -5355,6 +5390,12 @@ a[href^="mailto:"] {
 
     .case-content-meta__value {
       margin: 0;
+    }
+
+    .case-platform-logos {
+      display: block;
+      width: min(100%, 280px);
+      height: auto;
     }
 
     .case-content-copy {
@@ -5989,6 +6030,10 @@ a[href^="mailto:"] {
         padding: 24px 0;
       }
 
+      .case-leadership-list {
+        grid-template-columns: 1fr;
+      }
+
       .case-learning {
         grid-template-columns: 1fr;
         gap: 12px;
@@ -6002,6 +6047,10 @@ a[href^="mailto:"] {
       .case-content-meta {
         grid-template-columns: 1fr;
         gap: 18px;
+      }
+
+      .case-platform-logos {
+        width: min(70vw, 240px);
       }
 
       .case-content-media--wide {
