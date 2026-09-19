@@ -68,7 +68,7 @@
     <section class="project-hero" aria-labelledby="case-title">
       <div class="project-hero__content">
         <h1 class="project-hero__title" id="case-title">Building a scalable design system for a marketplace used by 80 million users around the world.</h1>
-        <p class="project-hero__summary">Official cross-platform design system used across web, native apps, internal tools, and other Freelancer.com family products including Loadshift (formerly Freightlancer) and Escrow.com.</p>
+        <p class="project-hero__summary">Official cross-platform design system used across web, native apps, and other Freelancer.com family products including Loadshift (formerly Freightlancer) and Escrow.com.</p>
         <div class="project-hero__metrics" aria-label="Project outcomes">
           <article class="project-metric"><p class="project-metric__value">45%</p><p class="project-metric__label">Reduction in Design Debt within 1 year</p></article>
           <article class="project-metric"><p class="project-metric__value">6 teams</p><p class="project-metric__label">Global Product Teams Supported</p></article>
@@ -114,7 +114,6 @@
             </div>
           </div>
 
-          <p class="case-content__lede case-content__lede--small"><a href="https://bits.freelancer.com/components/all" class="case-content__link">View Bits Design System</a></p>
         </div>
       </article>
 
@@ -129,9 +128,10 @@
       <div class="case-content-row">
         <div class="case-content-row__label"><h2 id="challenge-heading">Challenge</h2><p>Context</p></div>
         <div class="case-content-copy">
-          <h3>A growing product needed a shared language, not another layer of UI.</h3>
-          <p>Freelancer's product surface had evolved across teams, platforms, and legacy patterns. <span class="case-content-highlight">Familiar interactions could behave differently, visual treatments drifted, and teams repeatedly solved the same interface problems.</span></p>
-          <p>The opportunity was to <span class="case-content-highlight">create a system that helped with day-to-day delivery, not a library that lived apart from the product. Bits needed practical building blocks while leaving room for the marketplace to evolve.</span></p>
+          <h3>Similar experiences were being rebuilt multiple times</h3>
+          <p>Freelancer's product surface had evolved across teams, platforms, and legacy patterns. <span class="case-content-highlight">Familiar interactions behaved differently, visual treatments drifted, and teams repeatedly solved the same interface problems.</span></p>
+          <p>The opportunity was to create a system that helped with day-to-day delivery, not a library that lived apart from the product. Bits needed practical building blocks while leaving room for the marketplace to evolve.</p>
+          <h3>Every component would need to be designed, developed, tested and maintained multiple times.</h3>
         </div>
       </div>
 
@@ -151,18 +151,14 @@
             <li>Product teams moved quickly without scalable UI governance</li>
             <li>Misalignment between design and production - there's a lack of various states, behaviours, and use cases.</li>
           </ul>
-          <figure class="case-content-media case-content-media--captioned">
-            <img src="/img/fln/fln-docu-01.png">
-            <figcaption>Sample UI audit of a component and its behaviour.</figcaption>
-          </figure>
+
           
         </div>
       </div>
 
-
-      <!-- Architecture-->
+      <!-- The Audit-->
       <div class="case-content-row case-content-row--reverse" id="system">
-        <div class="case-content-row__label"><h2>The System</h2><p>Architecture</p></div>
+        <div class="case-content-row__label"><h2>The Audit</h2><p>Understanding the current state</p></div>
         <div class="case-content-copy">
           <h3>Cross-functional alignment to make decisions</h3>
           <p>I mapped the system from foundations through component states and patterns, connecting visual choices to the workflows they needed to support. The map <span class="case-content-highlight">aligned design, engineering, and product around what belonged in the system and what remained product-specific.</span></p>
@@ -173,31 +169,43 @@
           </figure>
 
           <figure class="case-content-media case-content-media--captioned">
-            <img src="/img/fln/fln-docu.png">
-            <figcaption>Shared file within the Product Design team for tracking our UI clean up during the web app migration.</figcaption>
+            <img src="/img/fln/fln-docu-01.png">
+            <figcaption>Sample UI audit of a legacy component and its behaviour.</figcaption>
           </figure>
 
-
+          <figure class="case-content-media case-content-media--captioned">
+            <img src="/img/fln/fln-docu.png">
+            <figcaption>Initial file shared within the Product Design team for tracking our component audit.</figcaption>
+          </figure>
         </div>
       </div>
 
-    <!-- Embed IFrame-->
-    <div class="case-content-embed-block">
-    <h4 class="case-content-embed__title"> Sample structure of a UI component </h4>
+      <!-- The System-->
+      <div class="case-content-row case-content-row--reverse" id="system">
+        <div class="case-content-row__label"><h2>The System</h2><p>Architecture</p></div>
+        <div class="case-content-copy">
+          <h3>How might we create one system that remains consistent at its core while allowing individual products to feel distinct?</h3>
+          <p>We created a design system was structured to provide a solid foundation while allowing flexibility for product-specific needs. Each product supplied its own values to those semantic tokens.</p>
 
-    <figure class="interactive-embed case-content-embed" data-interactive-embed style="--embed-height: 800px;">
-      <iframe src="https://christine-uy.com/MyMind/bits-v97r?page=page-1&embed=1" title="EWA End-to-End — Lead Acquisition" title="EWA End-to-End Apps" loading="lazy" allow="fullscreen"></iframe>
-      <button class="interactive-embed__gate" type="button" aria-label="Activate embedded EWA ecosystem prototype">
-        <span>
-          <strong>Click to interact</strong>
-          <small>Scroll and zoom stay locked until this embed is active.</small>
-        </span>
-      </button>
-      <button class="interactive-embed__release" type="button" aria-label="Stop interacting with embedded EWA ecosystem prototype">
-        Done <kbd>Esc</kbd>
-      </button>
-    </figure>  
-    </div>   
+          <h3>From primitive values to product experiences</h3>
+          <p>We organized tokens into different levels:</p>
+          <figure class="case-content-media case-content-media--captioned">
+            <img src="/img/fln/fln-theme.png">
+          </figure>
+        </div>
+      </div>
+
+    <!-- Bento Grid -->
+    <div class="case-content-bento case-content-bento--three-two" aria-label="Bits foundations and components">
+     <h4 class="case-content-embed__title">
+      The component's structure, states, interaction and accessibility remained consistent, while its visual expression could change according to the active theme. 
+    </h4>
+      <figure class="case-content-bento__item case-content-bento__item--wide">
+        <img src="/img/fln/fln-architecture.png" alt="Bits color documentation with blue, orange, neutral, and green token scales">
+      </figure>
+    </div>
+
+
     
     
     <!-- Foundations-->
@@ -212,15 +220,10 @@
             <figcaption>Contributed to writing the design documentation and guidelines <a href="https://bits.freelancer.com/foundations/accessibility" target="_blank" rel="noopener noreferrer">View Bits Foundations</a></figcaption>
           </figure>      
 
-        <figure class="case-content-media case-content-media--captioned">
-            <img src="/img/fln/figma-colors-00.png" alt="Figma color tokens setup" width="1200" height="auto" loading="lazy" decoding="async">
-             <figcaption>Setup in Figma color tokens, and written guideline</figcaption>
-            </figure>      
-
-            <figure class="case-content-media case-content-media--captioned">
-            <img src="/img/fln/fln-spacing.jpg" alt="Figma spacing tokens setup" width="1200" height="auto" loading="lazy" decoding="async">
-             <figcaption>Setup in Figma spacing tokens, and written guideline</figcaption>
-            </figure>    
+          <figure class="case-content-media case-content-media--captioned">
+          <img src="/img/fln/fln-spacing.jpg" alt="Figma spacing tokens setup" width="1200" height="auto" loading="lazy" decoding="async">
+            <figcaption>Setup in Figma spacing tokens, and written guideline</figcaption>
+          </figure>    
       </div>
     </div>
 
@@ -247,14 +250,18 @@
           <figcaption>Sample page automatically adapts to different languages and regions. <a href="https://www.freelancer.com/discover" target="_blank" rel="noopener noreferrer">Freelancer.com Discover</a></figcaption>
         </figure>
         
-        <p>We made room for text expansion, regional formats, and right-to-left interfaces, turning international reach into a practical design constraint rather than a late-stage fix.</p>
-        <figure class="case-content-media  case-content-media">
-          <img src="/img/fln/fln-cards.png" alt="">
-        </figure>
+        <!-- <p>We made room for text expansion, regional formats, and right-to-left interfaces, turning international reach into a practical design constraint rather than a late-stage fix.</p> -->
 
       </div>
     </div>
 
+
+    <!-- Full width media-->
+    <figure class="case-content-media case-content-media--wide">
+        <img src="/img/fln/fln-internationalisation-02.png" alt="" width="1390px" height="auto" loading="lazy" decoding="async">
+    </figure>
+    
+    
     <!-- Design Guidelines-->
     <div class="case-content-row" id="design-guidelines">
       <div class="case-content-row__label"><h2>Design Guidelines</h2><p>UI Components</p></div>
@@ -291,7 +298,7 @@
           <img src="/img/fln/fln-prot-01.png">
         </figure>
         <figure class="case-content-bento__item">
-          <img src="/img/fln/fln-prot-05.png">
+          <img src="/img/fln/fln-freightlancer.png">
         </figure>
       </div>
 
@@ -301,7 +308,7 @@
 
       <div class="case-content-bento__row case-content-bento__row--two">
         <figure class="case-content-bento__item">
-          <img src="/img/fln/fln-prot-04.png">
+          <img src="/img/fln/fln-freightlancer-payment.png">
         </figure>
         <figure class="case-content-bento__item">
           <img src="/img/fln/fln-prot-05.png">
