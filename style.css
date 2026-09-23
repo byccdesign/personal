@@ -5249,6 +5249,7 @@ a[href^="mailto:"] {
 
     .impact-metrics--outcomes .impact-metrics__heading h2 {
       color: #111111;
+      text-align: center;
     }
 
     .impact-metrics__grid {
