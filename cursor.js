@@ -454,7 +454,7 @@
       });
     });
 
-    const emailLinks = document.querySelectorAll('a[href^="mailto:"]');
+    const emailLinks = document.querySelectorAll('.brand-other__intro a[href^="mailto:"]');
     let copiedTimer;
 
     async function copyText(text) {

@@ -155,11 +155,11 @@ a:visited {
   border-bottom: var(--text) solid 1px;
 }
 
-a[href^="mailto:"] {
+.brand-other__intro a[href^="mailto:"] {
   position: relative;
 }
 
-    a[href^="mailto:"]::after {
+    .brand-other__intro a[href^="mailto:"]::after {
       content: "Email Copied!";
       position: absolute;
       left: 50%;
@@ -183,7 +183,7 @@ a[href^="mailto:"] {
       white-space: nowrap;
     }
 
-    a[href^="mailto:"].is-copied::after {
+    .brand-other__intro a[href^="mailto:"].is-copied::after {
       opacity: 1;
       transform: translate(-50%, 0);
     }
@@ -1742,7 +1742,7 @@ a[href^="mailto:"] {
       font-size: clamp(16px, 1.6vw, 20px);
       font-weight: 400;
       line-height: 35px;
-      letter-spacing: -0.02em;
+      letter-spacing:  -0.04em;
     }
 
     .about-hero__stats {
@@ -2072,7 +2072,7 @@ a[href^="mailto:"] {
       }
 
       .about-text-loop {
-        font-size: 48px;
+        font-size: 36px;
       }
 
       .about-hero__summary,
@@ -2100,7 +2100,7 @@ a[href^="mailto:"] {
       .about-profile__details {
         font-size: 16px;
         line-height: 26px;
-        letter-spacing: -0.02em;
+        letter-spacing:-0.04em;
       }
 
       .about-profile__lede p:not(.about-pill) {
@@ -4654,7 +4654,7 @@ a[href^="mailto:"] {
       }
 
       .work-section__title {
-        font-size: clamp(42px, 14vw, 54px);
+        font-size: 48px;
       }
 
       .featured-work {
