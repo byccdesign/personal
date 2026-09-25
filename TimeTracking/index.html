@@ -100,6 +100,7 @@
                       <div class="tt-rule-028">{{ task.rateLabel }}</div>
                     </div>
                     <div class="tt-task-actions">
+                      <button class="{{ task.billingClass }}" aria-label="{{ task.billingAriaLabel }}" title="{{ task.billingAriaLabel }}" onClick="{{ task.onBillingToggle }}">{{ task.billingLabel }}</button>
                       <button class="{{ task.timerActionClass }}" aria-label="{{ task.timerActionAriaLabel }}" data-tooltip="{{ task.timerActionLabel }}" onClick="{{ task.onTimerAction }}">
                         <span class="material-icon tt-rule-006">{{ task.timerActionIcon }}</span>
                       </button>
@@ -291,6 +292,7 @@
                       <span class="tt-rule-060">{{ entry.rateLabel }}</span>
                       <span class="tt-rule-061">{{ entry.billedLabel }}</span>
                       <div class="tt-rule-062">
+                        <button class="{{ entry.billingClass }}" aria-label="{{ entry.billingAriaLabel }}" data-tooltip="{{ entry.billingAriaLabel }}" onClick="{{ entry.onBillingToggle }}">{{ entry.billingLabel }}</button>
                         <button class="tt-action-tooltip tt-rule-064 tt-hover-07" aria-label="Resume timer" data-tooltip="Resume timer" onClick="{{ entry.onResume }}">
                           <span class="material-icon tt-rule-006">play_arrow</span>
                         </button>
@@ -943,6 +945,13 @@
             <input class="tt-field tt-rule-138" type="number" min="0" step="0.5" value="{{ taskDraft.rate }}" onChange="{{ onTaskDraftRate }}"/>
           </div>
         </div>
+        <div class="tt-rule-134">
+          <label class="tt-rule-135">Billing</label>
+          <select class="tt-field" value="{{ taskDraft.billingStatus }}" onChange="{{ onTaskDraftBillingStatus }}">
+            <option value="billed">Billed</option>
+            <option value="unbilled">Unbilled</option>
+          </select>
+        </div>
         <div class="tt-rule-130">
           <sc-if value="{{ taskModalIsEdit }}" hint-placeholder-val="{{ false }}">
             <button class="tt-btn tt-btn-danger tt-hover-09" onClick="{{ deleteTask }}">Delete task</button>
@@ -974,12 +983,12 @@
           </div>
           <div class="tt-rule-085">
             <div class="tt-rule-086">
-              <label class="tt-rule-042">Hours</label>
-              <input class="tt-field tt-rule-141" type="number" min="0" value="{{ entryDraft.h }}" onChange="{{ onEntryDraftH }}"/>
+              <label class="tt-rule-042">Start time</label>
+              <input class="tt-field tt-rule-141" type="text" placeholder="9:00 AM" value="{{ entryDraft.startClock }}" onChange="{{ onEntryDraftStartClock }}"/>
             </div>
             <div class="tt-rule-086">
-              <label class="tt-rule-042">Minutes</label>
-              <input class="tt-field tt-rule-141" type="number" min="0" max="59" value="{{ entryDraft.m }}" onChange="{{ onEntryDraftM }}"/>
+              <label class="tt-rule-042">End time</label>
+              <input class="tt-field tt-rule-141" type="text" placeholder="10:30 AM" value="{{ entryDraft.endClock }}" onChange="{{ onEntryDraftEndClock }}"/>
             </div>
           </div>
           <div class="tt-rule-083">
@@ -1886,15 +1895,37 @@ class Component extends DCLogic {
 
   // ---- task CRUD ----
   openAddTask(projectId) {
-    this.setState({ taskModalOpen: true, taskDraft: { id: null, projectId, name: '', rate: this.props.defaultHourlyRate ?? 25 } });
+    this.setState({ taskModalOpen: true, taskDraft: { id: null, projectId, name: '', rate: this.props.defaultHourlyRate ?? 25, billingStatus: 'billed' } });
   }
   openEditTask(projectId, taskId) {
     const p = this.state.projects.find(p => p.id === projectId);
     const t = p.tasks.find(t => t.id === taskId);
-    this.setState({ taskModalOpen: true, taskDraft: { id: t.id, projectId, name: t.name, rate: t.rate } });
+    this.setState({ taskModalOpen: true, taskDraft: { id: t.id, projectId, name: t.name, rate: t.rate, billingStatus: t.billingStatus === 'unbilled' ? 'unbilled' : 'billed' } });
   }
   closeTaskModal() { this.setState({ taskModalOpen: false, taskDraft: null }); }
   setTaskDraft(field, val) { this.setState(s => ({ taskDraft: { ...s.taskDraft, [field]: val } })); }
+  toggleTaskBilling(projectId, taskId) {
+    this.setState(s => ({
+      projects: s.projects.map(p => p.id !== projectId ? p : {
+        ...p,
+        tasks: p.tasks.map(t => t.id !== taskId ? t : { ...t, billingStatus: t.billingStatus === 'unbilled' ? 'billed' : 'unbilled' })
+      })
+    }), () => this.persist());
+  }
+  toggleEntryBilling(projectId, taskId, entryId) {
+    this.setState(s => ({
+      projects: s.projects.map(p => p.id !== projectId ? p : {
+        ...p,
+        tasks: p.tasks.map(t => t.id !== taskId ? t : {
+          ...t,
+          entries: t.entries.map(e => e.id !== entryId ? e : {
+            ...e,
+            billingStatus: (e.billingStatus || t.billingStatus || 'billed') === 'unbilled' ? 'billed' : 'unbilled'
+          })
+        })
+      })
+    }), () => this.persist());
+  }
   saveTask() {
     const d = this.state.taskDraft;
     if (!d.name.trim()) return;
@@ -1904,8 +1935,8 @@ class Component extends DCLogic {
     this.setState(s => ({
       projects: s.projects.map(p => {
         if (p.id !== d.projectId) return p;
-        if (d.id) return { ...p, tasks: p.tasks.map(t => t.id === d.id ? { ...t, name: d.name.trim(), rate } : t) };
-        return { ...p, tasks: [...p.tasks, { id: taskId, name: d.name.trim(), rate, entries: [] }] };
+        if (d.id) return { ...p, tasks: p.tasks.map(t => t.id === d.id ? { ...t, name: d.name.trim(), rate, billingStatus: d.billingStatus === 'unbilled' ? 'unbilled' : 'billed' } : t) };
+        return { ...p, tasks: [...p.tasks, { id: taskId, name: d.name.trim(), rate, billingStatus: d.billingStatus === 'unbilled' ? 'unbilled' : 'billed', entries: [] }] };
       }),
       taskModalOpen: false,
       taskDraft: null,
@@ -1950,14 +1981,25 @@ class Component extends DCLogic {
     const p = this.state.projects.find(p => p.id === projectId);
     const t = p.tasks.find(t => t.id === taskId);
     const e = t.entries.find(e => e.id === entryId);
-    const h = Math.floor(e.seconds / 3600), m = Math.floor((e.seconds % 3600) / 60);
-    this.setState({ entryModalOpen: true, entryDraft: { projectId, taskId, id: entryId, taskName: t.name, dateKey: e.dateKey || this.dateKeyFor(new Date()), h, m, notes: e.notes || '' } });
+    const completedAt = Number(e.createdAt) || Date.now();
+    const startedAt = completedAt - (Number(e.seconds) || 0) * 1000;
+    const formatClock = timestamp => new Intl.DateTimeFormat('en-US', { timeZone: 'America/Toronto', hour: 'numeric', minute: '2-digit', hour12: true }).format(new Date(timestamp));
+    this.setState({ entryModalOpen: true, entryDraft: { projectId, taskId, id: entryId, taskName: t.name, dateKey: e.dateKey || this.dateKeyFor(new Date()), startClock: formatClock(startedAt), endClock: formatClock(completedAt), notes: e.notes || '' } });
   }
   closeEntryModal() { this.setState({ entryModalOpen: false, entryDraft: null }); }
   setEntryDraft(field, val) { this.setState(s => ({ entryDraft: { ...s.entryDraft, [field]: val } })); }
   saveEntry() {
     const d = this.state.entryDraft;
-    const seconds = Math.max(0, Math.round((Number(d.h) || 0) * 3600 + (Number(d.m) || 0) * 60));
+    const parseClock = value => {
+      const match = String(value || '').trim().match(/^(1[0-2]|[1-9]):([0-5][0-9])\s*(AM|PM)$/i);
+      if (!match) return null;
+      return ((Number(match[1]) % 12) + (/PM/i.test(match[3]) ? 12 : 0)) * 60 + Number(match[2]);
+    };
+    const startMinutes = parseClock(d.startClock), endMinutes = parseClock(d.endClock);
+    if (startMinutes === null || endMinutes === null) return;
+    const seconds = ((endMinutes - startMinutes + 1440) % 1440 || 1440) * 60;
+    const [year, month, day] = (d.dateKey || this.dateKeyFor(new Date())).split('-').map(Number);
+    const completedAt = new Date(year, month - 1, day, Math.floor(endMinutes / 60), endMinutes % 60).getTime();
     this.setState(s => ({
       projects: s.projects.map(p => p.id !== d.projectId ? p : {
         ...p, tasks: p.tasks.map(t => {
@@ -1965,7 +2007,7 @@ class Component extends DCLogic {
           return {
             ...t,
             name: d.taskName && d.taskName.trim() ? d.taskName.trim() : t.name,
-            entries: t.entries.map(e => e.id === d.id ? { ...e, dateKey: d.dateKey || e.dateKey, seconds, notes: String(d.notes || '').trim() } : e)
+            entries: t.entries.map(e => e.id === d.id ? { ...e, dateKey: d.dateKey || e.dateKey, createdAt: completedAt, seconds, notes: String(d.notes || '').trim() } : e)
           };
         })
       }),
@@ -2195,7 +2237,8 @@ class Component extends DCLogic {
       if (projectFilterId !== 'all' && p.id !== projectFilterId) return;
       p.tasks.forEach(t => t.entries.forEach(e => {
         if (e.dateKey < fromKey || e.dateKey > toKey) return;
-        const billed = (e.seconds / 3600) * t.rate;
+        const isBilled = (e.billingStatus || t.billingStatus || 'billed') !== 'unbilled';
+        const billed = isBilled ? (e.seconds / 3600) * t.rate : 0;
         totalSeconds += e.seconds; totalBilled += billed; entryCount++;
         if (!perProject[p.id]) perProject[p.id] = { name: p.name, icon: this.normalizeProjectIcon(p), color: p.color, seconds: 0, billed: 0 };
         perProject[p.id].seconds += e.seconds; perProject[p.id].billed += billed;
@@ -2318,7 +2361,7 @@ class Component extends DCLogic {
       p.tasks.forEach(t => {
         const secondsByDate = {};
         t.entries.forEach(e => {
-          if (e.dateKey >= inv.rangeFrom && e.dateKey <= inv.rangeTo) {
+          if (e.dateKey >= inv.rangeFrom && e.dateKey <= inv.rangeTo && (e.billingStatus || t.billingStatus || 'billed') !== 'unbilled') {
             if (!secondsByDate[e.dateKey]) secondsByDate[e.dateKey] = { seconds: 0, notes: [] };
             secondsByDate[e.dateKey].seconds += e.seconds;
             const note = String(e.notes || '').trim();
@@ -2328,6 +2371,7 @@ class Component extends DCLogic {
         Object.keys(secondsByDate).forEach(dateKey => {
           const seconds = secondsByDate[dateKey].seconds;
           const notes = secondsByDate[dateKey].notes.join(' • ');
+          if (!seconds) return;
           const hours = seconds / 3600, amount = hours * t.rate;
           items.push({ dateKey, taskId: t.id, description: t.name + ' — ' + p.name, notes, hasNotes: !!notes, hours, rate: t.rate, amount, checked: !excluded.has(t.id) });
         });
@@ -2370,6 +2414,9 @@ class Component extends DCLogic {
         id: t.id,
         name: t.name,
         rateLabel: this.money(t.rate) + '/hr',
+        billingLabel: t.billingStatus === 'unbilled' ? 'Unbilled' : 'Billed',
+        billingClass: 'tt-task-billing-toggle' + (t.billingStatus === 'unbilled' ? ' is-unbilled' : ''),
+        billingAriaLabel: 'Set ' + t.name + ' as ' + (t.billingStatus === 'unbilled' ? 'billed' : 'unbilled'),
         rowClass: 'tt-task-row tt-hover-04' +
           (s.activeTimer && s.activeTimer.projectId === p.id && s.activeTimer.taskId === t.id ? ' is-timer-active' : '') +
           (taskFilterActive && taskFilterProject.id === p.id && taskFilterTask.id === t.id ? ' is-session-filtered' : ''),
@@ -2378,6 +2425,10 @@ class Component extends DCLogic {
         timerActionAriaLabel: (s.activeTimer && s.activeTimer.projectId === p.id && s.activeTimer.taskId === t.id ? 'Stop timer for ' : 'Start timer for ') + t.name,
         timerActionClass: 'tt-row-edit tt-action-tooltip tt-rule-029 ' + (s.activeTimer && s.activeTimer.projectId === p.id && s.activeTimer.taskId === t.id ? 'tt-task-stop-action' : 'tt-hover-07'),
         onSelect: () => this.selectTaskSessions(p.id, t.id),
+        onBillingToggle: (event) => {
+          event.stopPropagation();
+          this.toggleTaskBilling(p.id, t.id);
+        },
         onKeyDown: (event) => {
           if (event.target !== event.currentTarget || (event.key !== 'Enter' && event.key !== ' ')) return;
           event.preventDefault();
@@ -2455,7 +2506,7 @@ class Component extends DCLogic {
         activeInfo = {
           icon: this.normalizeProjectIcon(p), color: p.color, iconColor: p.iconColor || this.getAccessibleTextColor(p.color), taskName: t.name, projectName: p.name,
           statusLabel: s.activeTimer.paused ? ' · Paused' : '',
-          elapsedLabel: this.formatDuration(elapsed), billedLabel: this.money((elapsed / 3600) * t.rate)
+          elapsedLabel: this.formatDuration(elapsed), billedLabel: this.money((t.billingStatus === 'unbilled' ? 0 : (elapsed / 3600) * t.rate))
         };
       }
     }
@@ -2478,7 +2529,8 @@ class Component extends DCLogic {
         if (taskFilterActive && (p.id !== taskFilterProject.id || t.id !== taskFilterTask.id)) return;
         t.entries.forEach(e => {
         if (!map[e.dateKey]) map[e.dateKey] = { seconds: 0, billed: 0, entries: [] };
-        const billed = (e.seconds / 3600) * t.rate;
+        const isBilled = (e.billingStatus || t.billingStatus || 'billed') !== 'unbilled';
+        const billed = isBilled ? (e.seconds / 3600) * t.rate : 0;
         map[e.dateKey].seconds += e.seconds; map[e.dateKey].billed += billed;
         map[e.dateKey].entries.push({
           id: e.id, taskId: t.id, projectId: p.id, taskName: t.name, projectName: p.name,
@@ -2487,7 +2539,14 @@ class Component extends DCLogic {
           seconds: e.seconds, rate: t.rate, billed,
           durationLabel: this.formatDuration(e.seconds), timeRangeLabel: this.formatEntryTimeRange(e),
           rateLabel: this.money(t.rate) + '/hr', billedLabel: this.money(billed),
+          billingLabel: isBilled ? 'Billed' : 'Unbilled',
+          billingClass: 'tt-entry-billing-toggle' + (isBilled ? '' : ' is-unbilled'),
+          billingAriaLabel: 'Mark this time entry ' + (isBilled ? 'unbilled' : 'billed'),
           onResume: () => this.startTask(p.id, t.id),
+          onBillingToggle: (event) => {
+            event.stopPropagation();
+            this.toggleEntryBilling(p.id, t.id, e.id);
+          },
           onEdit: () => this.openEditEntry(p.id, t.id, e.id),
           onDelete: () => this.deleteEntry(p.id, t.id, e.id)
         });
@@ -2758,15 +2817,16 @@ class Component extends DCLogic {
       taskModalIsEdit: !!(s.taskDraft && s.taskDraft.id), taskModalIsCreate: !(s.taskDraft && s.taskDraft.id),
       onTaskDraftName: (e) => this.setTaskDraft('name', e.target.value),
       onTaskDraftRate: (e) => this.setTaskDraft('rate', e.target.value),
+      onTaskDraftBillingStatus: (e) => this.setTaskDraft('billingStatus', e.target.value),
       closeTaskModal: () => this.closeTaskModal(), saveTask: () => this.saveTask(), deleteTask: () => this.deleteTask(),
 
       deleteTaskModalOpen: s.deleteTaskModalOpen,
       closeDeleteTaskModal: () => this.closeDeleteTaskModal(),
       confirmDeleteTask: () => this.confirmDeleteTask(),
 
-      entryModalOpen: s.entryModalOpen, entryDraft: s.entryDraft || { h: 0, m: 0, s: 0, notes: '' },
-      onEntryDraftH: (e) => this.setEntryDraft('h', e.target.value),
-      onEntryDraftM: (e) => this.setEntryDraft('m', e.target.value),
+      entryModalOpen: s.entryModalOpen, entryDraft: s.entryDraft || { startClock: '', endClock: '', notes: '' },
+      onEntryDraftStartClock: (e) => this.setEntryDraft('startClock', e.target.value),
+      onEntryDraftEndClock: (e) => this.setEntryDraft('endClock', e.target.value),
       onEntryDraftTaskName: (e) => this.setEntryDraft('taskName', e.target.value),
       onEntryDraftDateKey: (e) => this.setEntryDraft('dateKey', e.target.value),
       onEntryDraftNotes: (e) => this.setEntryDraft('notes', e.target.value),

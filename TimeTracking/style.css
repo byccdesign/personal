@@ -2070,6 +2070,31 @@ textarea.tt-field {
   flex-shrink: 0;
 }
 
+.tt-task-billing-toggle {
+  min-height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tt-task-billing-toggle:hover,
+.tt-task-billing-toggle:focus-visible {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.tt-task-billing-toggle.is-unbilled {
+  border-color: #f0d5a8;
+  background: #fff8eb;
+  color: #80520c;
+}
+
 .tt-task-stop-action {
   color: var(--color-danger-strong);
   background: var(--color-danger-soft);
@@ -2456,8 +2481,34 @@ textarea.tt-field {
 
 .tt-rule-062 {
   display:flex;
+  align-items:center;
   gap:2px;
   flex-shrink:0;
+}
+
+.tt-entry-billing-toggle {
+  min-height: 28px;
+  padding: 0 6px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 4px;
+  background: var(--color-surface);
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: 10px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tt-entry-billing-toggle:hover,
+.tt-entry-billing-toggle:focus-visible {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.tt-entry-billing-toggle.is-unbilled {
+  border-color: #f0d5a8;
+  background: #fff8eb;
+  color: #80520c;
 }
 
 .tt-rule-064 {
