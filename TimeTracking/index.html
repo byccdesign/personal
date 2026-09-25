@@ -1126,6 +1126,7 @@ class Component extends DCLogic {
       invoiceNumber: 'INV-0001', issueDate: '', dueDate: '',
       taxPercent: null,
       rangeFrom: '', rangeTo: '',
+      rangeWasCustomized: false,
       projectFilterId: 'all',
       excludedTaskIds: [], customItems: []
     }
@@ -1156,10 +1157,12 @@ class Component extends DCLogic {
       if (!inv.rangeFrom) inv.rangeFrom = pastKey;
       if (!inv.rangeTo) inv.rangeTo = todayKey;
       if (inv.taxPercent === null || inv.taxPercent === undefined) inv.taxPercent = this.props.defaultTaxPercent ?? 13;
+      const projects = loaded && loaded.projects ? loaded.projects : s.projects;
+      const invoiceSettings = this.expandInvoiceRangeForUnbilled(projects, inv);
       return {
-        projects: loaded && loaded.projects ? loaded.projects : s.projects,
+        projects,
         contacts: loaded && Array.isArray(loaded.contacts) ? loaded.contacts : s.contacts,
-        invoiceSettings: inv,
+        invoiceSettings,
         keyboardShortcutsEnabled: savedKeyboardShortcuts === null ? true : savedKeyboardShortcuts,
         sidebarCollapsed: savedSidebarCollapsed === null
           ? (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 720px)').matches)
@@ -1357,14 +1360,19 @@ class Component extends DCLogic {
       const result = await response.json();
       if (result.data && !this._hasUserChanges) {
         const data = result.data;
+        const projects = Array.isArray(data.projects) ? data.projects : this.state.projects;
+        const storedInvoiceSettings = data.invoiceSettings ? { ...this.state.invoiceSettings, ...data.invoiceSettings } : this.state.invoiceSettings;
+        const invoiceSettings = this.expandInvoiceRangeForUnbilled(projects, storedInvoiceSettings);
+        const rangeExpanded = invoiceSettings.rangeFrom !== storedInvoiceSettings.rangeFrom || invoiceSettings.rangeTo !== storedInvoiceSettings.rangeTo;
         this.setState(s => ({
-          projects: Array.isArray(data.projects) ? data.projects : s.projects,
+          projects,
           contacts: Array.isArray(data.contacts) ? data.contacts : s.contacts,
-          invoiceSettings: data.invoiceSettings ? { ...s.invoiceSettings, ...data.invoiceSettings } : s.invoiceSettings
+          invoiceSettings
         }), () => {
           try {
             localStorage.setItem(this.STORAGE_KEY, JSON.stringify({ projects: this.state.projects, contacts: this.state.contacts, invoiceSettings: this.state.invoiceSettings }));
           } catch (e) {}
+          if (rangeExpanded) this.queueServerSave({ projects: this.state.projects, contacts: this.state.contacts, invoiceSettings: this.state.invoiceSettings }, 0);
         });
       } else if (!result.data && localData) {
         this.queueServerSave({ projects: this.state.projects, contacts: this.state.contacts, invoiceSettings: this.state.invoiceSettings }, 0);
@@ -2086,7 +2094,7 @@ class Component extends DCLogic {
         if (elapsed > 0) {
           const at = s.activeTimer;
           projects = projects.map(p => p.id !== at.projectId ? p : {
-            ...p, tasks: p.tasks.map(t => t.id !== at.taskId ? t : { ...t, entries: [...t.entries, { id: this.uid(), dateKey: this.dateKeyFor(new Date()), createdAt: Date.now(), seconds: elapsed }] })
+            ...p, tasks: p.tasks.map(t => t.id !== at.taskId ? t : { ...t, entries: [...t.entries, { id: this.uid(), dateKey: this.dateKeyFor(new Date()), createdAt: Date.now(), seconds: elapsed, billingStatus: 'unbilled' }] })
           });
         }
       }
@@ -2140,7 +2148,7 @@ class Component extends DCLogic {
       if (elapsed > 0) {
         const at = s.activeTimer;
         projects = projects.map(p => p.id !== at.projectId ? p : {
-          ...p, tasks: p.tasks.map(t => t.id !== at.taskId ? t : { ...t, entries: [...t.entries, { id: this.uid(), dateKey: this.dateKeyFor(new Date()), createdAt: Date.now(), seconds: elapsed }] })
+          ...p, tasks: p.tasks.map(t => t.id !== at.taskId ? t : { ...t, entries: [...t.entries, { id: this.uid(), dateKey: this.dateKeyFor(new Date()), createdAt: Date.now(), seconds: elapsed, billingStatus: 'unbilled' }] })
         });
       }
       return { projects, activeTimer: null };
@@ -2277,7 +2285,27 @@ class Component extends DCLogic {
   }
 
   // ---- invoice ----
-  setInvoiceField(field, val) { this.setState(s => ({ invoiceSettings: { ...s.invoiceSettings, [field]: val } }), () => this.persist()); }
+  setInvoiceField(field, val) {
+    this.setState(s => ({ invoiceSettings: {
+      ...s.invoiceSettings,
+      [field]: val,
+      ...(field === 'rangeFrom' || field === 'rangeTo' ? { rangeWasCustomized: true } : {})
+    } }), () => this.persist());
+  }
+  expandInvoiceRangeForUnbilled(projects, invoiceSettings) {
+    if (invoiceSettings.rangeWasCustomized) return invoiceSettings;
+    const dates = [];
+    projects.forEach(project => project.tasks.forEach(task => task.entries.forEach(entry => {
+      if ((entry.billingStatus || task.billingStatus || 'billed') === 'unbilled' && entry.dateKey) dates.push(entry.dateKey);
+    })));
+    if (!dates.length) return invoiceSettings;
+    dates.sort();
+    return {
+      ...invoiceSettings,
+      rangeFrom: !invoiceSettings.rangeFrom || dates[0] < invoiceSettings.rangeFrom ? dates[0] : invoiceSettings.rangeFrom,
+      rangeTo: !invoiceSettings.rangeTo || dates[dates.length - 1] > invoiceSettings.rangeTo ? dates[dates.length - 1] : invoiceSettings.rangeTo
+    };
+  }
   setInvoicePartyEditing(party, editing) {
     this.setState(party === 'from' ? { invoiceFromEditing: editing } : { invoiceToEditing: editing });
   }
@@ -2361,7 +2389,7 @@ class Component extends DCLogic {
       p.tasks.forEach(t => {
         const secondsByDate = {};
         t.entries.forEach(e => {
-          if (e.dateKey >= inv.rangeFrom && e.dateKey <= inv.rangeTo && (e.billingStatus || t.billingStatus || 'billed') !== 'unbilled') {
+          if (e.dateKey >= inv.rangeFrom && e.dateKey <= inv.rangeTo && (e.billingStatus || t.billingStatus || 'billed') === 'unbilled') {
             if (!secondsByDate[e.dateKey]) secondsByDate[e.dateKey] = { seconds: 0, notes: [] };
             secondsByDate[e.dateKey].seconds += e.seconds;
             const note = String(e.notes || '').trim();
