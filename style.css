@@ -3397,7 +3397,7 @@ a:visited {
       line-height: 1.08;
       font-style: normal;
       font-weight: 400;
-      letter-spacing: -0.06em;
+      letter-spacing: -0.08em;
       cursor: default;
       transition: transform 0.4s ease, opacity 0.4s ease;
       will-change: transform;
@@ -3506,7 +3506,6 @@ a:visited {
         max-width: 100%;
         font-size: clamp(40px, 10.8vw, 48px);
         line-height: 1.04;
-        letter-spacing: -0.055em;
         overflow-wrap: normal;
         word-break: normal;
         hyphens: none;
@@ -3566,7 +3565,7 @@ a:visited {
       text-wrap: balance;
       font-weight: 400;
       line-height: 1.2;
-      letter-spacing: -0.055em;
+      letter-spacing: -0.06em;
       text-align: center;
       font-variation-settings: "opsz" 12, "wdth" 100;
     }
@@ -3666,7 +3665,7 @@ a:visited {
     }
 
     .design-lead-art__avatar--04 {
-      top: 11.5%;
+      top: 20%;
       left: 4.8%;
       animation-delay: 180ms;
     }
