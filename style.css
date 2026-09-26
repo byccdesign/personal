@@ -2268,7 +2268,7 @@ a:visited {
     .testimonials {
       position: relative;
       width: 100%;
-      padding: 200px var(--site-gutter) 200px;
+      padding: 150px var(--site-gutter) 150px;
       border-bottom: none;
       background: #161616;
       color: #eaeaea;
@@ -7008,7 +7008,7 @@ a:visited {
       min-height: 400px;
       background: var(--line);
       color: var(--dark-heading);
-      padding: 120px 0 60px;
+      padding: 100px 0 60px;
       overflow: hidden;
       box-shadow: 0 50vh 0 50vh var(--line);
     }
@@ -7226,7 +7226,7 @@ a:visited {
 
     @media (max-width: 560px) {
       .site-footer {
-        padding: 90px 0 54px;
+        padding: 60px 0 60px;
       }
 
       .footer-heading {
