@@ -2081,6 +2081,7 @@ a:visited {
       .about-recently__card p:not(.about-pill) {
         font-size: 16px;
         line-height: 26px;
+        text-wrap: balance;
       }
 
       .about-hero__stats {
@@ -2370,7 +2371,7 @@ a:visited {
       font-size: 16px;
       font-weight: 300;
       line-height: 25px;
-      letter-spacing: -0.005em;
+      letter-spacing: -0.008em;
     }
 
     .testimonials__quote p {
@@ -2488,13 +2489,10 @@ a:visited {
       }
 
       .testimonials__intro,
-
-
       .testimonials__quote,
-
-
       .testimonials__author-text {
         font-size: 14px;
+        text-wrap: pretty;
       }
 
       .testimonials__intro {
@@ -3392,10 +3390,10 @@ a:visited {
 
     .title-line {
       display: block;
-      margin-left: -8px;
       font-family: "Plus Jakarta Sans", sans-serif;
-      width: 956px;
-      font-size: 70px;
+      width: 820px;
+      font-size: 60px;
+      text-wrap: balance;
       line-height: 1.08;
       font-style: normal;
       font-weight: 400;
@@ -3446,7 +3444,7 @@ a:visited {
     /* DESCRIPTION */
     .description {
       position: absolute;
-      top: 430px;
+      top: 390px;
       left: var(--site-edge);
       width: 535px;
       z-index: 3;
@@ -3527,6 +3525,7 @@ a:visited {
         font-size: .9rem;
         line-height: 1.5;
         transform: none;
+        text-wrap: balance;
       }
 
       .location {
@@ -3563,10 +3562,11 @@ a:visited {
       margin-bottom: 48px;
       color: #000000;
       font-family: "Plus Jakarta Sans", sans-serif;
-      font-size: clamp(48px, 4.444vw, 64px);
+      font-size: clamp(32px, 4.444vw, 48px);
+      text-wrap: balance;
       font-weight: 400;
-      line-height: 1;
-      letter-spacing: -0.05em;
+      line-height: 1.2;
+      letter-spacing: -0.055em;
       text-align: center;
       font-variation-settings: "opsz" 12, "wdth" 100;
     }
@@ -3580,15 +3580,151 @@ a:visited {
 
     .featured-work--design-system {
       width: 100%;
-      margin: 200px 0 -91px;
-      padding: 200px 0 200px;
+      margin: 150px 0 -91px;
+      padding: 150px 0 200px;
       border-top: 1px solid rgba(0, 0, 0, 0.06);
       background: #FFFFFF;
     }
 
     .featured-work--ewa {
-      margin-top: 200px;
-      margin-bottom: 200px;
+      margin-top: 150px;
+      margin-bottom: 150px;
+    }
+
+    .featured-work--design-lead {
+      width: 100%;
+      margin: 150px 0 -150px;
+      padding: 150px 0 30px;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+      background: #ffffff;
+    }
+
+    .featured-work--design-lead .featured-work__header {
+      width: min(100% - 48px, 800px);
+    }
+
+    .featured-work--marketplace-growth {
+      width: 100%;
+      margin: 150px 0 -91px;
+      padding: 150px 0 91px;
+      border-top: 1px solid rgba(0, 0, 0, 0.06);
+      background: #ffffff;
+    }
+
+    .featured-work--marketplace-growth .featured-work__header {
+      width: min(100% - 48px, 800px);
+    }
+
+    .design-lead-art {
+      position: relative;
+      width: 100%;
+      height: clamp(220px, 36.328vw, 370px);
+      margin: 0;
+      overflow: hidden;
+      background: transparent;
+      isolation: isolate;
+      perspective: 1100px;
+    }
+
+    .design-lead-art__route {
+      position: absolute;
+      display: block;
+      max-width: none;
+      clip-path: inset(0 100% 0 0);
+      opacity: 0;
+    }
+
+    .design-lead-art__route--main {
+      top: 8%;
+      left: -3%;
+      width: 106%;
+      height: 63%;
+      rotate: x 1.2deg;
+      transform-origin: center;
+    }
+
+    .design-lead-art__route--secondary {
+      top: 0;
+      left: -3%;
+      width: 106%;
+      height: 72.1%;
+      transform: scaleY(-1);
+      rotate: x 1.2deg;
+      transform-origin: center;
+    }
+
+    .design-lead-art__avatar {
+      position: absolute;
+      display: block;
+      width: clamp(28px, 7vw, 100px);
+      height: auto;
+      aspect-ratio: 1;
+      border-radius: 50%;
+      opacity: 0;
+      transform: translateY(8px) scale(0.94);
+      translate: -50% -50%;
+    }
+
+    .design-lead-art__avatar--04 {
+      top: 11.5%;
+      left: 4.8%;
+      animation-delay: 180ms;
+    }
+
+    .design-lead-art__avatar--02 {
+      top: 52.5%;
+      left: 13.7%;
+      animation-delay: 380ms;
+    }
+
+    .design-lead-art__avatar--03 {
+      top: 50.5%;
+      left: 43.7%;
+      animation-delay: 760ms;
+    }
+
+    .design-lead-art__avatar--01 {
+      top: 32%;
+      left: 77.4%;
+      animation-delay: 1080ms;
+    }
+
+    .featured-work--design-lead.animate .design-lead-art__route--main {
+      animation: designLeadRouteReveal 1.45s cubic-bezier(0.22, 1, 0.36, 1) forwards,
+        designLeadPathFloat 6s 1.45s ease-in-out infinite alternate;
+    }
+
+    .featured-work--design-lead.animate .design-lead-art__route--secondary {
+      animation: designLeadRouteReveal 1.7s 140ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
+        designLeadPathFloat 6s 1.84s ease-in-out infinite alternate;
+    }
+
+    .featured-work--design-lead.animate .design-lead-art__avatar {
+      animation: designLeadAvatarIn 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    @keyframes designLeadRouteReveal {
+      to {
+        clip-path: inset(0 0 0 0);
+        opacity: 1;
+      }
+    }
+
+    @keyframes designLeadPathFloat {
+      from {
+        rotate: x 1.2deg;
+      }
+
+      to {
+        rotate: x -1deg;
+      }
+    }
+
+    @keyframes designLeadAvatarIn {
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
     }
 
     .featured-work--design-system .featured-work__header {
@@ -4387,6 +4523,22 @@ a:visited {
         display: none;
       }
 
+      .design-lead-art__route,
+      .design-lead-art__avatar {
+        clip-path: none;
+        opacity: 1;
+        animation: none !important;
+        rotate: none;
+      }
+
+      .design-lead-art__route--secondary {
+        transform: scaleY(-1);
+      }
+
+      .design-lead-art__avatar {
+        transform: none;
+      }
+
       .featured-work--canvas .command-demo--perspective .command-demo__stage {
         transform: none;
       }
@@ -4596,6 +4748,17 @@ a:visited {
         padding: 82px 0 86px;
       }
 
+      .featured-work--design-lead {
+        width: 100%;
+        margin: 76px 0 -76px;
+        padding: 82px 0 76px;
+      }
+
+      .featured-work--marketplace-growth {
+        margin: 76px 0 -78px;
+        padding: 82px 0 78px;
+      }
+
       .featured-work--ewa {
         margin-top: 82px;
         margin-bottom: 86px;
@@ -4654,7 +4817,10 @@ a:visited {
       }
 
       .work-section__title {
-        font-size: 48px;
+        font-size: 32px;
+        text-align: left;
+        text-wrap: pretty;
+        margin-bottom: 24px;
       }
 
       .featured-work {
@@ -4666,6 +4832,17 @@ a:visited {
         width: 100%;
         margin: 62px 0 -62px;
         padding: 64px 0 70px;
+      }
+
+      .featured-work--design-lead {
+        width: 100%;
+        margin: 62px 0 -62px;
+        padding: 64px 0 62px;
+      }
+
+      .featured-work--marketplace-growth {
+        margin: 62px 0 -62px;
+        padding: 64px 0 62px;
       }
 
       .featured-work--ewa {
@@ -4681,6 +4858,14 @@ a:visited {
       }
 
       .featured-work--design-system .featured-work__header {
+        width: min(100% - 36px, 520px);
+      }
+
+      .featured-work--design-lead .featured-work__header {
+        width: min(100% - 36px, 520px);
+      }
+
+      .featured-work--marketplace-growth .featured-work__header {
         width: min(100% - 36px, 520px);
       }
 
@@ -4851,10 +5036,13 @@ a:visited {
       .featured-work__copy p {
         font-size: 16px;
         line-height: 26px;
+        text-wrap: pretty;
+        text-align: left;
       }
 
       .project-tags {
         gap: 6px;
+        justify-content: left;
       }
 
       .project-tags span {
