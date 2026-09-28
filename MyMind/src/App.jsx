@@ -360,10 +360,19 @@ function accessibleShapeColors(background) {
 
 function fittedTextDimensions(label, fontSize = 24) {
   const value = String(label || "Text");
-  const width = Math.min(420, Math.max(112, Math.max(...value.split("\n").map((line) => line.length), 1) * fontSize * .58 + 20));
-  const charsPerLine = Math.max(8, Math.floor((width - 12) / (fontSize * .58)));
+  const width = Math.min(640, Math.max(112, Math.max(...value.split("\n").map((line) => line.length), 1) * fontSize * .56 + 28));
+  const charsPerLine = Math.max(6, Math.floor((width - 32) / (fontSize * .54)));
   const lineCount = value.split("\n").reduce((count, line) => count + Math.max(1, Math.ceil(line.length / charsPerLine)), 0);
-  return { width, height: Math.max(50, Math.ceil(lineCount * fontSize * 1.25 + 20)) };
+  return { width, height: Math.max(54, Math.ceil(lineCount * fontSize * 1.32 + 28)) };
+}
+
+function growTextDimensions(node, label) {
+  const fontSize = node.fontSize || 24;
+  if (node.textFit === "auto") return fittedTextDimensions(label, fontSize);
+  const width = node.width || Math.min(420, Math.max(130, String(node.label || "Text").length * fontSize * .58 + 28));
+  const charsPerLine = Math.max(6, Math.floor((width - 32) / (fontSize * .54)));
+  const lineCount = String(label || "Text").split("\n").reduce((count, line) => count + Math.max(1, Math.ceil(line.length / charsPerLine)), 0);
+  return { width, height: Math.max(node.height || 54, Math.ceil(lineCount * fontSize * 1.32 + 28)) };
 }
 
 function nodeDimensions(node) {
@@ -3322,7 +3331,8 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
       let x;
       let y;
       if (drag.widthOnly) {
-        width = Math.max(48, Math.min(1600, extentX));
+        const maxWidth = drag.elementType === "basic-shape" && drag.shapeKind === "rectangle" ? 10000 : 1600;
+        width = Math.max(48, Math.min(maxWidth, extentX));
         height = drag.height;
         x = drag.signX < 0 ? drag.anchorX - width : drag.anchorX;
         y = drag.originalY;
@@ -3349,8 +3359,10 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
       } else {
         const minimumWidth = ["code", "checklist", "table", "document"].includes(drag.elementType) ? 220 : 80;
         const minimumHeight = ["code", "checklist", "table", "document"].includes(drag.elementType) ? 120 : 40;
-        width = Math.max(minimumWidth, Math.min(1600, extentX));
-        height = Math.max(minimumHeight, Math.min(1200, extentY));
+        const maxWidth = drag.elementType === "basic-shape" && drag.shapeKind === "rectangle" ? 10000 : 1600;
+        const maxHeight = drag.elementType === "basic-shape" && drag.shapeKind === "rectangle" ? 10000 : 1200;
+        width = Math.max(minimumWidth, Math.min(maxWidth, extentX));
+        height = Math.max(minimumHeight, Math.min(maxHeight, extentY));
         x = drag.signX < 0 ? drag.anchorX - width : drag.anchorX;
         y = drag.signY < 0 ? drag.anchorY - height : drag.anchorY;
       }
@@ -3880,12 +3892,35 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
         event.preventDefault();
         setNodeToolbarMenu(null);
         setEdgeToolbarMenu(null);
-        return;
       }
       if ((event.key === "Backspace" || event.key === "Delete") && !["INPUT", "TEXTAREA"].includes(window.document.activeElement?.tagName)) deleteSelection();
       if ((event.metaKey || event.ctrlKey) && event.key === "0") { event.preventDefault(); setPan({ x: 80, y: 90 }); setZoom(.9); }
       const modalOpen = editingNode || editingEdge || exportOpen || flowGeneratorOpen || shareOpen || shortcutsOpen || linkOpen || imageSourceOpen || pendingAnnotation;
       const activeTag = window.document.activeElement?.tagName;
+      const escapeWithinCanvas = event.target instanceof Element && Boolean(event.target.closest(".canvas"));
+      if (event.key === "Escape" && !publicView && (!modalOpen || escapeWithinCanvas)) {
+        event.preventDefault();
+        setEditingNode(null);
+        setEditingEdge(null);
+        setSelection([]);
+        setDrawingSelection([]);
+        setEdgeSelection([]);
+        setConnectionSource(null);
+        setSelectedAnnotationId(null);
+        setContextMenu(null);
+        setNodeToolbarMenu(null);
+        setEdgeToolbarMenu(null);
+        setAlignToolbarHiddenByEscape(true);
+        setRotationModeId(null);
+        setPagesOpen(false);
+        setNodeMenu(false);
+        setShapeMenuOpen(false);
+        setIconBrowserOpen(false);
+        setMobileToolsOpen(false);
+        setMobileInsertOpen(false);
+        setTool("select");
+        return;
+      }
       const selectedSource = selection.length === 1 ? selection[0] : (document.nodes.length === 1 ? document.nodes[0].id : null);
       if (event.key === "Tab" && selectedSource && !publicView && !modalOpen && !["INPUT", "TEXTAREA", "BUTTON", "SELECT"].includes(activeTag)) {
         event.preventDefault();
@@ -4951,7 +4986,17 @@ function InlineNodeEditor({ node, onSave, onCancel }) {
   const [icon, setIcon] = useState(node.icon === "lightbulb" ? "brain" : node.icon);
   const suggestedIcon = recommendedIconFor(`${label} ${subtitle}`);
   const suggestedChoice = iconChoices.find((choice) => choice.id === suggestedIcon);
-  const save = () => onSave({ label: node.type === "code" ? label || "// Add your code here" : label.trim() || "Untitled node", subtitle: subtitle.trim(), ...(!node.type ? { icon } : {}) });
+  const save = () => onSave({ label: node.type === "code" ? label || "// Add your code here" : node.type === "text" ? label || "Text" : label.trim() || "Untitled node", subtitle: subtitle.trim(), ...(node.type === "text" ? growTextDimensions(node, label) : {}), ...(!node.type ? { icon } : {}) });
+  const previewText = (event) => {
+    const nextLabel = event.target.value;
+    setLabel(nextLabel);
+    const size = growTextDimensions(node, nextLabel);
+    const canvasNode = event.currentTarget.closest(".canvas-node");
+    if (canvasNode) {
+      canvasNode.style.width = `${size.width}px`;
+      canvasNode.style.height = `${size.height}px`;
+    }
+  };
   const onCodeKeyDown = (event) => {
     if (event.key === "Escape") { event.preventDefault(); onCancel(); return; }
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); save(); return; }
@@ -4964,7 +5009,7 @@ function InlineNodeEditor({ node, onSave, onCancel }) {
   };
   const editorClass = node.type === "text" ? "text-only" : node.type === "code" ? "code-only" : node.type === "basic-shape" ? "shape-only" : "";
   return <form className={`inline-node-editor ${editorClass}`} onSubmit={(event) => { event.preventDefault(); save(); }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) save(); }} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
-    {node.type === "code" ? <textarea autoFocus aria-label="Edit code block" value={label} wrap="off" spellCheck="false" onFocus={(event) => { if (label === "// Add your code here") event.currentTarget.select(); }} onChange={(event) => setLabel(event.target.value)} onKeyDown={onCodeKeyDown} /> : node.type === "text" ? <textarea autoFocus aria-label="Edit text" value={label} wrap="soft" onFocus={(event) => { if (node.textFit === "auto" && label === "Add text") event.currentTarget.select(); }} onChange={(event) => setLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }} /> : <input autoFocus aria-label={node.type === "basic-shape" ? "Shape text" : "Node title"} value={label} onFocus={(event) => node.type === "basic-shape" && event.currentTarget.select()} onChange={(event) => setLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }} />}
+    {node.type === "code" ? <textarea autoFocus aria-label="Edit code block" value={label} wrap="off" spellCheck="false" onFocus={(event) => { if (label === "// Add your code here") event.currentTarget.select(); }} onChange={(event) => setLabel(event.target.value)} onKeyDown={onCodeKeyDown} /> : node.type === "text" ? <textarea autoFocus aria-label="Edit text" value={label} wrap="soft" onFocus={(event) => { if (node.textFit === "auto" && label === "Add text") event.currentTarget.select(); }} onChange={previewText} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }} /> : <input autoFocus aria-label={node.type === "basic-shape" ? "Shape text" : "Node title"} value={label} onFocus={(event) => node.type === "basic-shape" && event.currentTarget.select()} onChange={(event) => setLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }} />}
     {!["text", "code", "basic-shape"].includes(node.type) && <textarea aria-label="Node description" value={subtitle} placeholder="Add a description" rows="2" onChange={(event) => setSubtitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); save(); } }} />}
     {!node.type && label.trim().length >= 2 && suggestedIcon !== icon && <button type="button" className="inline-icon-suggestion" onClick={() => setIcon(suggestedIcon)} title={`Use ${suggestedChoice?.label || "suggested"} icon`}><IconForNode name={suggestedIcon} size={15} /><span>Suggested: {suggestedChoice?.label}</span></button>}
   </form>;
