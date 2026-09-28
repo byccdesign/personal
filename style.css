@@ -5308,7 +5308,7 @@ a:visited {
     .impact-metrics {
       background:#232a3b;
       color: var(--bg);
-      padding: clamp(88px, 9vw, 132px) 0 clamp(96px, 10vw, 148px);
+      padding: clamp(88px, 9vw, 120px) 0 clamp(96px, 10vw, 120px);
     }
 
     .impact-metrics--outcomes {
