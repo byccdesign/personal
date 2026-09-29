@@ -5258,6 +5258,20 @@ a:visited {
       content: "";
     }
 
+    .case-content-list--numbered {
+      margin-left: 16px;
+      padding-left: 20px;
+      list-style: decimal;
+    }
+
+    .case-content-list--numbered li {
+      padding-left: 4px;
+    }
+
+    .case-content-list--numbered li::before {
+      display: none;
+    }
+
     .case-content {
       --case-content-container: min(calc(100% - (var(--site-gutter) * 2)), var(--site-max-width));
       --case-content-inset: clamp(0px, 6vw, 85px);
@@ -5330,12 +5344,14 @@ a:visited {
 
     .impact-metrics--leadership .impact-metrics__inner {
       display: grid;
+      width: 100%;
       grid-template-columns: minmax(190px, 0.28fr) minmax(0, 0.72fr);
       gap: clamp(40px, 7vw, 112px);
       align-items: start;
     }
 
     .impact-metrics--leadership .impact-metrics__heading {
+      grid-column: 1;
       margin-bottom: 0;
     }
 
@@ -5586,7 +5602,7 @@ a:visited {
 
     .case-platform-logos {
       display: block;
-      width: min(100%, 280px);
+      width: min(100%, 320px);
       height: auto;
     }
 
@@ -6214,6 +6230,10 @@ a:visited {
       .impact-metrics--leadership .impact-metrics__inner {
         grid-template-columns: 1fr;
         gap: 32px;
+      }
+
+      .impact-metrics--leadership .impact-metrics__heading {
+        grid-column: auto;
       }
 
       .impact-metrics--leadership .impact-metrics__leadership-copy {
