@@ -1040,6 +1040,10 @@
   background: #171717;
 }
 
+.brand-project-modal__media[hidden] {
+  display: none;
+}
+
 .brand-project-modal__media video,
 .brand-project-modal__media img {
   display: block;

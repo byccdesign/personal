@@ -524,13 +524,23 @@
         modalDescription.textContent = trigger.dataset.projectDescription || '';
         modalMeta.textContent = trigger.dataset.projectMeta || '';
 
-        const image = trigger.dataset.projectImage || '';
-        const video = trigger.dataset.projectVideo || '';
+        const hideFeatureMedia = trigger.dataset.projectHideFeatureMedia === 'true';
+        const image = hideFeatureMedia ? '' : trigger.dataset.projectImage || '';
+        const video = hideFeatureMedia ? '' : trigger.dataset.projectVideo || '';
         const alt = trigger.dataset.projectAlt || '';
 
-        modalImage.src = image;
+        modalMedia.hidden = hideFeatureMedia;
+        if (image) {
+          modalImage.src = image;
+        } else {
+          modalImage.removeAttribute('src');
+        }
         modalImage.alt = alt;
-        modalVideo.poster = image;
+        if (image) {
+          modalVideo.poster = image;
+        } else {
+          modalVideo.removeAttribute('poster');
+        }
         modalMedia.classList.toggle('has-video', Boolean(video));
 
         modalVideo.pause();
