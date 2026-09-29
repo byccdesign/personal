@@ -5310,6 +5310,10 @@ a:visited {
       color: var(--bg);
       padding: clamp(88px, 9vw, 120px) 0 clamp(96px, 10vw, 120px);
     }
+    
+    .impact-metrics--leadership {
+      border-radius: 24px;
+    }
 
     .impact-metrics--outcomes {
       background: linear-gradient(180deg, #FFF2ED 0%, #FFF 100%);
