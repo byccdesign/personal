@@ -2534,7 +2534,7 @@ class Component extends DCLogic {
         activeInfo = {
           icon: this.normalizeProjectIcon(p), color: p.color, iconColor: p.iconColor || this.getAccessibleTextColor(p.color), taskName: t.name, projectName: p.name,
           statusLabel: s.activeTimer.paused ? ' · Paused' : '',
-          elapsedLabel: this.formatDuration(elapsed), billedLabel: this.money((t.billingStatus === 'unbilled' ? 0 : (elapsed / 3600) * t.rate))
+          elapsedLabel: this.formatDuration(elapsed), billedLabel: this.money((elapsed / 3600) * t.rate)
         };
       }
     }
@@ -2558,15 +2558,15 @@ class Component extends DCLogic {
         t.entries.forEach(e => {
         if (!map[e.dateKey]) map[e.dateKey] = { seconds: 0, billed: 0, entries: [] };
         const isBilled = (e.billingStatus || t.billingStatus || 'billed') !== 'unbilled';
-        const billed = isBilled ? (e.seconds / 3600) * t.rate : 0;
-        map[e.dateKey].seconds += e.seconds; map[e.dateKey].billed += billed;
+        const amount = (e.seconds / 3600) * t.rate;
+        map[e.dateKey].seconds += e.seconds; map[e.dateKey].billed += amount;
         map[e.dateKey].entries.push({
           id: e.id, taskId: t.id, projectId: p.id, taskName: t.name, projectName: p.name,
           icon: this.normalizeProjectIcon(p), color: p.color, iconColor: p.iconColor || this.getAccessibleTextColor(p.color),
           notes: e.notes || '', hasNotes: !!String(e.notes || '').trim(),
-          seconds: e.seconds, rate: t.rate, billed,
+          seconds: e.seconds, rate: t.rate, billed: amount,
           durationLabel: this.formatDuration(e.seconds), timeRangeLabel: this.formatEntryTimeRange(e),
-          rateLabel: this.money(t.rate) + '/hr', billedLabel: this.money(billed),
+          rateLabel: this.money(t.rate) + '/hr', billedLabel: this.money(amount),
           billingLabel: isBilled ? 'Billed' : 'Unbilled',
           billingClass: 'tt-entry-billing-toggle' + (isBilled ? '' : ' is-unbilled'),
           billingAriaLabel: 'Mark this time entry ' + (isBilled ? 'unbilled' : 'billed'),
