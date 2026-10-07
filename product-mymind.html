@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="author" content="Christine Uy">
+  <meta name="description" content="A self-initiated product design and AI-assisted development exploration: turning a flexible canvas into a workspace for thinking, mapping, and making.">
+  <meta name="theme-color" content="#F9F9F9">
+  <meta property="og:title" content="MyMind — From idea to an AI-assisted canvas | Christine Uy">
+  <meta property="og:description" content="Designing and building a flexible canvas for visual thinking, process flows, and ideas.">
+  <meta property="og:image" content="https://christine-uy.com/vid/mymind/mymind-demo-case-study.jpg">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair:ital,opsz,wght@0,5..1200,300..900;1,5..1200,300..900&amp;family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&amp;display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/brand.css">
+  <title>MyMind — From idea to an AI-assisted canvas | Christine Uy</title>
+  <style>
+    .mymind-case { --mymind-ink: #202326; --mymind-muted: #5d6268; }
+    .mymind-case .project-hero { min-height: auto; padding-bottom: 72px; background: #f6f6f4; }
+    .mymind-case .project-hero__content { padding-top: 142px; }
+    .mymind-case .project-hero__title { max-width: 780px; }
+    .mymind-case .project-hero__summary { max-width: 700px; }
+    .mymind-case .project-hero__visual { position: relative; top: auto; left: auto; display: block; width: min(1200px, calc(100% - 2 * var(--site-edge))); height: auto; max-height: 660px; margin: 48px auto 0; object-fit: cover; object-position: center; pointer-events: auto; border: 1px solid #dedfdf; border-radius: 10px; box-shadow: 0 18px 60px rgba(23, 30, 35, .10); }
+    .mymind-case .case-content { padding-top: 74px; }
+    .mymind-case .case-content-copy h3 { margin: 20px 0 0; color: var(--mymind-ink); font-size: 21px; font-weight: 600; line-height: 1.35; letter-spacing: -0.02em; }
+    .mymind-case .case-content-copy p { max-width: 780px; }
+    .mymind-case .mymind-video { width: min(1200px, 100%); margin: 0 auto; }
+    .mymind-case .mymind-video video { display: block; width: 100%; max-height: 720px; background: #f2f3f4; object-fit: contain; border: 1px solid #dedfdf; border-radius: 8px; }
+    .mymind-case .mymind-video figcaption { margin-top: 12px; color: var(--mymind-muted); font-size: 14px; line-height: 1.5; }
+    .mymind-case .mymind-outcomes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin: 8px 0 0; background: #dfe2e3; border: 1px solid #dfe2e3; }
+    .mymind-case .mymind-outcomes article { min-height: 150px; padding: 24px; background: #f7f8f8; }
+    .mymind-case .mymind-outcomes h3 { margin: 0 0 10px; font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
+    .mymind-case .mymind-outcomes p { margin: 0; color: var(--mymind-muted); font-size: 15px; line-height: 1.6; }
+    .mymind-case .mymind-note { padding: 20px 24px; border-left: 3px solid #4f6df5; background: #f4f6ff; color: #373c48; }
+    .mymind-case .mymind-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+    .mymind-case .mymind-links a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid #c9cccf; border-radius: 4px; color: var(--mymind-ink); font-size: 14px; text-decoration: none; }
+    .mymind-case .mymind-links a:hover { border-color: #4f6df5; }
+    @media (max-width: 700px) {
+      .mymind-case .project-hero__content { padding-top: 110px; }
+      .mymind-case .project-hero__visual { width: calc(100% - 32px); margin-top: 32px; }
+      .mymind-case .mymind-outcomes { grid-template-columns: 1fr; }
+      .mymind-case .mymind-outcomes article { min-height: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="cursor"></div>
+  <div class="cursor-ring"></div>
+  <header class="navbar" id="navbar">
+    <div class="nav-logo" aria-label="Christine Uy — homepage"><a href="/">Christine Uy</a></div>
+    <button class="nav-toggle" type="button" aria-controls="primary-navigation" aria-expanded="false" aria-label="Open menu"><span></span><span></span></button>
+    <nav class="nav-links" id="primary-navigation">
+      <a href="/product" aria-current="page">Product</a><a href="/notes/">Notes</a><a href="/about">About</a><a href="/contact">Contact</a>
+    </nav>
+  </header>
+
+  <nav class="case-anchor-nav" aria-label="Case study sections">
+    <div class="case-anchor-nav__rail" aria-hidden="true"><a href="#project-details-title"></a><a href="#challenge-title"></a><a href="#process-title"></a><a href="#solution-title"></a><a href="#reflection-title"></a></div>
+    <div class="case-anchor-card"><p>Content</p><a href="#project-details-title">Overview</a><a href="#challenge-title">Opportunity</a><a href="#process-title">Process</a><a href="#solution-title">Solution</a><a href="#reflection-title">Reflection</a></div>
+  </nav>
+
+  <main class="project-case-study project-case-study--project-hero mymind-case">
+    <section class="project-hero" aria-labelledby="summary-title">
+      <div class="project-hero__content fade-in-up">
+        <div class="project-hero__tags"><span>Personal project</span><span>Product design</span><span>AI-assisted development</span></div>
+        <h1 class="project-hero__title" id="summary-title">MyMind: a canvas for turning ideas into something you can work with</h1>
+        <p class="project-hero__summary">I explored how an open-ended visual workspace could help people move from a rough thought to a useful map, workflow, or collection of ideas, with AI as a starting point rather than the author.</p>
+      </div>
+      <img class="project-hero__visual" src="/vid/mymind/mymind-demo-case-study.jpg" alt="MyMind canvas showing a generated payment workflow with connected customer, platform, and account nodes." width="1920" height="930" fetchpriority="high">
+    </section>
+
+    <section class="case-content" aria-label="MyMind case study">
+      <div class="case-content__inner">
+        <article class="case-content-row case-content-row--intro" aria-labelledby="project-details-title">
+          <div class="case-content-row__label"><h2 id="project-details-title">Project overview</h2><p>Independent exploration</p></div>
+          <div>
+            <p class="case-content__lede">MyMind is a self-initiated product concept and working prototype. I designed the experience and built it with AI-assisted development, exploring the overlap between flexible canvases, structured diagrams, and generative tools.</p>
+            <div class="case-content-meta">
+              <div class="case-content-meta__wide"><p class="case-content-meta__label">Focus</p><p class="case-content-meta__value">Product strategy · UX and interaction design · Prototyping · AI-assisted development</p></div>
+              <div><p class="case-content-meta__label">Role</p><p class="case-content-meta__value">Product designer and builder</p></div>
+              <div><p class="case-content-meta__label">Status</p><p class="case-content-meta__value">Functional personal prototype</p></div>
+            </div>
+            <div class="mymind-links"><a href="/MyMind/">Explore the MyMind prototype</a><a href="https://creatvetin.substack.com/p/exploration-designing-and-building" target="_blank" rel="noreferrer">Read the original exploration</a></div>
+          </div>
+        </article>
+
+        <figure class="case-content-media case-content-media--wide mymind-video">
+          <video controls playsinline preload="metadata" poster="/vid/mymind/mymind-demo-case-study.jpg" aria-label="MyMind demo: generate a process flow, arrange visual references, and annotate the canvas.">
+            <source src="/vid/mymind/mymind-demo-desktop.mp4" type="video/mp4">
+          </video>
+          <figcaption>A product walkthrough: create a connected flow, organize a visual board, and annotate work directly on the canvas.</figcaption>
+        </figure>
+
+        <article class="case-content-row" aria-labelledby="challenge-title">
+          <div class="case-content-row__label"><h2 id="challenge-title">The opportunity</h2></div>
+          <div class="case-content-copy">
+            <h3>Ideas do not arrive in one format</h3>
+            <p>A person may start with a sentence, a reference image, a rough sketch, or a process they need to explain. Many tools make that first step easy, but the work can become fragmented when it is time to structure, connect, discuss, and share those ideas.</p>
+            <h3>Could one canvas support both exploration and structure?</h3>
+            <p>The design question was how to preserve the freedom of a blank canvas while making useful actions discoverable. AI could help overcome the blank-page moment, but its output needed to remain understandable, editable, and under the creator’s control.</p>
+          </div>
+        </article>
+
+        <article class="case-content-row" aria-labelledby="process-title">
+          <div class="case-content-row__label"><h2 id="process-title">Process</h2></div>
+          <div class="case-content-copy">
+            <h3>1. Start with a flexible workspace</h3>
+            <p>I treated the canvas as the shared foundation rather than designing separate destinations for every kind of thinking. Notes, diagrams, images, and drawing tools can live together in the same working space.</p>
+            <h3>2. Make creation conversational, not opaque</h3>
+            <p>I explored natural-language creation as an optional shortcut. A prompt can produce a first-draft process flow, while the resulting nodes and connections remain editable on the canvas.</p>
+            <h3>3. Build and refine against real interactions</h3>
+            <p>AI-assisted development helped me move between interaction ideas and a working prototype. I used the implementation to examine practical details such as selecting and moving objects, editing generated content, navigating a large canvas, and exporting work.</p>
+            <aside class="mymind-note"><strong>Scope note:</strong> This is a self-directed exploration. I have not represented the concept as research-validated or attributed adoption, usability, or business outcomes to it.</aside>
+          </div>
+        </article>
+
+        <article class="case-content-row" aria-labelledby="solution-title">
+          <div class="case-content-row__label"><h2 id="solution-title">Solution</h2></div>
+          <div class="case-content-copy">
+            <p>The result is a working canvas that brings visual thinking and structured work into one environment. The product is organized around three connected jobs:</p>
+            <div class="mymind-outcomes">
+              <article><h3>Capture</h3><p>Add notes, links, images, checklists, tables, and freehand marks without choosing a rigid format first.</p></article>
+              <article><h3>Shape</h3><p>Generate a process flow from a prompt, then edit the nodes and connections as the idea becomes clearer.</p></article>
+              <article><h3>Share</h3><p>Present or continue work through canvas sharing, comments, and exports in formats including PDF, PNG, and SVG.</p></article>
+            </div>
+            <h3>Design decisions</h3>
+            <p><strong>Editable AI output:</strong> generation creates a starting structure, not a finished answer. Keeping the result in the canvas lets people correct, rearrange, and extend it.</p>
+            <p><strong>One surface, multiple modes:</strong> people can switch between open-ended ideation and more structured mapping without moving their work to a separate tool.</p>
+            <p><strong>Useful beyond generation:</strong> comments, sharing, and exports support the work after the initial idea has taken shape.</p>
+          </div>
+        </article>
+
+        <article class="case-content-row" aria-labelledby="reflection-title">
+          <div class="case-content-row__label"><h2 id="reflection-title">Reflection and next steps</h2></div>
+          <div class="case-content-copy">
+            <p>Building the prototype made the product trade-off tangible: more capability can make a canvas feel powerful, but it can also make the first useful action harder to find. The next design step would be to test the experience with people doing concrete tasks, such as turning a short brief into a process map and sharing it with a collaborator.</p>
+            <p>I would evaluate time to first useful output, how often people edit generated content, whether they can recover from an unwanted result, and whether sharing preserves enough context for another person to respond. Those are questions for validation, not results claimed by this exploration.</p>
+          </div>
+        </article>
+
+        <article class="case-content-row">
+          <div class="case-content-row__label"><h2>Explore</h2></div>
+          <div class="case-content-copy"><p>See the product in context and read the original build reflection.</p><div class="mymind-links"><a href="/MyMind/">Open the MyMind prototype</a><a href="https://creatvetin.substack.com/p/exploration-designing-and-building" target="_blank" rel="noreferrer">Original Substack article</a></div></div>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer fade-in-up" id="contact">
+    <div class="footer-inner"><div class="footer-heading" aria-label="Availability"><p data-text="Available for work."><span class="footer-amp"> &amp; </span>Available for work</p></div><div class="footer-rule" aria-hidden="true"></div><div class="footer-meta"><div class="footer-made"><p class="footer-label">Made by</p><p class="footer-value">Christine Uy</p></div><address class="footer-links"><div><p class="footer-label">Email</p><a class="footer-value" href="mailto:hi@christine-uy.com">hi@christine-uy.com</a></div><div><p class="footer-label">LinkedIn</p><a class="footer-value" href="https://www.linkedin.com/in/christine-uy" target="_blank" rel="noreferrer">christine-uy</a></div></address></div></div>
+  </footer>
+  <button class="back-to-top" type="button" aria-label="Back to top"><img src="/img/back-to-top.svg" alt="" aria-hidden="true"></button>
+  <script src="/cursor.js" defer></script>
+</body>
+</html>
