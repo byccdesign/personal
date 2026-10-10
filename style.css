@@ -2024,6 +2024,7 @@ a:visited {
 
       .about-hero h1 {
         font-size: clamp(52px, 6vw, 72px);
+        text-align: center;
       }
 
       .about-profile {
@@ -2048,11 +2049,12 @@ a:visited {
 
       .about-hero__media {
         max-width: 520px;
+        margin-inline: auto;
       }
 
       .about-profile {
-        margin-top: 72px;
-        padding-top: 48px;
+        margin-top: 16px;
+        padding-top: 4px;
       }
 
       .about-profile__details div {
@@ -2110,8 +2112,8 @@ a:visited {
       }
 
       .about-profile__lede p:not(.about-pill) {
-        font-size: clamp(30px, 9vw, 38px);
-        line-height: 1.18;
+        font-size: clamp(30px, 9vw, 32px);
+        line-height: 1.3em;
       }
 
       .about-recently {
@@ -7244,7 +7246,7 @@ a:visited {
 
 
       .footer-amp {
-        font-size: clamp(48px, 13vw, 78px);
+        font-size: clamp(48px, 13vw, 60px);
       }
 
       .footer-heading p {

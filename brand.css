@@ -2963,7 +2963,7 @@ body.case-study-page.nav-open .navbar.scrolled .nav-toggle span {
   margin: 0;
   color: #ffffff;
   font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: clamp(34px, 3.472vw, 50px);
+  font-size: clamp(24px, 2.2vw, 34px);
   font-weight: 400;
   line-height: 1.08;
   letter-spacing: -0.06em;
