@@ -1,6 +1,11 @@
 Options -MultiViews
 RewriteEngine On
 
+# Keep pages out of search results unless their canonical path is allowlisted.
+<IfModule mod_headers.c>
+  Header always set X-Robots-Tag "noindex, follow" "expr=%{REQUEST_URI} !~ m#^/(about|product-ewa|product-ewa-leadership|product-marketplace-growth|product-design-system)?/?$#"
+</IfModule>
+
 
 # Block direct public access to /vid/ and anything inside it.
 RewriteRule ^img/?$ - [F,L]
