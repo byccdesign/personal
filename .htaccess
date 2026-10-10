@@ -13,6 +13,9 @@ RewriteRule ^img/?$ - [F,L]
 # Block direct directory access to /img/ while allowing files inside it.
 RewriteRule ^img/?$ - [F,L]
 
+# Block direct directory access to /img/ while allowing files inside it.
+RewriteRule ^profile/?$ - [F,L]
+
 # Block direct directory access to /nc_assets/ while allowing files inside it.
 RewriteRule ^nc_assets/?$ - [F,L]
 
