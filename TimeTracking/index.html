@@ -1339,13 +1339,13 @@ class Component extends DCLogic {
     }
   }
 
-  persist() {
+  persist(serverDelay = 350) {
     const payload = { projects: this.state.projects, contacts: this.state.contacts, invoiceSettings: this.state.invoiceSettings };
     try {
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(payload));
     } catch (e) {}
     this._hasUserChanges = true;
-    this.queueServerSave(payload);
+    this.queueServerSave(payload, serverDelay);
   }
 
   async loadServerData(localData) {
@@ -1393,6 +1393,7 @@ class Component extends DCLogic {
     const payload = this._pendingServerPayload;
     this._pendingServerPayload = null;
     this._serverSaveInFlight = true;
+    let saveFailed = false;
     try {
       const response = await fetch('./api/', {
         method: 'PUT',
@@ -1403,13 +1404,14 @@ class Component extends DCLogic {
       });
       if (!response.ok) throw new Error('Server save failed: ' + response.status);
     } catch (error) {
+      saveFailed = true;
       console.warn('Time Tracker saved locally but could not sync to the server database.', error);
-      this._pendingServerPayload = payload;
+      if (!this._pendingServerPayload) this._pendingServerPayload = payload;
     } finally {
       this._serverSaveInFlight = false;
       if (this._pendingServerPayload) {
         clearTimeout(this._serverSaveTimer);
-        this._serverSaveTimer = setTimeout(() => this.flushServerSave(), 1500);
+        this._serverSaveTimer = setTimeout(() => this.flushServerSave(), saveFailed ? 1500 : 0);
       }
     }
   }
@@ -1918,7 +1920,7 @@ class Component extends DCLogic {
         ...p,
         tasks: p.tasks.map(t => t.id !== taskId ? t : { ...t, billingStatus: t.billingStatus === 'unbilled' ? 'billed' : 'unbilled' })
       })
-    }), () => this.persist());
+    }), () => this.persist(0));
   }
   toggleEntryBilling(projectId, taskId, entryId) {
     this.setState(s => ({
@@ -1932,7 +1934,7 @@ class Component extends DCLogic {
           })
         })
       })
-    }), () => this.persist());
+    }), () => this.persist(0));
   }
   saveTask() {
     const d = this.state.taskDraft;

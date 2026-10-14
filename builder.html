@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Case Study Builder</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--line:#ddd;--acc:#5b3df5}
+@media(prefers-color-scheme:dark){:root{--bg:#161616;--fg:#eee;--line:#333}}
+*{box-sizing:border-box}
+body{margin:0;font:14px system-ui,sans-serif;background:var(--bg);color:var(--fg);display:grid;grid-template-columns:270px 1fr;height:100vh}
+aside{border-right:1px solid var(--line);padding:16px;overflow:auto;display:flex;flex-direction:column;gap:8px}
+button,input{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
+button{cursor:pointer}button:hover{border-color:var(--acc)}
+button:disabled{opacity:.4;cursor:default;border-color:var(--line)}
+button.p{background:var(--acc);color:#fff;border-color:var(--acc)}
+h4{margin:14px 0 2px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;opacity:.6}
+.row{display:flex;gap:6px;flex-wrap:wrap}.row button{flex:1}
+#sel,#msg{font-size:12px;opacity:.75;word-break:break-word}
+iframe{width:100%;height:100%;border:0}
+</style>
+</head>
+<body>
+<aside>
+  <strong>Case study builder</strong>
+  <input id="tpl" value="/product-case-study-template.html" aria-label="Template path">
+  <button onclick="loadTpl()">Load template</button>
+  <div class="row"><button id="undoB" onclick="undo()" disabled>Undo</button><button id="redoB" onclick="redo()" disabled>Redo</button></div>
+
+  <h4>Selected block</h4>
+  <div id="sel">Click a block to select it, then drag the purple handle beside it. Click text to edit it.</div>
+  <div class="row"><button onclick="selectParent()">Parent</button><button onclick="move(-1)">Up</button><button onclick="move(1)">Down</button></div>
+  <div class="row"><button onclick="dup()">Duplicate</button><button onclick="del()">Delete</button></div>
+  <button onclick="swapImg()">Replace image path</button>
+
+  <h4>Add after selection</h4>
+  <div class="row"><button onclick="add('text')">Text section</button><button onclick="add('image')">Image</button></div>
+  <div class="row"><button onclick="add('metric')">Metric</button><button onclick="add('learning')">Learning</button></div>
+
+  <h4>Save</h4>
+  <input id="name" placeholder="new-case-study">
+  <button class="p" onclick="save()">Save to site folder</button>
+  <button onclick="download()">Download instead</button>
+  <div id="msg"></div>
+</aside>
+<iframe id="f" title="Page preview"></iframe>
+
+<script>
+const f = document.getElementById('f');
+const BLOCK = '.project-metric,.case-learning,.case-leadership-point,.case-content-row,.impact-metrics,.case-learnings,.project-hero,.brand-other-card,figure';
+let D, cur = null;
+
+const SNIPPETS = {
+  text: `<article class="case-content-row"><div class="case-content-row__label"><h2>Section title</h2></div><div class="case-content-copy"><h3>Subheading</h3><p>Write your text here.</p></div></article>`,
+  image: `<figure class="case-content-media case-content-media--captioned"><img src="/img/placeholder.png" alt="Describe the image" width="1200" height="auto" loading="lazy"><figcaption>Caption</figcaption></figure>`,
+  metric: `<article class="project-metric"><p class="project-metric__value">30 min</p><p class="project-metric__label">Metric label</p><p class="project-metric__change"><span class="material-symbols-outlined" aria-hidden="true">check</span>50% faster</p></article>`,
+  learning: `<article class="case-learning"><h3>Learning title</h3><p>What you learned.</p></article>`
+};
+
+function loadTpl(){ f.src = document.getElementById('tpl').value; cur = null; }
+
+f.onload = () => {
+  D = f.contentDocument;
+  const s = D.createElement('style'); s.id = 'bx';
+  s.textContent = `.cursor,.cursor-ring{display:none!important}*{cursor:auto!important}
+    .fade-in-up,[class*=fade]{opacity:1!important;transform:none!important}
+    .bx-sel{outline:2px solid #5b3df5!important;outline-offset:3px}
+    .bx-hov{outline:1px dashed #5b3df5!important;outline-offset:3px}
+    .bx-drag{opacity:.35!important}
+    #bx-handle{position:absolute;z-index:99999;width:28px;height:28px;display:none;align-items:center;justify-content:center;
+      background:#5b3df5;color:#fff;border-radius:8px;font:16px/1 system-ui;cursor:grab!important;user-select:none;
+      touch-action:none;box-shadow:0 2px 8px rgba(0,0,0,.3)}
+    #bx-handle:active{cursor:grabbing!important}
+    #bx-drop{position:absolute;z-index:99998;background:#5b3df5;border-radius:2px;pointer-events:none;display:none}`;
+  D.head.appendChild(s);
+  D.designMode = 'on';
+  mkHandle();
+  D.defaultView.addEventListener('resize', placeHandle);
+  clearTimeout(pend); pend = null; hist = []; hi = -1;
+  D.addEventListener('input', () => { clearTimeout(pend); pend = setTimeout(commit, 400); });
+  D.addEventListener('keydown', histKeys);
+  D.addEventListener('beforeinput', e => {
+    if (e.inputType === 'historyUndo') { e.preventDefault(); undo(); }
+    else if (e.inputType === 'historyRedo') { e.preventDefault(); redo(); }
+  });
+  commit();
+  D.addEventListener('mouseover', e => { clearHov(); e.target.closest(BLOCK)?.classList.add('bx-hov'); });
+  D.addEventListener('click', e => {
+    if (e.target.closest('#bx-handle')) return;
+    if (e.target.closest('a,button')) e.preventDefault();
+    pick(e.target.closest(BLOCK) || e.target.closest('section,article'));
+  }, true);
+};
+
+const clearHov = () => D.querySelectorAll('.bx-hov').forEach(n => n.classList.remove('bx-hov'));
+function pick(el){
+  D.querySelectorAll('.bx-sel').forEach(n => n.classList.remove('bx-sel'));
+  cur = el; if (!el) return placeHandle();
+  el.classList.add('bx-sel'); placeHandle();
+  document.getElementById('sel').textContent = `<${el.tagName.toLowerCase()} class="${(el.className||'').replace(/bx-\w+/g,'').trim()}">`;
+}
+function need(){ if (!cur) { say('Select a block first.'); return false; } flush(); return true; }
+function selectParent(){ if (need()) pick(cur.parentElement?.closest(BLOCK) || cur.parentElement?.closest('section,article')); }
+function move(d){
+  if (!need()) return;
+  const t = d < 0 ? cur.previousElementSibling : cur.nextElementSibling;
+  if (t) { d < 0 ? t.before(cur) : t.after(cur); placeHandle(); commit(); } else say('Already at the edge.');
+}
+function dup(){ if (need()) { const c = cur.cloneNode(true); c.classList.remove('bx-sel'); cur.after(c); pick(c); commit(); } }
+function del(){ if (need() && confirm('Delete this block?')) { cur.remove(); cur = null; placeHandle(); commit(); document.getElementById('sel').textContent = 'Deleted.'; } }
+function swapImg(){
+  if (!need()) return;
+  const img = cur.tagName === 'IMG' ? cur : cur.querySelector('img');
+  if (!img) return say('No image in this block.');
+  const v = prompt('New image path (e.g. /img/new/hero.png)', img.getAttribute('src'));
+  if (v) { img.setAttribute('src', v); commit(); }
+}
+function add(kind){
+  if (!need()) return;
+  const t = D.createElement('template'); t.innerHTML = SNIPPETS[kind];
+  const n = t.content.firstElementChild; cur.after(n); pick(n); commit(); n.scrollIntoView({block:'center'});
+}
+
+/* Undo / redo: snapshots of the page body (builder UI stripped), plus the selected block's position.
+   Block actions commit immediately; typing commits after a short pause. */
+let hist = [], hi = -1, pend = null;
+function snap(){
+  const c = D.body.cloneNode(true);
+  c.querySelectorAll('#bx-handle,#bx-drop').forEach(n => n.remove());
+  c.querySelectorAll('.bx-sel,.bx-hov,.bx-drag').forEach(e => {
+    e.classList.remove('bx-sel','bx-hov','bx-drag');
+    if (!e.getAttribute('class')) e.removeAttribute('class');
+  });
+  return c.innerHTML;
+}
+function pathOf(el){
+  if (!el || !el.isConnected) return null;
+  const p = [];
+  while (el && el !== D.body) { p.unshift([...el.parentElement.children].indexOf(el)); el = el.parentElement; }
+  return el === D.body ? p : null;
+}
+function fromPath(p){
+  let n = D.body;
+  for (const i of p || []) n = n && n.children[i];
+  return p && n && n !== D.body ? n : null;
+}
+function commit(){
+  clearTimeout(pend); pend = null;
+  const html = snap();
+  if (hist[hi] && hist[hi].html === html) { hist[hi].sel = pathOf(cur); return updHist(); }
+  hist.length = hi + 1;
+  hist.push({ html, sel: pathOf(cur) });
+  if (hist.length > 100) hist.shift();
+  hi = hist.length - 1;
+  updHist();
+}
+function flush(){ if (pend) commit(); }
+function updHist(){
+  document.getElementById('undoB').disabled = hi <= 0;
+  document.getElementById('redoB').disabled = hi >= hist.length - 1;
+}
+function restore(){
+  const h = hist[hi];
+  D.body.innerHTML = h.html;
+  mkHandle(); cur = null;
+  pick(fromPath(h.sel));
+  updHist();
+}
+function undo(){ flush(); if (hi > 0) { hi--; restore(); } }
+function redo(){ flush(); if (hi < hist.length - 1) { hi++; restore(); } }
+function histKeys(e){
+  if (!(e.ctrlKey || e.metaKey) || e.target.tagName === 'INPUT') return;
+  const k = e.key.toLowerCase();
+  if (k === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+  else if (k === 'y') { e.preventDefault(); redo(); }
+}
+document.addEventListener('keydown', histKeys);
+
+/* Drag to reorder: grab the purple handle on the selected block.
+   Blocks move among their siblings (same parent), so layout structure stays valid. */
+let drag = null, scrollTimer = null;
+function mkHandle(){
+  if (D.getElementById('bx-handle')) return;
+  const h = D.createElement('div'); h.id = 'bx-handle'; h.contentEditable = 'false';
+  h.title = 'Drag to reorder'; h.textContent = '\u283F';
+  const d = D.createElement('div'); d.id = 'bx-drop'; d.contentEditable = 'false';
+  D.body.append(h, d);
+  h.addEventListener('pointerdown', startDrag);
+  h.addEventListener('pointermove', onDrag);
+  h.addEventListener('pointerup', () => endDrag());
+  h.addEventListener('pointercancel', () => endDrag(true));
+}
+function placeHandle(){
+  const h = D.getElementById('bx-handle'); if (!h) return;
+  if (!cur || !cur.isConnected) { h.style.display = 'none'; return; }
+  const r = cur.getBoundingClientRect(), w = D.defaultView;
+  h.style.display = 'flex';
+  h.style.top = (r.top + w.scrollY + 6) + 'px';
+  h.style.left = (r.left > 40 ? r.left + w.scrollX - 34 : r.left + w.scrollX + 6) + 'px';
+}
+function startDrag(e){
+  if (!cur) return;
+  flush();
+  e.preventDefault();
+  e.target.setPointerCapture(e.pointerId);
+  drag = { el: cur, ref: null, before: true, x: e.clientX, y: e.clientY };
+  cur.classList.add('bx-drag');
+  scrollTimer = setInterval(() => {
+    if (!drag) return;
+    const w = D.defaultView;
+    if (drag.y < 70) w.scrollBy(0, -14); else if (drag.y > w.innerHeight - 70) w.scrollBy(0, 14);
+    updateTarget();
+  }, 16);
+}
+function onDrag(e){ if (drag) { drag.x = e.clientX; drag.y = e.clientY; updateTarget(); } }
+function updateTarget(){
+  const { el, x, y } = drag, drop = D.getElementById('bx-drop');
+  const sibs = [...el.parentElement.children].filter(c =>
+    c !== el && c.offsetHeight > 0 && !c.id.startsWith('bx') && !/^(SCRIPT|STYLE)$/.test(c.tagName));
+  if (!sibs.length) { drag.ref = null; drop.style.display = 'none'; return; }
+  const inside = r => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  let best = sibs.find(s => inside(s.getBoundingClientRect())), bd = 1e12;
+  if (!best) for (const s of sibs) {
+    const r = s.getBoundingClientRect(), dx = x - (r.left + r.width / 2), dy = y - (r.top + r.height / 2);
+    if (dx * dx + dy * dy < bd) { bd = dx * dx + dy * dy; best = s; }
+  }
+  const r = best.getBoundingClientRect(), pr = el.parentElement.getBoundingClientRect(), w = D.defaultView;
+  const cols = r.width < pr.width * 0.75;           // side-by-side items (e.g. metric grid)
+  drag.ref = best;
+  drag.before = cols ? x < r.left + r.width / 2 : y < r.top + r.height / 2;
+  drop.style.display = 'block';
+  if (cols) {
+    drop.style.width = '4px'; drop.style.height = r.height + 'px';
+    drop.style.top = (r.top + w.scrollY) + 'px';
+    drop.style.left = ((drag.before ? r.left - 6 : r.right + 2) + w.scrollX) + 'px';
+  } else {
+    drop.style.height = '4px'; drop.style.width = r.width + 'px';
+    drop.style.left = (r.left + w.scrollX) + 'px';
+    drop.style.top = ((drag.before ? r.top - 4 : r.bottom) + w.scrollY) + 'px';
+  }
+}
+function endDrag(cancel){
+  if (!drag) return;
+  clearInterval(scrollTimer);
+  const { el, ref, before } = drag; drag = null;
+  el.classList.remove('bx-drag');
+  D.getElementById('bx-drop').style.display = 'none';
+  if (!cancel && ref) { before ? ref.before(el) : ref.after(el); placeHandle(); commit(); }
+  placeHandle();
+}
+
+function cleanHtml(){
+  const c = D.documentElement.cloneNode(true);
+  c.querySelector('#bx')?.remove();
+  c.querySelectorAll('#bx-handle,#bx-drop').forEach(n => n.remove());
+  c.querySelectorAll('.bx-sel,.bx-hov,.bx-drag').forEach(e => {
+    e.classList.remove('bx-sel','bx-hov','bx-drag');
+    if (!e.getAttribute('class')) e.removeAttribute('class');
+  });
+  return '<!DOCTYPE html>\n' + c.outerHTML;
+}
+const say = m => document.getElementById('msg').textContent = m;
+
+async function save(){
+  const name = document.getElementById('name').value.trim();
+  if (!name) return say('Give the file a name first.');
+  try {
+    const r = await (await fetch('/api/save', {method:'POST', body: JSON.stringify({name, html: cleanHtml()})})).json();
+    say(r.ok ? `Saved. Open ${r.url}` : r.error);
+  } catch { say('Save failed. Is builder-server.js running?'); }
+}
+function download(){
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([cleanHtml()], {type:'text/html'}));
+  a.download = (document.getElementById('name').value.trim() || 'case-study') + '.html';
+  a.click();
+}
+loadTpl();
+</script>
+</body>
+</html>
