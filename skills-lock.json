@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "exploded": {
+      "source": "diip3sh/exploded",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "7cad88df9e69c2eec948a703c02611809b6cbcf135cfc361db50397599f440ed"
+    }
+  }
+}
