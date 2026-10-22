@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "EWA Profile Demo Filler",
+  "version": "1.0.0",
+  "description": "Populate the EastWest Ageas lead profile prototype with synthetic test data.",
+  "permissions": ["activeTab"],
+  "host_permissions": [
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "action": {
+    "default_title": "Fill EWA demo profile",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "http://localhost/*",
+        "http://127.0.0.1/*",
+        "file:///*"
+      ],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
