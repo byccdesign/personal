@@ -19,7 +19,7 @@
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/brand.css">
   <link rel="stylesheet" href="/button-specimen.css">
-  <link rel="stylesheet" href="/.agents/skills/exploded/runtime/exploded.css" data-xp-own>
+  <link rel="stylesheet" href="/exploded-runtime.css" data-xp-own>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@500;600&display=swap">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block">
@@ -278,6 +278,27 @@
       </div>
     </div>
 
+    <!-- explode a component -->
+    <section class="button-specimen" id="button-specimen" aria-labelledby="button-specimen-title" data-button-specimen>
+      <div class="button-specimen__heading">
+        <h3 id="button-specimen-title">Internationalization</h3>
+        <p>A sample button component showcasing internationalization capabilities while maintaining accessibility standards.</p>
+      </div>
+
+      <div class="button-specimen__locale">
+        <label for="button-specimen-locale">Select Language</label>
+        <select id="button-specimen-locale" data-locale>
+          <option value="en">English</option>
+          <option value="de">German</option>
+          <option value="ja">Japanese</option>
+        </select>
+      </div>
+
+      <div class="button-specimen__explorer" data-exploded-host aria-label="Exploded Freelancer button specification"></div>
+      <div class="button-specimen__source" data-button-source>
+        <button type="button" class="freelancer-button" data-live-button lang="en">Join Freelancer</button>
+      </div>
+    </section>
 
     <!-- Full width media-->
     <figure class="case-content-media case-content-media--wide">
@@ -304,27 +325,6 @@
       </div>
     </div>
 
-    <section class="button-specimen" id="button-specimen" aria-labelledby="button-specimen-title" data-button-specimen>
-      <div class="button-specimen__heading">
-        <p class="button-specimen__eyebrow">01 <span aria-hidden="true">·</span> Button</p>
-        <h3 id="button-specimen-title">Freelancer primary button</h3>
-        <p>One live button, captured across its interaction states. The primary, hover, and disabled treatments follow the <a href="https://bits.freelancer.com/components/button/button-icons" target="_blank" rel="noreferrer">Bits button guidance</a> and the linked Figma reference.</p>
-      </div>
-
-      <div class="button-specimen__locale">
-        <label for="button-specimen-locale">Preview label</label>
-        <select id="button-specimen-locale" data-locale>
-          <option value="en">English</option>
-          <option value="de">German</option>
-          <option value="ja">Japanese</option>
-        </select>
-      </div>
-
-      <div class="button-specimen__explorer" data-exploded-host aria-label="Exploded Freelancer button specification"></div>
-      <div class="button-specimen__source" data-button-source>
-        <button type="button" class="freelancer-button" data-live-button lang="en">Join Freelancer</button>
-      </div>
-    </section>
 
     <!-- Bento Grid -->
     <div class="case-content-bento case-content-bento--three-two" aria-label="Bits foundations and components">
@@ -536,7 +536,7 @@
   </button>
 
  <script src="/cursor.js" defer></script>
- <script src="/.agents/skills/exploded/runtime/exploded.js" defer></script>
+ <script src="/exploded-runtime.js" defer></script>
  <script src="/button-specimen.js" defer></script>
 
 </body>
