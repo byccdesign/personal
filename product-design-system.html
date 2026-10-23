@@ -278,27 +278,28 @@
       </div>
     </div>
 
-    <!-- explode a component -->
-    <section class="button-specimen" id="button-specimen" aria-labelledby="button-specimen-title" data-button-specimen>
-      <div class="button-specimen__heading">
-        <h3 id="button-specimen-title">Internationalization</h3>
+    <!-- Interactive component specimen -->
+    <div class="case-content-row" id="button-specimen">
+      <div class="case-content-row__label"><h2>Internationalization</h2></div>
+      <div class="case-content-copy">
         <p>A sample button component showcasing internationalization capabilities while maintaining accessibility standards.</p>
-      </div>
+        <section class="button-specimen" aria-label="Freelancer button internationalization demo" data-button-specimen>
+          <div class="button-specimen__locale">
+            <label for="button-specimen-locale">Select Language</label>
+            <select id="button-specimen-locale" data-locale>
+              <option value="en">English</option>
+              <option value="de">German</option>
+              <option value="ja">Japanese</option>
+            </select>
+          </div>
 
-      <div class="button-specimen__locale">
-        <label for="button-specimen-locale">Select Language</label>
-        <select id="button-specimen-locale" data-locale>
-          <option value="en">English</option>
-          <option value="de">German</option>
-          <option value="ja">Japanese</option>
-        </select>
+          <div class="button-specimen__explorer" data-exploded-host aria-label="Exploded Freelancer button specification"></div>
+          <div class="button-specimen__source" data-button-source>
+            <button type="button" class="freelancer-button" data-live-button lang="en">Join Freelancer</button>
+          </div>
+        </section>
       </div>
-
-      <div class="button-specimen__explorer" data-exploded-host aria-label="Exploded Freelancer button specification"></div>
-      <div class="button-specimen__source" data-button-source>
-        <button type="button" class="freelancer-button" data-live-button lang="en">Join Freelancer</button>
-      </div>
-    </section>
+    </div>
 
     <!-- Full width media-->
     <figure class="case-content-media case-content-media--wide">

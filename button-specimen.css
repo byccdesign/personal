@@ -4,9 +4,7 @@
   display: grid;
   gap: 20px;
   min-width: 0;
-  padding: 28px 0 32px;
-  border-top: 1px solid #e8e8e8;
-  border-bottom: 1px solid #e8e8e8;
+  padding: 0;
   color: var(--button-ink);
   font-family: "Plus Jakarta Sans", sans-serif;
   scroll-margin-top: 150px;
