@@ -444,15 +444,39 @@
 
       featuredWork.addEventListener('click', (event) => {
         if (pointerMoved || event.target.closest('a, button')) return;
+        if (featuredWork.dataset.openNewWindow === 'true') {
+          window.open(featuredWork.dataset.caseStudyUrl, '_blank', 'noopener,noreferrer');
+          return;
+        }
         window.location.href = featuredWork.dataset.caseStudyUrl;
       });
 
       featuredWork.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter' && event.key !== ' ') return;
         event.preventDefault();
+        if (featuredWork.dataset.openNewWindow === 'true') {
+          window.open(featuredWork.dataset.caseStudyUrl, '_blank', 'noopener,noreferrer');
+          return;
+        }
         window.location.href = featuredWork.dataset.caseStudyUrl;
       });
     });
+
+    const motionPreviewVideos = [...document.querySelectorAll('[data-motion-preview]')];
+    const reducedMotionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    if (motionPreviewVideos.length && !reducedMotionPreference.matches && 'IntersectionObserver' in window) {
+      const motionPreviewObserver = new IntersectionObserver((entries) => {
+        entries.forEach(({ target, isIntersecting }) => {
+          if (isIntersecting) target.play().catch(() => {});
+          else target.pause();
+        });
+      }, { threshold: 0.25 });
+
+      motionPreviewVideos.forEach((video) => motionPreviewObserver.observe(video));
+      reducedMotionPreference.addEventListener('change', (event) => {
+        if (event.matches) motionPreviewVideos.forEach((video) => video.pause());
+      });
+    }
 
     const emailLinks = document.querySelectorAll('.brand-other__intro a[href^="mailto:"]');
     let copiedTimer;
