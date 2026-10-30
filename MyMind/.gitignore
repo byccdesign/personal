@@ -1,5 +1,6 @@
 node_modules/
 .npm-cache/
+.mymind-upload-build-backup/
 /api/
 /dist.
 public/api/config.php

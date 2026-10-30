@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal, renderToStaticMarkup } from "react-dom";
 import {
   Download as ArrowDownTrayIcon,
   ArrowLeft as ArrowLeftIcon,
@@ -95,8 +95,10 @@ import * as HeroOutlineIcons from "@heroicons/react/24/outline";
 import { jsPDF } from "jspdf";
 import { getStroke } from "perfect-freehand";
 import { unzipSync } from "fflate";
-import penIcon from "./assets/pen.png";
-import highlighterIcon from "./assets/highlighter.png";
+import penIcon from "./Assets/pen.png";
+import penActiveIcon from "./Assets/pen-active.png";
+import highlighterIcon from "./Assets/highlighter.png";
+import highlighterActiveIcon from "./Assets/highlighter-active.png";
 
 function adaptHeroIcon(Icon) {
   return function HeroIconAdapter({ size = 24, weight: _weight, ...props }) {
@@ -438,19 +440,28 @@ function lineGeometry(node, size = nodeDimensions(node)) {
   };
 }
 
-function lineVisualBounds(node) {
+function lineControlPoints(node) {
   const size = nodeDimensions(node);
   const radians = Number(node.rotation || 0) * Math.PI / 180;
   const cos = Math.cos(radians);
   const sin = Math.sin(radians);
   const centerX = node.x + size.width / 2;
   const centerY = node.y + size.height / 2;
-  const localCenterY = size.height / 2;
-  const points = [[0, localCenterY], [size.width, localCenterY], [size.width / 2, localCenterY + (Number(node.curve) || 0) / 2]].map(([x, y]) => {
+  const transform = (x, y) => {
     const dx = x - size.width / 2;
     const dy = y - size.height / 2;
     return { x: centerX + dx * cos - dy * sin, y: centerY + dx * sin + dy * cos };
-  });
+  };
+  return {
+    start: transform(0, size.height / 2),
+    end: transform(size.width, size.height / 2),
+    curve: transform(size.width / 2, size.height / 2 + (Number(node.curve) || 0) / 2),
+  };
+}
+
+function lineVisualBounds(node) {
+  const size = nodeDimensions(node);
+  const points = Object.values(lineControlPoints(node));
   const padding = Math.max(10, (node.strokeWidth || 3) * 3);
   return {
     minX: Math.min(...points.map((point) => point.x)) - padding,
@@ -462,7 +473,7 @@ function lineVisualBounds(node) {
 
 function nodeAllowsConnections(node) {
   if (!node) return false;
-  if (["table", "document", "checklist"].includes(node.type) || isLineNode(node)) return false;
+  if (["code", "table", "document", "checklist"].includes(node.type) || isLineNode(node)) return false;
   return true;
 }
 
@@ -488,7 +499,7 @@ function rectIntersects(a, b) {
 }
 
 function selectedElementsBounds(nodes, drawings) {
-  const boxes = [...nodes.map(nodeBounds), ...drawings.map(drawingBounds).filter(Boolean)];
+  const boxes = [...nodes.map((node) => isLineNode(node) ? lineVisualBounds(node) : nodeBounds(node)), ...drawings.map(drawingBounds).filter(Boolean)];
   if (!boxes.length) return null;
   const minX = Math.min(...boxes.map((box) => box.minX));
   const minY = Math.min(...boxes.map((box) => box.minY));
@@ -778,6 +789,31 @@ const todayDateKey = () => {
   const offset = date.getTimezoneOffset() * 60_000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 10);
 };
+const localDateKey = (date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+function hexToHsv(hex) {
+  const value = String(hex || "#000000").replace("#", "");
+  const red = parseInt(value.slice(0, 2), 16) / 255;
+  const green = parseInt(value.slice(2, 4), 16) / 255;
+  const blue = parseInt(value.slice(4, 6), 16) / 255;
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  const delta = max - min;
+  let hue = 0;
+  if (delta) {
+    if (max === red) hue = 60 * (((green - blue) / delta) % 6);
+    else if (max === green) hue = 60 * ((blue - red) / delta + 2);
+    else hue = 60 * ((red - green) / delta + 4);
+  }
+  return { hue: (hue + 360) % 360, saturation: max ? delta / max : 0, value: max };
+}
+function hsvToHex(hue, saturation, value) {
+  const chroma = value * saturation;
+  const section = (hue / 60) % 2 - 1;
+  const secondary = chroma * (1 - Math.abs(section));
+  const match = value - chroma;
+  const channels = hue < 60 ? [chroma, secondary, 0] : hue < 120 ? [secondary, chroma, 0] : hue < 180 ? [0, chroma, secondary] : hue < 240 ? [0, secondary, chroma] : hue < 300 ? [secondary, 0, chroma] : [chroma, 0, secondary];
+  return `#${channels.map((channel) => Math.round((channel + match) * 255).toString(16).padStart(2, "0")).join("")}`;
+}
 const uid = (prefix = "id") => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 const slugify = (value) => value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "untitled-canvas";
 const documentSlug = (title, id) => `${slugify(title)}-${String(id || "canvas").slice(-4)}`;
@@ -828,15 +864,7 @@ const blankTemplate = () => ({
 const templateCatalog = [
   { id: "process", title: "Process", description: "Map a workflow from start to finish", icon: "Workflow" },
   { id: "mind", title: "Mind Map", description: "Explore one idea through connected branches", icon: "Network" },
-  { id: "journey", title: "Customer Journey", description: "Plot stages, actions, and customer needs", icon: "Route" },
-  { id: "roadmap", title: "Product Road Map", description: "Organize now, next, and later priorities", icon: "Map" },
-  { id: "agile-roadmap", title: "Agile Roadmap", description: "Plan sprint work across product disciplines", icon: "Rows3" },
-  { id: "visual-roadmap", title: "Visual Roadmap", description: "Show milestones on a visual timeline", icon: "Milestone" },
-  { id: "gantt", title: "Month Gantt Chart", description: "Plan a month of work on a timeline", icon: "CalendarRange" },
   { id: "sitemap", title: "Site Map", description: "Plan pages and information hierarchy", icon: "PanelsTopLeft" },
-  { id: "retro", title: "Fun Retro Workshop", description: "Celebrate wins and identify improvements", icon: "PartyPopper" },
-  { id: "weekly", title: "Design Weekly Catchup", description: "Share updates, blockers, and next steps", icon: "CalendarCheck" },
-  { id: "uml", title: "UML Template", description: "Map participants, requests, and responses", icon: "GitBranch" },
 ];
 
 function cardGridTemplate(columns) {
@@ -1486,6 +1514,8 @@ export function App() {
   const [route, setRoute] = useState(routeFromPath);
   const [newDialog, setNewDialog] = useState(false);
   const [authRequired, setAuthRequired] = useState(false);
+  const [openPaletteForCanvasId, setOpenPaletteForCanvasId] = useState(null);
+  const consumePaletteOpen = useCallback(() => setOpenPaletteForCanvasId(null), []);
   const [routeLoading, setRouteLoading] = useState(true);
   const [publicDocument, setPublicDocument] = useState(null);
   const [routeError, setRouteError] = useState(null);
@@ -1627,6 +1657,11 @@ export function App() {
     setNewDialog(false);
     try { await apiRequest("save", { document: doc }); }
     catch { /* The editor can still open the locally cached draft. */ }
+    setOpenPaletteForCanvasId(template === "blank" ? id : null);
+    setLoadProgress(6);
+    setLoadSlow(false);
+    setRouteError(null);
+    setRouteLoading(true);
     navigate(`/editor/${id}`);
   };
 
@@ -1705,6 +1740,8 @@ export function App() {
     key={`${document?.id || route.slug}:${route.embedMode ? "embed" : "app"}:${route.pageId || "default"}`}
     initialDocument={document}
     initialPageId={route.pageId}
+    initialCommandPaletteOpen={openPaletteForCanvasId === document.id}
+    onCommandPaletteOpened={consumePaletteOpen}
     publicView={route.publicView}
     embedMode={route.embedMode}
     onFetchRemote={() => route.publicView
@@ -2094,7 +2131,7 @@ function ConfirmDialog({ title, message, confirmLabel, onClose, onConfirm }) {
   </div>;
 }
 
-function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink, embedMode = false, onSave, onFetchRemote, onPresence }) {
+function Editor({ initialDocument, initialPageId = "", initialCommandPaletteOpen = false, onCommandPaletteOpened, publicView: isPublicLink, embedMode = false, onSave, onFetchRemote, onPresence }) {
   const fallback = useMemo(() => ({ id: uid("canvas"), title: "Shared canvas unavailable", slug: "unavailable", shared: false, updatedAt: new Date().toISOString(), ...blankTemplate() }), []);
   const preferredPageIdRef = useRef(initialPageId || initialDocument?.activePageId || "");
   const [document, setDocument] = useState(() => {
@@ -2127,8 +2164,11 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
   const [exportOpen, setExportOpen] = useState(false);
   const [exportScope, setExportScope] = useState("all");
   const [shareOpen, setShareOpen] = useState(false);
+  const [exportReady, setExportReady] = useState(null);
+  const [exportBusy, setExportBusy] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(initialCommandPaletteOpen);
+  useEffect(() => { if (initialCommandPaletteOpen) onCommandPaletteOpened?.(); }, []);
   const [flowGeneratorOpen, setFlowGeneratorOpen] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
   const [imageSourceOpen, setImageSourceOpen] = useState(false);
@@ -2330,6 +2370,17 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
     onFetchRemoteRef.current = onFetchRemote;
     onPresenceRef.current = onPresence;
   }, [onFetchRemote, onPresence, onSave]);
+  useEffect(() => {
+    if (isPublicLink || !selection.length) return undefined;
+    const selectedTableIds = new Set(selection.filter((id) => document.nodes.some((node) => node.id === id && node.type === "table")));
+    if (!selectedTableIds.size) return undefined;
+    const onOutsideCanvasPointerDown = (event) => {
+      if (canvasRef.current?.contains(event.target)) return;
+      setSelection((current) => current.filter((id) => !selectedTableIds.has(id)));
+    };
+    window.document.addEventListener("pointerdown", onOutsideCanvasPointerDown, true);
+    return () => window.document.removeEventListener("pointerdown", onOutsideCanvasPointerDown, true);
+  }, [document.nodes, isPublicLink, selection]);
   useEffect(() => () => {
     clearTimeout(saveTimer.current);
     clearTimeout(feedbackTimer.current);
@@ -2971,6 +3022,20 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
     return true;
   };
 
+  const activateConnectionPort = (node, port) => {
+    if (publicView || !nodeAllowsConnections(node)) return;
+    if (!connectionSource || connectionSource.nodeId === node.id) {
+      setTool("connect");
+      setConnectionSource({ nodeId: node.id, port });
+      setConnectionPreview(null);
+      setSelection([node.id]);
+      setEdgeSelection([]);
+      setDrawingSelection([]);
+      return;
+    }
+    createConnection(connectionSource, node, port);
+  };
+
   const startReconnect = (edge, side, event) => {
     if (publicView) return;
     event.preventDefault();
@@ -3234,14 +3299,19 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
     event.preventDefault();
     event.stopPropagation();
     const size = nodeDimensions(node);
-    const radians = Number(node.rotation || 0) * Math.PI / 180;
-    const centerX = node.x + size.width / 2;
-    const centerY = node.y + size.height / 2;
-    const axisX = Math.cos(radians);
-    const axisY = Math.sin(radians);
-    const left = { x: centerX - axisX * size.width / 2, y: centerY - axisY * size.width / 2 };
-    const right = { x: centerX + axisX * size.width / 2, y: centerY + axisY * size.width / 2 };
-    dragRef.current = { type: "line-endpoint", id: node.id, side, anchor: side === "left" ? right : left, axisX, axisY, height: size.height };
+    const endpoints = lineControlPoints(node);
+    const lengthX = endpoints.end.x - endpoints.start.x;
+    const lengthY = endpoints.end.y - endpoints.start.y;
+    const length = Math.hypot(lengthX, lengthY);
+    dragRef.current = {
+      type: "line-endpoint",
+      id: node.id,
+      side,
+      anchor: side === "left" ? endpoints.end : endpoints.start,
+      axisX: length > 0 ? lengthX / length : 1,
+      axisY: length > 0 ? lengthY / length : 0,
+      height: size.height,
+    };
     event.currentTarget.setPointerCapture?.(event.pointerId);
   };
 
@@ -3548,6 +3618,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
   };
 
   const onWheel = (event) => {
+    if (event.target instanceof Element && event.target.closest(".icon-grid, .replacement-icon-grid")) return;
     event.preventDefault();
     const rect = canvasRef.current.getBoundingClientRect();
     const nextZoom = Math.min(1.8, Math.max(.35, zoom * (event.deltaY > 0 ? .92 : 1.08)));
@@ -3561,6 +3632,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
     const el = canvasRef.current;
     if (!el) return;
     const wheelHandler = (e) => {
+      if (e.target instanceof Element && e.target.closest(".icon-grid, .replacement-icon-grid")) return;
       // Prevent browser pinch-to-zoom (ctrl+touchpad) and handle it on the canvas
       if (e.ctrlKey) {
         e.preventDefault();
@@ -4029,6 +4101,15 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
   useEffect(() => {
     const dismissFloatingPanels = (event) => {
       const target = event.target instanceof Element ? event.target : null;
+      if (editingNode && target) {
+        const editingElement = [...(canvasRef.current?.querySelectorAll(".canvas-node") || [])]
+          .find((element) => element.dataset.nodeId === editingNode);
+        const editor = editingElement?.querySelector(".inline-node-editor");
+        const activeElement = window.document.activeElement;
+        if (editor && !editor.contains(target) && activeElement instanceof HTMLElement && editor.contains(activeElement)) {
+          activeElement.blur();
+        }
+      }
       if (selectedAnnotationId && !target?.closest(".floating-annotation-panel, .annotation-marker")) setSelectedAnnotationId(null);
       if (pendingAnnotation && !target?.closest(".annotation-composer")) setPendingAnnotation(null);
       if (pagesOpen && !target?.closest(".pages-control")) setPagesOpen(false);
@@ -4037,12 +4118,12 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
       if (iconBrowserOpen && !target?.closest('.icon-browser, button[aria-label="Add Heroicon"]')) setIconBrowserOpen(false);
       if (mobileToolsOpen && !target?.closest(".mobile-tool-selector")) setMobileToolsOpen(false);
       if (mobileInsertOpen && !target?.closest(".mobile-tool-selector, .mobile-insert-sheet")) setMobileInsertOpen(false);
-      if (nodeToolbarMenu && !target?.closest(".node-style-toolbar")) setNodeToolbarMenu(null);
+      if (nodeToolbarMenu && !target?.closest(".node-style-toolbar, .colour-wheel-popover")) setNodeToolbarMenu(null);
       if (edgeToolbarMenu && !target?.closest(".edge-style-toolbar")) setEdgeToolbarMenu(null);
     };
     window.document.addEventListener("pointerdown", dismissFloatingPanels, true);
     return () => window.document.removeEventListener("pointerdown", dismissFloatingPanels, true);
-  }, [edgeToolbarMenu, iconBrowserOpen, mobileInsertOpen, mobileToolsOpen, nodeMenu, nodeToolbarMenu, pagesOpen, pendingAnnotation, selectedAnnotationId, shapeMenuOpen]);
+  }, [edgeToolbarMenu, editingNode, iconBrowserOpen, mobileInsertOpen, mobileToolsOpen, nodeMenu, nodeToolbarMenu, pagesOpen, pendingAnnotation, selectedAnnotationId, shapeMenuOpen]);
 
   useEffect(() => {
     const onCopy = (event) => {
@@ -4088,15 +4169,28 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
   const toggleGuestEditing = () => updateDocument((doc) => ({ ...doc, guestEditable: !doc.guestEditable }), { immediate: true });
 
   const exportDiagram = async (format, scopeOverride = null) => {
+    setExportReady(null);
+    setExportBusy(true);
+    if (scopeOverride) {
+      setExportScope(scopeOverride);
+      setExportOpen(true);
+    }
     if (format === "mymind") {
       const portable = syncActivePage({ ...document, shared: false, guestEditable: false, folderId: null });
-      downloadBlob(new Blob([JSON.stringify({ type: "mymind-canvas", version: 1, exportedAt: new Date().toISOString(), document: portable })], { type: "application/vnd.mymind.canvas+json" }), `${slugify(document.title)}.mymind`);
-      setExportOpen(false);
+      setExportReady({ blob: new Blob([JSON.stringify({ type: "mymind-canvas", version: 1, exportedAt: new Date().toISOString(), document: portable })], { type: "application/vnd.mymind.canvas+json" }), filename: `${slugify(document.title)}.mymind` });
+      setExportBusy(false);
       return;
     }
     const effectiveScope = scopeOverride || exportScope;
     const selectedMode = effectiveScope === "selected";
+    const selectedEdges = selectedMode
+      ? document.edges.filter((edge) => edgeSelection.includes(edge.id))
+      : [];
     const ids = selectedMode ? new Set(selection) : null;
+    selectedEdges.forEach((edge) => {
+      ids.add(edge.source);
+      ids.add(edge.target);
+    });
     const availableNodes = document.nodes.filter((node) => !collapsedNodeIds.has(node.id));
     const nodes = selectedMode ? availableNodes.filter((node) => ids.has(node.id)) : availableNodes;
     const drawings = selectedMode ? (document.drawings || []).filter((drawing) => drawingSelection.includes(drawing.id)) : (document.drawings || []);
@@ -4106,8 +4200,13 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
       catch { inlineImageData[node.id] = null; }
     }));
     const visibleEdges = document.edges.filter((edge) => !edge.hidden && !collapsedNodeIds.has(edge.source) && !collapsedNodeIds.has(edge.target));
-    const edges = selectedMode ? visibleEdges.filter((edge) => ids.has(edge.source) && ids.has(edge.target)) : visibleEdges;
-    if (!nodes.length && !drawings.length) return;
+    const edges = selectedMode
+      ? visibleEdges.filter((edge) => edgeSelection.includes(edge.id) || (ids.has(edge.source) && ids.has(edge.target)))
+      : visibleEdges;
+    if (!nodes.length && !drawings.length) {
+      setExportBusy(false);
+      return;
+    }
     let minNodeX = Infinity, minNodeY = Infinity, maxNodeX = -Infinity, maxNodeY = -Infinity;
     nodes.forEach((node) => {
       const visual = isLineNode(node) ? lineVisualBounds(node) : nodeBounds(node);
@@ -4276,14 +4375,27 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
     }).join("");
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 Z" fill="#bcc2cc"/></marker><marker id="circle" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><circle cx="4" cy="4" r="3" fill="#ffffff" stroke="#9da5b1" stroke-width="1.5"/></marker></defs><rect width="100%" height="100%" fill="#f7f8fb"/>${paths}${backDrawingPaths}${cards}${frontDrawingPaths}</svg>`;
     const filename = `${slugify(document.title)}-${effectiveScope}`;
-    if (format === "svg") downloadBlob(new Blob([svg], { type: "image/svg+xml" }), `${filename}.svg`);
-    else rasterizeSvg(svg, width, height, format, filename);
-    setExportOpen(false);
+    try {
+      const blob = format === "svg"
+        ? new Blob([svg], { type: "image/svg+xml" })
+        : await rasterizeSvg(svg, width, height, format, filename);
+      setExportReady({ blob, filename: `${filename}.${format}` });
+    } catch (error) {
+      console.error("Canvas export failed", error);
+      window.alert("MyMind could not finish this export. Please try another format.");
+      setExportBusy(false);
+      return;
+    }
+    setExportBusy(false);
   };
 
   const selectedNode = selection.length === 1 && drawingSelection.length === 0 ? nodeMap[selection[0]] : null;
   const selectionCanScale = drawingSelection.length > 0 || selection.length > 1;
+  const isEditingSelectedText = editingNode === selectedNode?.id && selectedNode?.type === "text";
   const selectedNodeSize = selectedNode ? nodeDimensions(selectedNode) : null;
+  const selectedLineControls = selectedBounds && isLineNode(selectedNode)
+    ? Object.fromEntries(Object.entries(lineControlPoints(selectedNode)).map(([key, point]) => [key, { x: point.x - selectedBounds.x, y: point.y - selectedBounds.y }]))
+    : null;
   const selectedNodeScreenTop = selectedNode ? pan.y + selectedNode.y * zoom : 0;
   const nodeToolbarStyle = selectedNode ? {
     left: Math.max(190, Math.min((canvasRef.current?.clientWidth || 900) - 190, pan.x + (selectedNode.x + selectedNodeSize.width / 2) * zoom)),
@@ -4406,8 +4518,17 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
     { label: "Shapes", Icon: LucideIcons.Shapes, run: () => { setMobileInsertOpen(true); setMobileToolsOpen(false); } },
     { label: "Insert", Icon: Cube, run: () => { setMobileInsertOpen(true); setMobileToolsOpen(false); } },
   ];
+  const saveNodeEdit = (node, patch) => {
+    const fitted = node.type === "text" && node.textFit !== "free" ? fittedTextDimensions(patch.label, node.fontSize || 24) : {};
+    updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, ...patch, ...fitted } : item) }));
+    setEditingNode(null);
+    setSelection([]);
+    setEdgeSelection([]);
+    setDrawingSelection([]);
+  };
 
   return <div className={`app-shell editor-shell ${isPublicLink ? "is-public" : ""} ${embedMode ? "is-embed" : ""}`}>
+    <div className="sr-only" aria-live="polite" aria-atomic="true">{connectionSource ? `Connection starts at ${document.nodes.find((node) => node.id === connectionSource.nodeId)?.label || "node"}, ${connectionSource.port} port. Tab to a destination port and activate it, or press Escape to cancel.` : ""}</div>
     {commandPaletteOpen && <CommandPalette commands={commandPaletteCommands} onClose={() => setCommandPaletteOpen(false)} />}
     {flowGeneratorOpen && <FlowGeneratorDialog onClose={() => setFlowGeneratorOpen(false)} onGenerate={generateFlow} />}
     {!embedMode && <header className="topbar editor-topbar">
@@ -4421,6 +4542,11 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
           onChange={(event) => {
             const title = event.target.value;
             updateDocument((doc) => ({ ...doc, title, slug: documentSlug(title, doc.id) }));
+          }}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            event.currentTarget.blur();
           }}
           onBlur={() => updateDocument((doc) => ({ ...doc, slug: documentSlug(doc.title, doc.id) }), { immediate: true })}
         />
@@ -4546,13 +4672,13 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
           <svg className="drawing-layer drawing-layer-back" width="4000" height="2400" viewBox="-1000 -600 4000 2400">
             {(document.drawings || []).filter((drawing) => drawing.stackLevel === "back").map((drawing) => <DrawingStroke key={drawing.id} drawing={drawing} selected={drawingSelection.includes(drawing.id)} passive={spaceHeld || tool !== "select"} onSelect={(event) => onDrawingPointerDown(event, drawing)} onContextMenu={(event) => openDrawingContextMenu(event, drawing)} />)}
           </svg>
-          {document.nodes.filter((node) => !collapsedNodeIds.has(node.id) || vanishingNodeIds.has(node.id)).map((node) => <CanvasNode key={node.id} node={node} hiding={collapsedNodeIds.has(node.id)} hiddenConnectionCount={document.edges.filter((edge) => (edge.source === node.id || edge.target === node.id) && edge.hidden).length} onShowHidden={() => showHiddenConnections(node.id)} selected={selection.includes(node.id)} connecting={connectionSource?.nodeId === node.id} dropTarget={connectionTargetId === node.id} editing={editingNode === node.id} onEdit={() => { if (!publicView && !["image", "arrow", "icon", "table", "document", "checklist"].includes(node.type) && !(node.type === "basic-shape" && node.shapeKind === "line")) { setNodeToolbarMenu(null); setEditingNode(node.id); } }} onSaveEdit={(patch) => { const fitted = node.type === "text" && node.textFit !== "free" ? fittedTextDimensions(patch.label, node.fontSize || 24) : {}; updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, ...patch, ...fitted } : item) })); setEditingNode(null); }} onCancelEdit={() => setEditingNode(null)} onTableChange={publicView ? null : (patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, ...patch } : item) }))} onChecklistChange={publicView ? null : (items) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, items } : item) }))} onChecklistDueDateChange={publicView ? null : (dueDate) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, dueDate } : item) }))} onPointerDown={onNodePointerDown} onContextMenu={(event) => openNodeContextMenu(event, node)} onKeyDown={(event) => { if (event.target instanceof Element && event.target.closest("input,textarea,select,[contenteditable='true']")) return; if (!publicView && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setSelection([node.id]); setEdgeSelection([]); setDrawingSelection([]); } }} />)}
+          {document.nodes.filter((node) => !collapsedNodeIds.has(node.id) || vanishingNodeIds.has(node.id)).map((node) => <CanvasNode key={node.id} node={node} hiding={collapsedNodeIds.has(node.id)} hiddenConnectionCount={document.edges.filter((edge) => (edge.source === node.id || edge.target === node.id) && edge.hidden).length} onShowHidden={() => showHiddenConnections(node.id)} selected={selection.includes(node.id)} connecting={connectionSource?.nodeId === node.id} dropTarget={connectionTargetId === node.id} editing={editingNode === node.id} onEdit={() => { if (!publicView && !["image", "arrow", "icon", "table", "document", "checklist"].includes(node.type) && !(node.type === "basic-shape" && node.shapeKind === "line")) { setNodeToolbarMenu(null); setEditingNode(node.id); } }} onSaveEdit={(patch) => saveNodeEdit(node, patch)} onCancelEdit={() => setEditingNode(null)} onTableChange={publicView ? null : (patch) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, ...patch } : item) }))} onChecklistChange={publicView ? null : (items) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, items } : item) }))} onChecklistDueDateChange={publicView ? null : (dueDate) => updateDocument((doc) => ({ ...doc, nodes: doc.nodes.map((item) => item.id === node.id ? { ...item, dueDate } : item) }))} onPointerDown={onNodePointerDown} onPortActivate={(port) => activateConnectionPort(node, port)} onContextMenu={(event) => openNodeContextMenu(event, node)} onKeyDown={(event) => { if (event.target instanceof Element && event.target.closest("input,textarea,select,[contenteditable='true']")) return; if (!publicView && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setSelection([node.id]); setEdgeSelection([]); setDrawingSelection([]); } }} />)}
           <svg className="drawing-layer" width="4000" height="2400" viewBox="-1000 -600 4000 2400">
             {(document.drawings || []).filter((drawing) => drawing.stackLevel !== "back").map((drawing) => <DrawingStroke key={drawing.id} drawing={drawing} selected={drawingSelection.includes(drawing.id)} passive={spaceHeld || tool !== "select"} onSelect={(event) => onDrawingPointerDown(event, drawing)} onContextMenu={(event) => openDrawingContextMenu(event, drawing)} />)}
             {draftDrawing && <DrawingStroke drawing={draftDrawing} passive />}
           </svg>
           {!publicView && marquee && <SelectionMarquee bounds={marquee} zoom={zoom} />}
-          {!publicView && selectedBounds && <SelectionFrame bounds={selectedBounds} zoom={zoom} count={selection.length + drawingSelection.length} resizable={(selectionCanScale || ["image", "text", "code", "checklist", "table", "document", "icon", "arrow", "link", "basic-shape"].includes(selectedNode?.type)) && !isLineNode(selectedNode) && rotationModeId !== selectedNode?.id} rotatable={["arrow", "basic-shape"].includes(selectedNode?.type) && !isLineNode(selectedNode) && rotationModeId === selectedNode.id} lineEndpoints={!selectionCanScale && isLineNode(selectedNode)} lineCurve={selectedNode?.curve || 0} horizontalHandles={!selectionCanScale && selectedNode?.type === "basic-shape" && selectedNode.shapeKind === "rectangle" && rotationModeId !== selectedNode.id} rotation={selectedNode?.rotation || 0} resizeLabel={selectionCanScale ? "selection" : selectedNode?.type || "element"} rotateLabel={selectedNode?.type === "basic-shape" ? "shape" : "arrow"} onResizeStart={selectionCanScale ? startSelectionResize : startElementResize} onRotateStart={startElementRotate} onLineEndpointStart={startLineEndpointDrag} onLineCurveStart={startLineCurveDrag} />}
+          {!publicView && selectedBounds && !isEditingSelectedText && <SelectionFrame bounds={selectedBounds} zoom={zoom} count={selection.length + drawingSelection.length} resizable={(selectionCanScale || ["image", "text", "code", "checklist", "table", "document", "icon", "arrow", "link", "basic-shape"].includes(selectedNode?.type)) && !isLineNode(selectedNode) && rotationModeId !== selectedNode?.id} rotatable={["arrow", "basic-shape"].includes(selectedNode?.type) && !isLineNode(selectedNode) && rotationModeId === selectedNode.id} lineEndpoints={!selectionCanScale && isLineNode(selectedNode)} lineControls={selectedLineControls} horizontalHandles={!selectionCanScale && selectedNode?.type === "basic-shape" && selectedNode.shapeKind === "rectangle" && rotationModeId !== selectedNode.id} rotation={isLineNode(selectedNode) ? 0 : selectedNode?.rotation || 0} resizeLabel={selectionCanScale ? "selection" : selectedNode?.type || "element"} rotateLabel={selectedNode?.type === "basic-shape" ? "shape" : "arrow"} onResizeStart={selectionCanScale ? startSelectionResize : startElementResize} onRotateStart={startElementRotate} onLineEndpointStart={startLineEndpointDrag} onLineCurveStart={startLineCurveDrag} />}
           {!embedMode && annotationsVisible && (document.annotations || []).map((annotation) => <AnnotationMarker key={annotation.id} annotation={annotation} selected={annotation.id === selectedAnnotationId} draggable={canManageAnnotation(annotation.id)} onDragStart={(event) => startAnnotationDrag(annotation, event)} onSelect={() => { setSelectedAnnotationId(annotation.id); setSelection([]); setEdgeSelection([]); setDrawingSelection([]); }} />)}
         </div>
         {!publicView && alignToolbarMounted && <div className={`alignment-toolbar ${alignToolbarExiting ? "is-exiting" : ""}`} role="toolbar" aria-label="Align selected elements" onPointerDown={(event) => event.stopPropagation()}>
@@ -4595,7 +4721,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
           onRotate={() => { setRotationModeId(contextMenu.rotateNodeId); setContextMenu(null); }}
           onArrangeByColour={() => arrangeSelectionByVisualColour(contextMenu)}
           onDelete={() => { deleteSelection(); setContextMenu(null); }}
-          onExport={(format) => { exportDiagram(format, "selected"); setContextMenu(null); }}
+          onExport={(format) => { exportDiagram(format, "selected").catch((error) => { console.error("Canvas export failed", error); setExportBusy(false); window.alert("MyMind could not finish this export. Please try another format."); }); setContextMenu(null); }}
           onBack={() => changeStacking("back", contextMenu)}
           onFront={() => changeStacking("front", contextMenu)}
         />}
@@ -4622,7 +4748,7 @@ function Editor({ initialDocument, initialPageId = "", publicView: isPublicLink,
       </main>
 
       {!embedMode && commentsOpen && <CommentsPanel comments={commentItems} onSelect={focusComment} onClose={() => setCommentsOpen(false)} />}
-      {!embedMode && exportOpen && <ExportPanel scope={exportScope} setScope={setExportScope} hasSelection={selection.length > 0 || drawingSelection.length > 0} onClose={() => setExportOpen(false)} onExport={exportDiagram} />}
+      {!embedMode && exportOpen && <ExportPanel scope={exportScope} setScope={setExportScope} hasSelection={selection.length > 0 || edgeSelection.length > 0 || drawingSelection.length > 0} ready={exportReady} busy={exportBusy} onDownload={() => exportReady && downloadBlob(exportReady.blob, exportReady.filename)} onClose={() => setExportOpen(false)} onExport={(format) => exportDiagram(format).catch((error) => { console.error("Canvas export failed", error); setExportBusy(false); window.alert("MyMind could not finish this export. Please try another format."); })} />}
     </div>
 
     {shareOpen && <ShareDialog document={document} url={shareUrl} publishing={saveState === "Saving…"} ready={saveState === "Saved"} onToggle={toggleShare} onToggleGuestEditing={toggleGuestEditing} onClose={() => setShareOpen(false)} />}
@@ -4670,11 +4796,11 @@ function LinkThumbnail({ node }) {
   }} />;
 }
 
-function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, connecting, dropTarget, editing, hiding, onEdit, onSaveEdit, onCancelEdit, onTableChange, onChecklistChange, onChecklistDueDateChange, onPointerDown, onContextMenu, onKeyDown }) {
+function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, connecting, dropTarget, editing, hiding, onEdit, onSaveEdit, onCancelEdit, onTableChange, onChecklistChange, onChecklistDueDateChange, onPointerDown, onPortActivate, onContextMenu, onKeyDown }) {
   const tone = toneForNode(node);
   const shapeColors = accessibleShapeColors(tone.accent);
   const size = nodeDimensions(node);
-  return <article className={`canvas-node ${node.type ? `node-type-${node.type}` : ""} ${node.isSvg ? "is-svg" : ""} ${node.cropAspect && node.cropAspect !== "original" ? "is-cropped" : ""} ${node.shape ? `shape-${node.shape}` : ""} ${selected ? "selected" : ""} ${connecting ? "connecting" : ""} ${dropTarget ? "connection-drop-target" : ""} ${editing ? "editing" : ""} ${hiding ? "is-vanishing" : ""}`} role="button" tabIndex="0" data-node-id={node.id} aria-label={`${node.label}. ${node.subtitle || ""}. Press Enter to select, then Tab to add a connected node.`} style={{ left: node.x, top: node.y, width: size.width, height: size.height, zIndex: node.stackLevel === "front" ? 12 : node.stackLevel === "back" ? 1 : undefined, transform: ["arrow", "basic-shape"].includes(node.type) ? `rotate(${node.rotation || 0}deg)` : undefined, "--node-accent": tone.accent, "--node-soft": tone.soft, "--shape-fill": tone.accent, "--shape-text": shapeColors.text, "--shape-muted": shapeColors.muted, "--text-size": `${node.fontSize || 24}px`, "--text-background": node.textBackground || "transparent", "--text-align": node.textAlign || "left" }} onPointerDown={(event) => onPointerDown(event, node)} onContextMenu={onContextMenu} onKeyDown={editing ? undefined : onKeyDown} onDoubleClick={(event) => { event.stopPropagation(); onEdit(); }}>
+  return <article className={`canvas-node ${node.type ? `node-type-${node.type}` : ""} ${node.isSvg ? "is-svg" : ""} ${node.cropAspect && node.cropAspect !== "original" ? "is-cropped" : ""} ${node.shape ? `shape-${node.shape}` : ""} ${selected ? "selected" : ""} ${connecting ? "connecting" : ""} ${dropTarget ? "connection-drop-target" : ""} ${editing ? "editing" : ""} ${hiding ? "is-vanishing" : ""}`} role="group" tabIndex="0" data-node-id={node.id} aria-label={`${node.label}. ${node.subtitle || ""}. Press Enter to select. Tab to reach a connection port.`} style={{ left: node.x, top: node.y, width: size.width, height: size.height, zIndex: node.stackLevel === "front" ? 12 : node.stackLevel === "back" ? 1 : undefined, transform: ["arrow", "basic-shape"].includes(node.type) ? `rotate(${node.rotation || 0}deg)` : undefined, "--node-accent": tone.accent, "--node-soft": tone.soft, "--shape-fill": tone.accent, "--shape-text": shapeColors.text, "--shape-muted": shapeColors.muted, "--text-size": `${node.fontSize || 24}px`, "--text-background": node.textBackground || "transparent", "--text-align": node.textAlign || "left" }} onPointerDown={(event) => onPointerDown(event, node)} onContextMenu={onContextMenu} onKeyDown={editing ? undefined : onKeyDown} onDoubleClick={(event) => { event.stopPropagation(); onEdit(); }}>
     {node.type === "image" && (node.isGif || node.mimeType === "image/gif" ? <GifImageNode node={node} /> : <span className="image-node-viewport"><img src={node.imageData} alt={node.label || "Canvas image"} draggable="false" style={{ objectPosition: "50% 50%", transform: `scale(${node.cropZoom || 1})` }} /></span>)}
     {node.type === "icon" && (() => { const HeroIcon = LucideIcons[node.iconName] || HeroOutlineIcons[node.iconName] || LucideIcons.SparklesIcon; return <HeroIcon className="standalone-icon" aria-hidden="true" />; })()}
     {isLineNode(node) && <LineShapeGraphic node={node} size={size} />}
@@ -4686,7 +4812,7 @@ function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, conne
         <div className="code-block-header"><Code size={14} /><span>{node.language || "Code"}</span></div>
         <pre><code>{node.label}</code></pre>
       </div>}
-      {node.type === "table" && <TableNode node={node} onChange={onTableChange} />}
+      {node.type === "table" && <TableNode node={node} onChange={onTableChange} selected={selected} />}
       {node.type === "document" && <DocumentFileNode node={node} />}
       {node.type === "checklist" && <ChecklistNode node={node} onChange={onChecklistChange} onDueDateChange={onChecklistDueDateChange} />}
       {node.type === "link" && (node.linkDisplay === "embed" ? <EmbeddedLinkNode node={node} /> : <div className="link-card-content">
@@ -4696,18 +4822,37 @@ function CanvasNode({ node, hiddenConnectionCount, onShowHidden, selected, conne
       </div>)}
       {!node.type && <>{node.icon && <span className="node-icon"><IconForNode name={node.icon} /></span>}<span className="node-copy"><strong>{node.label}</strong><small>{node.subtitle}</small></span></>}
     </>}
-    {nodeAllowsConnections(node) && !['image', 'icon', 'link'].includes(node.type) && <><i className="node-port left" data-port="left" aria-hidden="true" /><i className="node-port right" data-port="right" aria-hidden="true" /><i className="node-port top" data-port="top" aria-hidden="true" /><i className="node-port bottom" data-port="bottom" aria-hidden="true" /></>}
+    {nodeAllowsConnections(node) && !['image', 'icon', 'link'].includes(node.type) && ["top", "right", "bottom", "left"].map((side) => <button key={side} type="button" className={`node-port ${side}`} data-port={side} aria-label={`Connect from ${side} of ${node.label}`} title={`Connect from ${side}`} onKeyDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); if (event.detail === 0) onPortActivate?.(side); }} />)}
     {hiddenConnectionCount > 0 && <button className="hidden-connections-badge" aria-label={`Show ${hiddenConnectionCount} hidden ${hiddenConnectionCount === 1 ? "connection" : "connections"}`} title="Show hidden connections" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); onShowHidden(); }}>+{hiddenConnectionCount}</button>}
   </article>;
 }
 
 function ChecklistNode({ node, onChange, onDueDateChange }) {
   const listRef = useRef(null);
-  const dueDateInputRef = useRef(null);
+  const dueDateButtonRef = useRef(null);
+  const dueDatePickerRef = useRef(null);
   const items = Array.isArray(node.items) && node.items.length ? node.items : [{ id: "task-empty", text: "", completed: false }];
   const completedCount = items.filter((item) => item.completed).length;
   const dueDate = node.dueDate || items.find((item) => item.dueDate)?.dueDate || "";
   const today = todayDateKey();
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [calendarPosition, setCalendarPosition] = useState({ left: 8, top: 8 });
+  const positionDatePicker = () => {
+    const rect = dueDateButtonRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const width = Math.min(264, window.innerWidth - 16);
+    const height = 312;
+    const left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.right - width));
+    const below = rect.bottom + 8;
+    const top = below + height <= window.innerHeight - 8 ? below : Math.max(8, rect.top - height - 8);
+    setCalendarPosition({ left, top });
+  };
+  const selectDueDate = (value) => {
+    onDueDateChange?.(value);
+    setDatePickerOpen(false);
+    dueDateButtonRef.current?.focus();
+  };
   const commit = (nextItems) => onChange?.(nextItems);
   const focusTask = (taskId) => window.requestAnimationFrame(() => {
     const row = Array.from(listRef.current?.querySelectorAll("[data-task-id]") || []).find((item) => item.dataset.taskId === taskId);
@@ -4733,19 +4878,51 @@ function ChecklistNode({ node, onChange, onDueDateChange }) {
     if (focusId) focusTask(focusId);
   };
   const openDueDatePicker = () => {
-    const input = dueDateInputRef.current;
-    if (!input) return;
-    try { if (typeof input.showPicker === "function") input.showPicker(); else input.click(); }
-    catch { input.click(); }
+    if (datePickerOpen) { setDatePickerOpen(false); return; }
+    const initialDate = dueDate ? new Date(`${dueDate}T00:00:00`) : new Date();
+    setCalendarMonth(new Date(initialDate.getFullYear(), initialDate.getMonth(), 1));
+    positionDatePicker();
+    setDatePickerOpen(true);
   };
+  useEffect(() => {
+    if (!datePickerOpen) return undefined;
+    const closeOnOutsidePointerDown = (event) => {
+      if (dueDatePickerRef.current?.contains(event.target) || dueDateButtonRef.current?.contains(event.target)) return;
+      setDatePickerOpen(false);
+    };
+    const closeOnEscape = (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setDatePickerOpen(false);
+      dueDateButtonRef.current?.focus();
+    };
+    window.document.addEventListener("pointerdown", closeOnOutsidePointerDown, true);
+    window.addEventListener("keydown", closeOnEscape, true);
+    window.addEventListener("resize", positionDatePicker);
+    window.addEventListener("scroll", positionDatePicker, true);
+    return () => {
+      window.document.removeEventListener("pointerdown", closeOnOutsidePointerDown, true);
+      window.removeEventListener("keydown", closeOnEscape, true);
+      window.removeEventListener("resize", positionDatePicker);
+      window.removeEventListener("scroll", positionDatePicker, true);
+    };
+  }, [datePickerOpen]);
+  const monthStart = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+  const calendarStart = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1 - monthStart.getDay());
+  const calendarDays = Array.from({ length: 42 }, (_, index) => {
+    const date = new Date(calendarStart.getFullYear(), calendarStart.getMonth(), calendarStart.getDate() + index);
+    return { date, key: localDateKey(date), inMonth: date.getMonth() === calendarMonth.getMonth() };
+  });
+  const monthLabel = new Intl.DateTimeFormat("en", { month: "long", year: "numeric" }).format(calendarMonth);
+  const weekdayLabels = Array.from({ length: 7 }, (_, index) => new Intl.DateTimeFormat("en", { weekday: "short" }).format(new Date(2023, 0, 1 + index)));
 
   return <div className="checklist-card-content">
     <div className="checklist-card-header" title="Drag to move this list"><LucideIcons.ListChecks size={14} /><strong>{node.label || "Task list"}</strong>
       {(onDueDateChange || dueDate) && <span className="checklist-card-due-control" onPointerDown={(event) => event.stopPropagation()}>
-        <button type="button" className={`checklist-card-due-date ${dueDate ? "has-date" : ""} ${completedCount < items.length && dueDate && dueDate < today ? "is-overdue" : ""}`} title={dueDate ? `Change due date · ${formatTaskDueDate(dueDate)}` : "Set list due date"} aria-label={dueDate ? `Change due date for ${node.label || "task list"}, currently ${formatTaskDueDate(dueDate)}` : `Set due date for ${node.label || "task list"}`} onClick={openDueDatePicker}>
+        <button ref={dueDateButtonRef} type="button" className={`checklist-card-due-date ${dueDate ? "has-date" : ""} ${completedCount < items.length && dueDate && dueDate < today ? "is-overdue" : ""}`} title={dueDate ? `Change due date · ${formatTaskDueDate(dueDate)}` : "Set list due date"} aria-label={dueDate ? `Change due date for ${node.label || "task list"}, currently ${formatTaskDueDate(dueDate)}` : `Set due date for ${node.label || "task list"}`} aria-haspopup="dialog" aria-expanded={datePickerOpen} onClick={openDueDatePicker}>
           <CalendarDaysIcon width="13" aria-hidden="true" /><span>{formatTaskDueDate(dueDate) || "Due"}</span>
         </button>
-        {onDueDateChange && <input ref={dueDateInputRef} className="checklist-card-due-input" type="date" value={dueDate} tabIndex="-1" aria-hidden="true" onChange={(event) => onDueDateChange(event.target.value)} />}
       </span>}
       <small>{completedCount}/{items.length}</small>
     </div>
@@ -4761,10 +4938,16 @@ function ChecklistNode({ node, onChange, onDueDateChange }) {
       </div>)}
       {onChange && <button type="button" className="checklist-add-task" onClick={() => addTaskAfter(items.length - 1)}><Plus size={13} /> Add task</button>}
     </div>
+    {datePickerOpen && onDueDateChange && createPortal(<div ref={dueDatePickerRef} className="task-date-picker" role="dialog" aria-label={`Choose due date for ${node.label || "task list"}`} style={{ left: calendarPosition.left, top: calendarPosition.top }} onPointerDown={(event) => event.stopPropagation()} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); setDatePickerOpen(false); dueDateButtonRef.current?.focus(); } }}>
+      <div className="task-date-picker-header"><button type="button" aria-label="Previous month" title="Previous month" onClick={() => setCalendarMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1))}><LucideIcons.ChevronLeft size={16} /></button><strong>{monthLabel}</strong><button type="button" aria-label="Next month" title="Next month" onClick={() => setCalendarMonth((month) => new Date(month.getFullYear(), month.getMonth() + 1, 1))}><LucideIcons.ChevronRight size={16} /></button></div>
+      <div className="task-date-picker-weekdays" aria-hidden="true">{weekdayLabels.map((label, index) => <span key={`${label}-${index}`}>{label.slice(0, 1)}</span>)}</div>
+      <div className="task-date-picker-days">{calendarDays.map(({ date, key, inMonth }) => <button key={key} type="button" className={`${inMonth ? "" : "outside-month"} ${key === today ? "today" : ""} ${key === dueDate ? "selected" : ""}`} autoFocus={key === (dueDate || today)} aria-label={new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).format(date)} aria-pressed={key === dueDate} onClick={() => selectDueDate(key)}>{date.getDate()}</button>)}</div>
+      <div className="task-date-picker-footer"><button type="button" className="task-date-picker-clear" disabled={!dueDate} onClick={() => selectDueDate("")}>Clear</button><button type="button" className="task-date-picker-today" onClick={() => selectDueDate(today)}>Today</button></div>
+    </div>, window.document.body)}
   </div>;
 }
 
-function TableNode({ node, onChange }) {
+function TableNode({ node, onChange, selected }) {
   const contentRef = useRef(null);
   const contextMenuRef = useRef(null);
   const resizeRef = useRef(null);
@@ -4776,6 +4959,11 @@ function TableNode({ node, onChange }) {
   const columnWidths = Array.from({ length: columnCount }, (_, index) => Math.max(96, Math.min(720, Number(node.columnWidths?.[index]) || defaultColumnWidth)));
   const rowHeights = Array.from({ length: rows.length }, (_, index) => Math.max(38, Math.min(360, Number(node.rowHeights?.[index]) || (index === 0 ? 46 : 58))));
   const tableContentWidth = columnWidths.reduce((total, width) => total + width, 0);
+  useEffect(() => {
+    if (selected) return;
+    const activeElement = window.document.activeElement;
+    if (contentRef.current?.contains(activeElement) && activeElement instanceof HTMLElement) activeElement.blur();
+  }, [selected]);
   useEffect(() => {
     if (!contextMenu) return undefined;
     const close = () => setContextMenu(null);
@@ -4984,9 +5172,19 @@ function InlineNodeEditor({ node, onSave, onCancel }) {
   const [label, setLabel] = useState(node.label || "");
   const [subtitle, setSubtitle] = useState(node.subtitle || "");
   const [icon, setIcon] = useState(node.icon === "lightbulb" ? "brain" : node.icon);
+  const finishedRef = useRef(false);
   const suggestedIcon = recommendedIconFor(`${label} ${subtitle}`);
   const suggestedChoice = iconChoices.find((choice) => choice.id === suggestedIcon);
-  const save = () => onSave({ label: node.type === "code" ? label || "// Add your code here" : node.type === "text" ? label || "Text" : label.trim() || "Untitled node", subtitle: subtitle.trim(), ...(node.type === "text" ? growTextDimensions(node, label) : {}), ...(!node.type ? { icon } : {}) });
+  const save = () => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    onSave({ label: node.type === "code" ? label || "// Add your code here" : node.type === "text" ? label || "Text" : label.trim() || "Untitled node", subtitle: subtitle.trim(), ...(node.type === "text" ? growTextDimensions(node, label) : {}), ...(!node.type ? { icon } : {}) });
+  };
+  const cancel = () => {
+    if (finishedRef.current) return;
+    finishedRef.current = true;
+    onCancel();
+  };
   const previewText = (event) => {
     const nextLabel = event.target.value;
     setLabel(nextLabel);
@@ -4998,7 +5196,7 @@ function InlineNodeEditor({ node, onSave, onCancel }) {
     }
   };
   const onCodeKeyDown = (event) => {
-    if (event.key === "Escape") { event.preventDefault(); onCancel(); return; }
+    if (event.key === "Escape") { event.preventDefault(); save(); return; }
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); save(); return; }
     if (event.key !== "Tab") return;
     event.preventDefault();
@@ -5009,8 +5207,8 @@ function InlineNodeEditor({ node, onSave, onCancel }) {
   };
   const editorClass = node.type === "text" ? "text-only" : node.type === "code" ? "code-only" : node.type === "basic-shape" ? "shape-only" : "";
   return <form className={`inline-node-editor ${editorClass}`} onSubmit={(event) => { event.preventDefault(); save(); }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) save(); }} onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
-    {node.type === "code" ? <textarea autoFocus aria-label="Edit code block" value={label} wrap="off" spellCheck="false" onFocus={(event) => { if (label === "// Add your code here") event.currentTarget.select(); }} onChange={(event) => setLabel(event.target.value)} onKeyDown={onCodeKeyDown} /> : node.type === "text" ? <textarea autoFocus aria-label="Edit text" value={label} wrap="soft" onFocus={(event) => { if (node.textFit === "auto" && label === "Add text") event.currentTarget.select(); }} onChange={previewText} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }} /> : <input autoFocus aria-label={node.type === "basic-shape" ? "Shape text" : "Node title"} value={label} onFocus={(event) => node.type === "basic-shape" && event.currentTarget.select()} onChange={(event) => setLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } }} />}
-    {!["text", "code", "basic-shape"].includes(node.type) && <textarea aria-label="Node description" value={subtitle} placeholder="Add a description" rows="2" onChange={(event) => setSubtitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); onCancel(); } if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); save(); } }} />}
+    {node.type === "code" ? <textarea autoFocus aria-label="Edit code block" value={label} wrap="off" spellCheck="false" onFocus={(event) => { if (label === "// Add your code here") event.currentTarget.select(); }} onChange={(event) => setLabel(event.target.value)} onKeyDown={onCodeKeyDown} /> : node.type === "text" ? <textarea autoFocus aria-label="Edit text" value={label} wrap="soft" onFocus={(event) => { if (node.textFit === "auto" && label === "Add text") event.currentTarget.select(); }} onChange={previewText} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); save(); } }} /> : <input autoFocus aria-label={node.type === "basic-shape" ? "Shape text" : "Node title"} value={label} onFocus={(event) => node.type === "basic-shape" && event.currentTarget.select()} onChange={(event) => setLabel(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); cancel(); } }} />}
+    {!["text", "code", "basic-shape"].includes(node.type) && <textarea aria-label="Node description" value={subtitle} placeholder="Add a description" rows="2" onChange={(event) => setSubtitle(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { event.preventDefault(); cancel(); } if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); save(); } }} />}
     {!node.type && label.trim().length >= 2 && suggestedIcon !== icon && <button type="button" className="inline-icon-suggestion" onClick={() => setIcon(suggestedIcon)} title={`Use ${suggestedChoice?.label || "suggested"} icon`}><IconForNode name={suggestedIcon} size={15} /><span>Suggested: {suggestedChoice?.label}</span></button>}
   </form>;
 }
@@ -5183,7 +5381,7 @@ function IconBrowser({ onSelect, onClose }) {
   return <aside className="icon-browser" aria-label="Icon browser">
     <div className="icon-browser-head"><div><strong>Icons</strong><small>{icons.length} icons</small></div><button aria-label="Close icon browser" onClick={onClose}><X size={16} /></button></div>
     <label className="icon-browser-search"><MagnifyingGlassIcon width="16" /><input autoFocus value={query} placeholder="Search icons" onChange={(event) => setQuery(event.target.value)} /></label>
-    <div className={`icon-grid ${query.trim() ? "is-filtered" : ""}`}>{icons.map(([name, HeroIcon]) => <button key={name} title={name.replace(/Icon$/, "").replace(/([a-z])([A-Z])/g, "$1 $2")} aria-label={`Add ${name}`} onClick={() => onSelect(name)}><HeroIcon width="21" /></button>)}</div>
+    <div className={`icon-grid ${query.trim() ? "is-filtered" : ""}`} onWheel={(event) => event.stopPropagation()}>{icons.map(([name, HeroIcon]) => <button key={name} title={name.replace(/Icon$/, "").replace(/([a-z])([A-Z])/g, "$1 $2")} aria-label={`Add ${name}`} onClick={() => onSelect(name)}><HeroIcon width="21" /></button>)}</div>
     {!icons.length && <p className="icon-empty">No icons match “{query}”.</p>}
   </aside>;
 }
@@ -5196,21 +5394,24 @@ function HeroIconReplacementPicker({ currentIcon, onSelect }) {
   }, [query]);
   return <div className="icon-replacement-picker">
     <label className="icon-browser-search"><MagnifyingGlassIcon width="16" /><input autoFocus value={query} placeholder="Search icons" onChange={(event) => setQuery(event.target.value)} /></label>
-    <div className="replacement-icon-grid">{icons.map(([name, HeroIcon]) => <button key={name} className={name === currentIcon ? "selected" : ""} title={name.replace(/Icon$/, "").replace(/([a-z])([A-Z])/g, "$1 $2")} aria-label={`Replace with ${name}`} onClick={() => onSelect(name)}><HeroIcon width="20" /></button>)}</div>
+    <div className="replacement-icon-grid" onWheel={(event) => event.stopPropagation()}>{icons.map(([name, HeroIcon]) => <button key={name} className={name === currentIcon ? "selected" : ""} title={name.replace(/Icon$/, "").replace(/([a-z])([A-Z])/g, "$1 $2")} aria-label={`Replace with ${name}`} onClick={() => onSelect(name)}><HeroIcon width="20" /></button>)}</div>
     {!icons.length && <p className="icon-empty">No icons match “{query}”.</p>}
   </div>;
 }
 
-function SelectionFrame({ bounds, zoom, count, resizable = false, rotatable = false, lineEndpoints = false, lineCurve = 0, horizontalHandles = false, rotation = 0, resizeLabel = "element", rotateLabel = "element", onResizeStart, onRotateStart, onLineEndpointStart, onLineCurveStart }) {
+function SelectionFrame({ bounds, zoom, count, resizable = false, rotatable = false, lineEndpoints = false, lineControls = null, horizontalHandles = false, rotation = 0, resizeLabel = "element", rotateLabel = "element", onResizeStart, onRotateStart, onLineEndpointStart, onLineCurveStart }) {
   const stroke = 2 / zoom;
   const handle = 10 / zoom;
   const lineHandle = 12 / zoom;
   const lineHitTarget = 36 / zoom;
   const handles = ["top-left", "top-right", "bottom-left", "bottom-right"];
-  return <div className={`selection-frame ${resizable ? "resizable" : ""} ${rotatable ? "rotatable" : ""} ${lineEndpoints ? "line-selection" : ""}`} aria-hidden={!resizable && !rotatable && !lineEndpoints} style={{ left: bounds.x, top: bounds.y, width: bounds.width, height: bounds.height, borderWidth: stroke, transform: rotation ? `rotate(${rotation}deg)` : undefined, "--selection-handle": `${handle}px`, "--selection-offset": `${-handle / 2 - stroke / 2}px`, "--line-handle": `${lineHandle}px`, "--line-offset": `${-lineHandle / 2 - stroke / 2}px`, "--line-hit-target": `${lineHitTarget}px` }}>
+  return <div className={`selection-frame ${resizable ? "resizable" : ""} ${rotatable ? "rotatable" : ""} ${lineEndpoints ? "line-selection" : ""}`} aria-hidden={!resizable && !rotatable && !lineEndpoints} style={{ left: bounds.x, top: bounds.y, width: bounds.width, height: bounds.height, borderWidth: lineEndpoints ? 0 : stroke, transform: rotation ? `rotate(${rotation}deg)` : undefined, "--selection-handle": `${handle}px`, "--selection-offset": `${-handle / 2 - stroke / 2}px`, "--line-handle": `${lineHandle}px`, "--line-offset": `${-lineHandle / 2 - stroke / 2}px`, "--line-hit-target": `${lineHitTarget}px` }}>
     {!lineEndpoints && handles.map((corner) => resizable || rotatable ? <button key={corner} type="button" className={`selection-handle ${corner}`} title={rotatable ? `Drag to rotate ${rotateLabel}` : undefined} aria-label={rotatable ? `Rotate ${rotateLabel} from ${corner.replace("-", " ")} corner` : `Resize ${resizeLabel} from ${corner.replace("-", " ")} corner`} onPointerDown={(event) => rotatable ? onRotateStart?.(corner, event) : onResizeStart?.(corner, event)} /> : <i key={corner} className={`selection-handle ${corner}`} />)}
-    {lineEndpoints && ["left", "right"].map((side) => <button key={side} type="button" className={`selection-handle line-endpoint ${side}`} title={`Drag to resize and rotate line from the ${side} endpoint`} aria-label={`Resize and rotate line from the ${side} endpoint`} onPointerDown={(event) => onLineEndpointStart?.(side, event)} />)}
-    {lineEndpoints && <button type="button" className="selection-handle line-curve-handle" style={{ top: `calc(50% + ${lineCurve / 2}px)` }} title="Drag to bend or straighten the line" aria-label="Bend or straighten line" onPointerDown={onLineCurveStart} />}
+    {lineEndpoints && ["left", "right"].map((side) => {
+      const point = lineControls?.[side === "left" ? "start" : "end"];
+      return <button key={side} type="button" className={`selection-handle line-endpoint ${side}`} style={point ? { left: point.x, right: "auto", top: point.y, transform: "translate(-50%, -50%)" } : undefined} title={`Drag to resize and rotate line from the ${side} endpoint`} aria-label={`Resize and rotate line from the ${side} endpoint`} onPointerDown={(event) => onLineEndpointStart?.(side, event)} />;
+    })}
+    {lineEndpoints && <button type="button" className="selection-handle line-curve-handle" style={lineControls?.curve ? { left: lineControls.curve.x, top: lineControls.curve.y } : undefined} title="Drag to bend or straighten the line" aria-label="Bend or straighten line" onPointerDown={onLineCurveStart} />}
     {horizontalHandles && ["middle-left", "middle-right"].map((position) => <button key={position} type="button" className={`selection-handle ${position}`} aria-label={`Resize ${resizeLabel} width from ${position.replace("-", " ")}`} onPointerDown={(event) => onResizeStart?.(position, event)} />)}
     {count > 1 && <span className="selection-count" style={{ fontSize: `${10 / zoom}px`, height: `${22 / zoom}px`, padding: `0 ${7 / zoom}px`, top: `${-30 / zoom}px` }}>{count} selected</span>}
   </div>;
@@ -5248,11 +5449,11 @@ function MediaUploadStatus({ upload }) {
 }
 
 function PenToolIcon() {
-  return <img src={penIcon} alt="" aria-hidden="true" draggable="false" />;
+  return <span className="drawing-tool-artwork" aria-hidden="true"><img className="drawing-tool-artwork-rest" src={penIcon} alt="" draggable="false" /><img className="drawing-tool-artwork-active" src={penActiveIcon} alt="" draggable="false" /></span>;
 }
 
 function HighlighterToolIcon() {
-  return <img src={highlighterIcon} alt="" aria-hidden="true" draggable="false" />;
+  return <span className="drawing-tool-artwork" aria-hidden="true"><img className="drawing-tool-artwork-rest" src={highlighterIcon} alt="" draggable="false" /><img className="drawing-tool-artwork-active" src={highlighterActiveIcon} alt="" draggable="false" /></span>;
 }
 
 function DrawingThicknessToolbar({ exiting, width, color, mode = "pen", selectionCount, onChange, onColorChange, onModeChange, onDelete }) {
@@ -5265,7 +5466,7 @@ function DrawingThicknessToolbar({ exiting, width, color, mode = "pen", selectio
       <button className={mode === "highlighter" ? "selected" : ""} aria-pressed={mode === "highlighter"} title="Highlighter" onClick={() => onModeChange && onModeChange("highlighter")}><HighlighterToolIcon /></button>
     </div>
     <div className="stroke-width-slider" title={`${width}px`}><input type="range" min={minWidth} max={maxWidth} step=".1" value={width} aria-label="Stroke width" onChange={(event) => onChange(Number(event.target.value))} /></div>
-    <div className="drawing-color-options">{colors.map((value) => <button key={value} className={color === value ? "selected" : ""} aria-label={`Use ${value} ${mode === "highlighter" ? "highlighter" : "pen"} colour`} title={value} onClick={() => onColorChange(value)}><i style={{ background: value }} /></button>)}<label className="drawing-custom-color" title={`Custom ${mode === "highlighter" ? "highlighter" : "pen"} colour`} style={{ "--pen-color": color }}><Palette size={15} /><input aria-label={`Custom ${mode === "highlighter" ? "highlighter" : "pen"} colour`} type="color" value={color} onChange={(event) => onColorChange(event.target.value)} /></label></div>
+    <div className="drawing-color-options">{colors.map((value) => <button key={value} className={color === value ? "selected" : ""} aria-label={`Use ${value} ${mode === "highlighter" ? "highlighter" : "pen"} colour`} title={value} onClick={() => onColorChange(value)}><i style={{ background: value }} /></button>)}<CustomColorControl className="drawing-custom-color" label={`Custom ${mode === "highlighter" ? "highlighter" : "pen"} colour`} value={color} onChange={onColorChange} /></div>
     <button className="drawing-delete" disabled={!selectionCount} aria-label="Delete selected drawing" title={selectionCount ? "Delete selected drawing" : "Select a drawing to delete"} onClick={onDelete}><Trash size={17} /></button>
   </div>;
 }
@@ -5331,7 +5532,7 @@ function TextStyleToolbar({ node, style, openMenu, setOpenMenu, onChange, onDele
     <button aria-label="Auto width" title="Fit width to text" onClick={() => onChange({ width: null })}>Auto W</button>
     <button aria-label="Auto height" title="Fit height to wrapped text" onClick={() => onChange({ height: null })}>Auto H</button>
     <span className="node-toolbar-divider" />
-    <div className="node-toolbar-item"><button aria-label="Change text background" className={openMenu === "text-background" ? "active" : ""} onClick={() => setOpenMenu(openMenu === "text-background" ? null : "text-background")}><Palette size={17} /><CaretDown size={11} /></button>{openMenu === "text-background" && <div className="node-toolbar-popover colour-popover text-background-popover"><strong>Background</strong><div className="background-options"><button className={!node.textBackground ? "selected transparent-swatch" : "transparent-swatch"} aria-label="Transparent background" onClick={() => { onChange({ textBackground: null }); setOpenMenu(null); }} />{backgrounds.map(([value, label]) => <button key={value} className={node.textBackground?.toLowerCase() === value ? "selected" : ""} style={{ background: value }} aria-label={`${label} background`} title={label} onClick={() => { onChange({ textBackground: value }); setOpenMenu(null); }} />)}<label className="custom-background" title="Custom background"><Palette size={15} /><input type="color" aria-label="Custom text background" value={node.textBackground || "#ffffff"} onChange={(event) => onChange({ textBackground: event.target.value })} /></label></div></div>}</div>
+    <div className="node-toolbar-item"><button aria-label="Change text background" className={openMenu === "text-background" ? "active" : ""} onClick={() => setOpenMenu(openMenu === "text-background" ? null : "text-background")}><Palette size={17} /><CaretDown size={11} /></button>{openMenu === "text-background" && <div className="node-toolbar-popover colour-popover text-background-popover"><strong>Background</strong><div className="background-options"><button className={!node.textBackground ? "selected transparent-swatch" : "transparent-swatch"} aria-label="Transparent background" onClick={() => { onChange({ textBackground: null }); setOpenMenu(null); }} />{backgrounds.map(([value, label]) => <button key={value} className={node.textBackground?.toLowerCase() === value ? "selected" : ""} style={{ background: value }} aria-label={`${label} background`} title={label} onClick={() => { onChange({ textBackground: value }); setOpenMenu(null); }} />)}<CustomColorControl className="custom-background" label="Custom text background" value={node.textBackground || "#ffffff"} onChange={(textBackground) => onChange({ textBackground })} /></div></div>}</div>
     <span className="node-toolbar-divider" />
     <button className="toolbar-delete" aria-label="Delete text" onClick={onDelete}><Trash size={17} /></button>
   </div>;
@@ -5412,8 +5613,105 @@ function ShapeColorControl({ label, value, onChange }) {
   const isPreset = presets.some((color) => color.toLowerCase() === normalized);
   const isTransparent = normalized === "transparent";
   const customValue = !isTransparent && /^#[0-9a-f]{6}$/i.test(value || "") ? value : "#ffffff";
-  return <div className="inspector-field"><span>{label}</span><div className="color-options"><button className={`transparent-swatch ${isTransparent ? "selected" : ""}`} aria-label={`Use transparent shape ${label.toLowerCase()}`} title="Transparent" onClick={() => onChange("transparent")} />{presets.map((color) => <button key={color} className={color.toLowerCase() === normalized ? "selected" : ""} aria-label={`Use ${color} for shape ${label.toLowerCase()}`} style={{ background: color }} onClick={() => onChange(color)} />)}<span className={`custom-color ${!isPreset && !isTransparent ? "selected" : ""}`} title={`Choose custom ${label.toLowerCase()} colour`} style={{ "--custom-color": customValue }}><Palette size={15} /><input type="color" aria-label={`Custom shape ${label.toLowerCase()} colour`} value={customValue} onChange={(event) => onChange(event.target.value)} /></span></div></div>;
+  return <div className="inspector-field"><span>{label}</span><div className="color-options"><button className={`transparent-swatch ${isTransparent ? "selected" : ""}`} aria-label={`Use transparent shape ${label.toLowerCase()}`} title="Transparent" onClick={() => onChange("transparent")} />{presets.map((color) => <button key={color} className={color.toLowerCase() === normalized ? "selected" : ""} aria-label={`Use ${color} for shape ${label.toLowerCase()}`} style={{ background: color }} onClick={() => onChange(color)} />)}<CustomColorControl className={!isPreset && !isTransparent ? "selected" : ""} label={`Custom shape ${label.toLowerCase()} colour`} value={customValue} onChange={onChange} /></div></div>;
 }
+
+function CustomColorControl({ className = "", label = "Custom colour", value, onChange }) {
+  const triggerRef = useRef(null);
+  const pickerRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ left: 12, top: 12 });
+  const placePicker = () => {
+    const rect = triggerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const width = Math.min(220, window.innerWidth - 24);
+    const height = Math.min(350, window.innerHeight - 24);
+    const left = Math.max(12, Math.min(window.innerWidth - width - 12, rect.right - width));
+    const below = rect.bottom + 8;
+    const top = below + height <= window.innerHeight - 12 ? below : Math.max(12, rect.top - height - 8);
+    setPosition({ left, top });
+  };
+  useEffect(() => {
+    if (!open) return undefined;
+    placePicker();
+    const focusWheel = window.requestAnimationFrame(() => pickerRef.current?.querySelector(".colour-wheel")?.focus());
+    const closeOutside = (event) => {
+      if (pickerRef.current?.contains(event.target) || triggerRef.current?.contains(event.target)) return;
+      setOpen(false);
+    };
+    const closeOnEscape = (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      event.stopPropagation();
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
+    window.document.addEventListener("pointerdown", closeOutside, true);
+    window.addEventListener("keydown", closeOnEscape, true);
+    window.addEventListener("resize", placePicker);
+    window.addEventListener("scroll", placePicker, true);
+    return () => {
+      window.cancelAnimationFrame(focusWheel);
+      window.document.removeEventListener("pointerdown", closeOutside, true);
+      window.removeEventListener("keydown", closeOnEscape, true);
+      window.removeEventListener("resize", placePicker);
+      window.removeEventListener("scroll", placePicker, true);
+    };
+  }, [open]);
+  const isDrawingControl = className.includes("drawing-custom-color");
+  return <>
+    <button ref={triggerRef} type="button" className={`custom-color-picker-trigger ${isDrawingControl ? "" : "custom-color"} ${className}`} title={label} aria-label={label} aria-haspopup="dialog" aria-expanded={open} style={{ "--custom-color": value, "--pen-color": value }} onClick={() => { if (!open) placePicker(); setOpen((current) => !current); }}><Palette size={15} /></button>
+    {open && createPortal(<ColorWheelPopover ref={pickerRef} value={value} onChange={onChange} onClose={() => { setOpen(false); triggerRef.current?.focus(); }} style={{ left: position.left, top: position.top }} />, window.document.body)}
+  </>;
+}
+
+const ColorWheelPopover = forwardRef(function ColorWheelPopover({ value, onChange, onClose, style }, ref) {
+  const color = /^#[0-9a-f]{6}$/i.test(value || "") ? value : "#ffffff";
+  const hsv = hexToHsv(color);
+  const [hexDraft, setHexDraft] = useState(color.toUpperCase());
+  useEffect(() => setHexDraft(color.toUpperCase()), [color]);
+  const wheelRef = useRef(null);
+  const updateFromWheel = (event) => {
+    const bounds = wheelRef.current?.getBoundingClientRect();
+    if (!bounds) return;
+    const dx = event.clientX - (bounds.left + bounds.width / 2);
+    const dy = event.clientY - (bounds.top + bounds.height / 2);
+    const radius = Math.min(bounds.width, bounds.height) / 2;
+    const distance = Math.min(radius, Math.hypot(dx, dy));
+    const hue = (Math.atan2(dy, dx) * 180 / Math.PI + 450) % 360;
+    onChange(hsvToHex(hue, distance / radius, hsv.value));
+  };
+  const adjustWheel = (event) => {
+    const amount = event.shiftKey ? 10 : 2;
+    let hue = hsv.hue;
+    let saturation = hsv.saturation;
+    if (event.key === "ArrowLeft") hue = (hue - amount + 360) % 360;
+    else if (event.key === "ArrowRight") hue = (hue + amount) % 360;
+    else if (event.key === "ArrowUp") saturation = Math.min(1, saturation + amount / 100);
+    else if (event.key === "ArrowDown") saturation = Math.max(0, saturation - amount / 100);
+    else return;
+    event.preventDefault();
+    onChange(hsvToHex(hue, saturation, hsv.value));
+  };
+  const markerAngle = (hsv.hue - 90) * Math.PI / 180;
+  const markerOffset = 50 * hsv.saturation;
+  const wheelStyle = { left: `${50 + Math.cos(markerAngle) * markerOffset}%`, top: `${50 + Math.sin(markerAngle) * markerOffset}%` };
+  const hueColor = hsvToHex(hsv.hue, 1, 1);
+  const acceptHex = (draft) => {
+    setHexDraft(draft);
+    const normalized = draft.startsWith("#") ? draft : `#${draft}`;
+    if (/^#[0-9a-f]{6}$/i.test(normalized)) onChange(normalized.toLowerCase());
+  };
+  return <div ref={ref} className="colour-wheel-popover" role="dialog" aria-label="Colour Picker" style={style} onPointerDown={(event) => event.stopPropagation()}>
+    <strong className="colour-wheel-title">Colour Picker</strong>
+    <div ref={wheelRef} className="colour-wheel" role="group" aria-label="Hue and saturation wheel. Use arrow keys to adjust." tabIndex="0" onKeyDown={adjustWheel} onPointerDown={(event) => { event.currentTarget.setPointerCapture(event.pointerId); event.preventDefault(); updateFromWheel(event); }} onPointerMove={(event) => { if (event.buttons) updateFromWheel(event); }}>
+      <span className="colour-wheel-marker" style={{ ...wheelStyle, background: color }} />
+    </div>
+    <label className="colour-brightness" aria-label="Brightness"><input type="range" min="0" max="100" value={Math.round(hsv.value * 100)} style={{ background: `linear-gradient(90deg, #000 0%, ${hueColor} 100%)` }} onChange={(event) => onChange(hsvToHex(hsv.hue, hsv.saturation, Number(event.target.value) / 100))} /></label>
+    <div className="colour-hex-row"><span className="colour-preview-swatch" style={{ background: color }} aria-hidden="true" /><input className="colour-hex-input" type="text" value={hexDraft} aria-label="Hex colour" spellCheck="false" maxLength="7" onChange={(event) => acceptHex(event.target.value)} onBlur={() => { if (!/^#[0-9a-f]{6}$/i.test(hexDraft.startsWith("#") ? hexDraft : `#${hexDraft}`)) setHexDraft(color.toUpperCase()); }} /></div>
+    <button type="button" className="colour-picker-done secondary-button" onClick={onClose}>Done</button>
+  </div>;
+});
 
 function IconPicker({ node, onSelect }) {
   const [query, setQuery] = useState("");
@@ -5436,7 +5734,7 @@ function NodeStyleToolbar({ node, style, openMenu, setOpenMenu, connectionCount,
   return <div className="node-style-toolbar" role="toolbar" aria-label="Selected node styling" style={style} onPointerDown={(event) => event.stopPropagation()}>
     <div className="node-toolbar-item">
       <button className={openMenu === "colour" ? "active" : ""} aria-label="Change node colour" aria-expanded={openMenu === "colour"} onClick={() => toggleMenu("colour")}><i className="toolbar-colour-dot" style={{ background: tone.accent }} /><CaretDown size={11} /></button>
-      {openMenu === "colour" && <div className="node-toolbar-popover colour-popover"><div className="color-options">{Object.keys(palette).map((color) => <button key={color} aria-label={`Use ${color}`} className={!node.customColor && node.color === color ? "selected" : ""} style={{ background: palette[color].accent }} onClick={() => { onChange({ color, customColor: null }); setOpenMenu(null); }} />)}<span className={`custom-color ${node.customColor ? "selected" : ""}`} title="Choose a custom colour" style={{ "--custom-color": node.customColor || tone.accent }}><Palette size={15} /><input aria-label="Custom colour" type="color" value={node.customColor || tone.accent} onChange={(event) => onChange({ color: "custom", customColor: event.target.value })} /></span></div></div>}
+      {openMenu === "colour" && <div className="node-toolbar-popover colour-popover"><div className="color-options">{Object.keys(palette).map((color) => <button key={color} aria-label={`Use ${color}`} className={!node.customColor && node.color === color ? "selected" : ""} style={{ background: palette[color].accent }} onClick={() => { onChange({ color, customColor: null }); setOpenMenu(null); }} />)}<CustomColorControl className={node.customColor ? "selected" : ""} label="Custom node colour" value={node.customColor || tone.accent} onChange={(customColor) => onChange({ color: "custom", customColor })} /></div></div>}
     </div>
     <span className="node-toolbar-divider" />
     <div className="node-toolbar-item">
@@ -5527,7 +5825,7 @@ function ImageSourceDialog({ onClose, onChooseFile, onAddUrl }) {
 function ColorControl({ node, tone, onChange }) {
   const neutralColors = node.type === "text" ? [["#ffffff", "white"], ["#111318", "black"]] : [];
   const isPresetNeutral = neutralColors.some(([value]) => value === node.customColor?.toLowerCase());
-  return <div className="inspector-field"><span>Colour</span><div className="color-options">{Object.keys(palette).map((color) => <button key={color} aria-label={`Use ${color}`} className={!node.customColor && node.color === color ? "selected" : ""} style={{ background: palette[color].accent }} onClick={() => onChange({ color, customColor: null })} />)}{neutralColors.map(([value, label]) => <button key={value} aria-label={`Use ${label}`} title={label} className={node.customColor?.toLowerCase() === value ? "selected" : ""} style={{ background: value }} onClick={() => onChange({ color: "custom", customColor: value })} />)}<span className={`custom-color ${node.customColor && !isPresetNeutral ? "selected" : ""}`} title="Choose a custom colour" style={{ "--custom-color": node.customColor || tone.accent }}><Palette size={15} weight="bold" /><input aria-label="Custom colour" type="color" value={node.customColor || tone.accent} onChange={(event) => onChange({ color: "custom", customColor: event.target.value })} /></span></div></div>;
+  return <div className="inspector-field"><span>Colour</span><div className="color-options">{Object.keys(palette).map((color) => <button key={color} aria-label={`Use ${color}`} className={!node.customColor && node.color === color ? "selected" : ""} style={{ background: palette[color].accent }} onClick={() => onChange({ color, customColor: null })} />)}{neutralColors.map(([value, label]) => <button key={value} aria-label={`Use ${label}`} title={label} className={node.customColor?.toLowerCase() === value ? "selected" : ""} style={{ background: value }} onClick={() => onChange({ color: "custom", customColor: value })} />)}<CustomColorControl className={node.customColor && !isPresetNeutral ? "selected" : ""} label="Custom colour" value={node.customColor || tone.accent} onChange={(customColor) => onChange({ color: "custom", customColor })} /></div></div>;
 }
 
 function EdgeInspector({ edge, onChange, onHide, onDelete }) {
@@ -5676,6 +5974,7 @@ function ShortcutsDialog({ onClose }) {
     ["D", "Draw with the pen tool"],
     ["A", "Add a numbered canvas annotation"],
     ["⌘ / Ctrl + Z", "Undo"],
+    ["⌘ / Ctrl + K", "Open the command palette"],
     ["⇧⌘ Z / Ctrl + Y", "Redo"],
     ["⌘ / Ctrl + X", "Redo (MyMind shortcut)"],
     ["⌘ / Ctrl + D", "Duplicate selected canvas elements"],
@@ -5732,7 +6031,7 @@ function GuestWelcomeModal({ accessMode, onClose }) {
   </div>;
 }
 
-function ExportPanel({ scope, setScope, hasSelection, onClose, onExport }) {
+function ExportPanel({ scope, setScope, hasSelection, ready, busy, onDownload, onClose, onExport }) {
   useModalKeyboard(onClose, () => onExport("pdf"));
   return <aside className="inspector export-panel floating-side-panel" aria-labelledby="export-dialog-title">
     <div className="floating-panel-header"><h2 id="export-dialog-title">Export canvas</h2><div><button className="icon-button" aria-label="Close export panel" onClick={onClose}><X size={18} /></button></div></div>
@@ -5746,6 +6045,8 @@ function ExportPanel({ scope, setScope, hasSelection, onClose, onExport }) {
       <button onClick={() => onExport("gif")}><Play size={27} weight="duotone" /><span><strong>GIF</strong><small>Static GIF snapshot</small></span></button>
       <button onClick={() => onExport("svg")}><FileSvg size={27} weight="duotone" /><span><strong>SVG</strong><small>Editable vector</small></span></button>
     </div>
+    {busy && <p className="dialog-note" role="status">Preparing your export…</p>}
+    {ready && <div className="export-ready" role="status"><span>{ready.filename} is ready</span><button className="secondary-button" onClick={onDownload}>Download file</button></div>}
   </aside>;
 }
 
@@ -5831,7 +6132,9 @@ function ServiceUnavailable() {
 }
 
 function toDataUri(url) {
-  return fetch(url, { mode: "cors" }).then((response) => {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 8000);
+  return fetch(url, { mode: "cors", signal: controller.signal }).then((response) => {
     if (!response.ok) throw new Error("Image request failed");
     return response.blob();
   }).then((blob) => new Promise((resolve, reject) => {
@@ -5839,22 +6142,36 @@ function toDataUri(url) {
     reader.onload = () => resolve(reader.result);
     reader.onerror = () => reject(new Error("Could not read image data"));
     reader.readAsDataURL(blob);
-  }));
+  })).finally(() => window.clearTimeout(timeout));
 }
 
 function downloadBlob(blob, filename) {
+  if (!(blob instanceof Blob) || blob.size === 0) throw new Error("Export produced an empty file");
   const url = URL.createObjectURL(blob);
   const anchor = window.document.createElement("a");
   anchor.href = url;
   anchor.download = filename;
+  anchor.style.display = "none";
+  window.document.body.appendChild(anchor);
   anchor.click();
-  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  anchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
-function rasterizeSvg(svg, width, height, format, filename) {
+function rasterizeSvg(svg, width, height, format) {
   const source = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
   const image = new Image();
-  image.onload = () => {
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      URL.revokeObjectURL(source);
+      callback(value);
+    };
+    const timeout = window.setTimeout(() => finish(reject, new Error("Export rendering timed out")), 15000);
+    image.onload = () => {
     try {
       const canvas = window.document.createElement("canvas");
       const maxPixels = 16000000;
@@ -5866,36 +6183,41 @@ function rasterizeSvg(svg, width, height, format, filename) {
       context.fillStyle = "#f7f8fb";
       context.fillRect(0, 0, canvas.width, canvas.height);
       context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      const jpg = canvas.toDataURL("image/jpeg", .94);
       if (format === "jpg") {
-        const anchor = window.document.createElement("a");
-        anchor.href = jpg;
-        anchor.download = `${filename}.jpg`;
-        anchor.click();
+        finish(resolve, dataUrlToBlob(canvas.toDataURL("image/jpeg", .94)));
       } else if (format === "png") {
-        canvas.toBlob((blob) => blob && downloadBlob(blob, `${filename}.png`), "image/png");
+        finish(resolve, dataUrlToBlob(canvas.toDataURL("image/png")));
       } else if (format === "gif") {
         const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
-        downloadBlob(encodeStaticGif(pixels, canvas.width, canvas.height), `${filename}.gif`);
+        finish(resolve, new Blob([encodeStaticGif(pixels, canvas.width, canvas.height)], { type: "image/gif" }));
       } else {
+        const jpg = canvas.toDataURL("image/jpeg", .94);
         const landscape = width >= height;
         const pageScale = Math.min(1, 14400 / Math.max(width, height));
         const pageWidth = Math.max(1, width * pageScale);
         const pageHeight = Math.max(1, height * pageScale);
         const pdf = new jsPDF({ orientation: landscape ? "landscape" : "portrait", unit: "pt", format: [pageWidth, pageHeight] });
         pdf.addImage(jpg, "JPEG", 0, 0, pageWidth, pageHeight);
-        pdf.save(`${filename}.pdf`);
+        finish(resolve, pdf.output("blob"));
       }
-    } catch {
-      window.alert("MyMind could not finish this export. An image on the canvas may be blocking it — try removing images added by URL and export again.");
+    } catch (error) {
+      finish(reject, error);
     }
-    URL.revokeObjectURL(source);
-  };
-  image.onerror = () => {
-    URL.revokeObjectURL(source);
-    window.alert("MyMind could not rasterize this export. Try SVG or the editable MyMind format.");
-  };
-  image.src = source;
+    };
+    image.onerror = () => {
+      finish(reject, new Error("Could not rasterize the export SVG"));
+    };
+    image.src = source;
+  });
+}
+
+function dataUrlToBlob(dataUrl) {
+  const [header, contents] = dataUrl.split(",");
+  const mimeType = header.match(/data:([^;]+)/)?.[1] || "application/octet-stream";
+  const binary = window.atob(contents);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  return new Blob([bytes], { type: mimeType });
 }
 
 function encodeStaticGif(rgba, width, height) {
