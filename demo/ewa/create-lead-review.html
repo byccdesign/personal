@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>Review client profile · EastWest Ageas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&display=block" rel="stylesheet">
+  <link rel="stylesheet" href="./create-lead.css">
+  <link rel="stylesheet" href="./create-lead-profile.css">
+  <link rel="stylesheet" href="./create-lead-review.css">
+</head>
+<body class="profile-page review-page">
+  <header class="profile-topbar">
+    <a class="brand" href="./create-lead.html" aria-label="EastWest Ageas lead portal">
+      <span class="brand-logo" aria-hidden="true"><img class="logo-mark" src="./assets/ewa-logo-mark.svg" alt=""><img class="logo-a" src="./assets/ewa-logo-a.svg" alt=""><img class="logo-b" src="./assets/ewa-logo-b.svg" alt=""><img class="logo-c" src="./assets/ewa-logo-c.svg" alt=""></span>
+    </a>
+    <div class="profile-topbar__right"><span><span class="material-symbols-outlined" aria-hidden="true">shield_lock</span>Client information</span><span>Sales portal</span></div>
+  </header>
+  <main class="profile-main">
+    <a class="review-back" href="./create-lead-profile.html"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>Back to profile</a>
+    <div class="profile-heading review-heading">
+      <div><h1>Review client profile</h1><p>Check the information with the client before continuing.</p></div>
+      <span class="review-status"><span class="material-symbols-outlined" aria-hidden="true">edit_note</span>Review only</span>
+    </div>
+    <div class="review-sample" id="sampleNotice" hidden>Sample profile data is shown for testing.</div>
+    <section class="risk-summary" aria-labelledby="riskSummaryTitle">
+      <div><span class="review-kicker">Risk profile</span><h2 id="riskSummaryTitle">Not assessed</h2><p id="riskSummaryDescription">Complete all five risk questions to calculate a result.</p></div>
+      <strong id="riskSummaryScore">0 / 25</strong>
+    </section>
+    <div class="review-sections" id="reviewSections" aria-live="polite"></div>
+    <div class="review-disclaimer">This prototype does not submit information to the CRM. Confirm the official risk-scoring bands and insurer-approved underwriting wording before using this assessment with clients.</div>
+    <footer class="review-footer">
+      <a class="button button-secondary" href="./create-lead-profile.html"><span class="material-symbols-outlined" aria-hidden="true">edit</span>Edit profile</a>
+      <button class="button button-primary" id="finishReview" type="button">Confirm profile</button>
+    </footer>
+  </main>
+  <div class="review-toast" id="reviewToast" role="status" aria-live="polite" hidden></div>
+  <script>
+    const draftKey = 'ewaClientProfileDraft';
+    let draft = {};
+    try { draft = JSON.parse(sessionStorage.getItem(draftKey) || '{}'); } catch {}
+    const sample = draft.__demo === true;
+    document.getElementById('sampleNotice').hidden = !sample;
+    const labels = {
+      firstName:'First name', middleName:'Middle name', lastName:'Last name', suffix:'Suffix', alias:'Preferred / alias name',
+      birthDate:'Date of birth', gender:'Sex assigned at birth', civilStatus:'Civil status', nationality:'Nationality', birthCity:'Place of birth', birthMunicipality:'District / municipality',
+      mobile:'Mobile number', alternateMobile:'Alternate mobile', email:'Email address', tin:'TIN', sss:'SSS number', philhealth:'PhilHealth number', otherIdType:'Other ID type', otherIdNumber:'Other ID number',
+      employmentType:'Employment type', occupation:'Occupation', sourceFunds:'Source of funds', monthlyIncome:'Average monthly income', employer:'Employer / company', employerCountry:'Employer country', employerZip:'Employer ZIP code', employerStreet:'Employer address', employerDistrict:'Employer district / municipality', employerRegion:'Employer region', employerCity:'Employer city / province', investDuration:'Investment time horizon', investGoal:'Investment goal', financialKnowledge:'Financial knowledge', investExperience:'Investment experience', investFunds:'Available funds to invest',
+      dnfbp:'DNFBP business or profession', hasInsurance:'Existing life insurance', policyCount:'Number of existing policies', provider:'Insurance provider', otherProvider:'Other provider', aggregateInsured:'Aggregate sum insured', aggregatePremium:'Aggregated annual premium',
+      futureEstate:'Approximate future value of net estate', estateProvision:'Provision for estate planning', taxLiability:'Estimated tax liability payable', insuredRelationship:'Insured person', insuredName:'Insured person name', ownerRelationship:'Policy owner', ownerName:'Policy owner name'
+    };
+    const sections = [
+      { title:'Basic information', id:'basic', fields:['firstName','middleName','lastName','suffix','alias','birthDate','gender','civilStatus','nationality','birthCity','birthMunicipality','mobile','alternateMobile','email','tin','sss','philhealth','otherIdType','otherIdNumber'] },
+      { title:'Employment information', id:'employment', fields:['employmentType','occupation','sourceFunds','monthlyIncome','employer','employerCountry','employerZip','employerStreet','employerDistrict','employerRegion','employerCity'] },
+      { title:'Underwriting and risk profile', id:'underwriting', fields:[] },
+      { title:'Additional information', id:'additional', fields:['dnfbp','hasInsurance','policyCount','provider','otherProvider','aggregateInsured','aggregatePremium','futureEstate','estateProvision','taxLiability','insuredRelationship','insuredName','ownerRelationship','ownerName'] }
+    ];
+    const format = value => {
+      if (value === undefined || value === null || value === '') return 'Not provided';
+      const normalized = String(value).replace(/^\+63 /,'+63 ');
+      const choiceLabels = { 'self-employed':'Self-employed', employed:'Employed', yes:'Yes', no:'No', female:'Female', male:'Male', client:'Client', other:'Someone else', 'Philippines':'Philippines' };
+      return choiceLabels[normalized] || normalized;
+    };
+    const name = [draft.firstName,draft.middleName,draft.lastName].filter(Boolean).join(' ') || 'Client';
+    const detailsRoot = document.getElementById('reviewSections');
+    sections.forEach(section => {
+      const article = document.createElement('section');
+      article.className = 'review-section';
+      const header = document.createElement('header');
+      const title = document.createElement('h2'); title.textContent = section.title;
+      const edit = document.createElement('a'); edit.className = 'review-edit'; edit.href = `./create-lead-profile.html#${section.id}`; edit.innerHTML = '<span class="material-symbols-outlined" aria-hidden="true">edit</span>Edit';
+      header.append(title,edit); article.append(header);
+      const list = document.createElement('dl');
+      const fields = [...section.fields];
+      if (section.id === 'underwriting') fields.push('investDuration','investGoal','financialKnowledge','investExperience','investFunds');
+      fields.forEach(key => {
+        const row = document.createElement('div'); row.className = 'review-row';
+        const term = document.createElement('dt'), value = document.createElement('dd');
+        term.textContent = labels[key] || key.replace(/([A-Z])/g,' $1');
+        const riskAnswers = {
+          investDuration:{'under-1':'Less than 1 year','1-3':'1 to 3 years','4-6':'4 to 6 years','7-9':'7 to 9 years','10-plus':'At least 10 years'},
+          investGoal:{preservation:'Preserve capital',modest:'Modest income and growth',moderate:'Moderate income and growth','long-term':'Long-term growth','maximize':'Maximize gains'},
+          financialKnowledge:{limited:'Limited',modest:'Modest',satisfactory:'Satisfactory',strong:'Strong',advanced:'Advanced'},
+          investExperience:{none:'No experience','1-3':'1 to 3 years','4-6':'4 to 6 years','7-9':'7 to 9 years','10-plus':'At least 10 years'},
+          investFunds:{'10':'10%','20':'Up to 20%','40':'Up to 40%','60':'Up to 60%','over-60':'More than 60%'}
+        };
+        value.textContent = riskAnswers[key]?.[draft[key]] || format(draft[key]); row.append(term,value); list.append(row);
+      });
+      if (section.id === 'underwriting') {
+        const score = calculateRisk(draft);
+        const row = document.createElement('div'); row.className = 'review-row';
+        const term = document.createElement('dt'), value = document.createElement('dd'); term.textContent = 'Risk assessment'; value.textContent = score.label; row.append(term,value); list.append(row);
+      }
+      article.append(list);
+      if (section.id === 'additional') {
+        [['riderType[]','Rider type'],['riderBenefit[]','Rider benefit'],['riderYears[]','Years payable'],['riderEnd[]','Coverage end date'],['beneficiaryName[]','Beneficiary'],['beneficiaryRelationship[]','Beneficiary relationship'],['beneficiaryShare[]','Beneficiary share'],['beneficiaryBirth[]','Beneficiary date of birth']].forEach(([key,label]) => {
+          const values = Array.isArray(draft[key]) ? draft[key].filter(Boolean) : [];
+          if (!values.length) return;
+          const row = document.createElement('div'); row.className = 'review-row'; const term=document.createElement('dt'),value=document.createElement('dd'); term.textContent=label; value.textContent=values.map(format).join(', '); row.append(term,value); list.append(row);
+        });
+        const shortfall = Math.max(0,Number(String(draft.futureEstate||'').replace(/\D/g,''))-Number(String(draft.estateProvision||'').replace(/\D/g,''))-Number(String(draft.taxLiability||'').replace(/\D/g,'')));
+        const row = document.createElement('div'); row.className = 'review-row'; const term=document.createElement('dt'),value=document.createElement('dd'); term.textContent='Estimated estate-planning shortfall'; value.textContent=`₱${new Intl.NumberFormat('en-PH').format(shortfall)}`; row.append(term,value); list.append(row);
+      }
+      detailsRoot.append(article);
+    });
+    document.querySelector('.review-heading h1').textContent = `Review ${name}'s profile`;
+    const risk = calculateRisk(draft);
+    document.getElementById('riskSummaryTitle').textContent = risk.label;
+    document.getElementById('riskSummaryDescription').textContent = risk.description;
+    document.getElementById('riskSummaryScore').textContent = `${risk.score} / 25`;
+    function calculateRisk(data) {
+      const scales={investDuration:['under-1','1-3','4-6','7-9','10-plus'],investGoal:['preservation','modest','moderate','long-term','maximize'],financialKnowledge:['limited','modest','satisfactory','strong','advanced'],investExperience:['none','1-3','4-6','7-9','10-plus'],investFunds:['10','20','40','60','over-60']};
+      const scores=Object.entries(scales).map(([name,options])=>{const index=options.indexOf(data[name]);return index<0?0:index+1;});
+      const score=scores.reduce((sum,value)=>sum+value,0);
+      if(scores.some(value=>!value)) return {score,label:'Not assessed',description:'Complete all five risk questions to calculate a result.'};
+      if(score<=9) return {score,label:'Cautious',description:'Prioritizes capital stability and lower exposure to investment risk.'};
+      if(score<=14) return {score,label:'Balanced',description:'Shows a measured balance between stability and potential growth.'};
+      if(score<=19) return {score,label:'Growth-oriented',description:'Shows greater tolerance for fluctuations in pursuit of growth.'};
+      return {score,label:'Aggressive',description:'Shows high tolerance for fluctuations and potential losses.'};
+    }
+    document.getElementById('finishReview').addEventListener('click',()=>{
+      const toast=document.getElementById('reviewToast'); toast.textContent='Profile confirmed for this prototype. No information was submitted to the CRM.'; toast.hidden=false;
+      setTimeout(()=>{toast.hidden=true;},4200);
+    });
+  </script>
+</body>
+</html>

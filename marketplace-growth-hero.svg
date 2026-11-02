@@ -1,0 +1,94 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1080" viewBox="0 0 1600 1080" role="img" aria-labelledby="title desc">
+  <title id="title">Freelancer.com marketplace growth — search and discovery</title>
+  <desc id="desc">A case-study visual showing Freelancer.com search results across freelancers, projects, and contests.</desc>
+  <defs>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="140%">
+      <feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#000000" flood-opacity=".34"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="1080" fill="#12151B"/>
+  <rect x="1388" y="88" width="142" height="116" rx="16" fill="#1772EB"/>
+  <rect x="1452" y="844" width="46" height="46" rx="8" fill="#F77D0E"/>
+  <rect x="66" y="850" width="28" height="28" rx="6" fill="#058430"/>
+  <text x="96" y="58" fill="#F4F6FA" font-family="Roboto, Arial, sans-serif" font-size="16" font-weight="500" letter-spacing=".7">FREELANCER.COM  /  MARKETPLACE GROWTH</text>
+  <text x="1250" y="58" fill="#ACCCF8" font-family="Roboto, Arial, sans-serif" font-size="14" font-weight="500" letter-spacing="1">SEARCH &amp; DISCOVERY</text>
+  <g filter="url(#shadow)">
+    <rect x="96" y="132" width="1408" height="716" rx="16" fill="#FFFFFF"/>
+    <path d="M112 132h1376a16 16 0 0 1 16 16v28H96v-28a16 16 0 0 1 16-16z" fill="#F5F7FA"/>
+    <circle cx="122" cy="154" r="6" fill="#F95F59"/>
+    <circle cx="144" cy="154" r="6" fill="#F9BD4B"/>
+    <circle cx="166" cy="154" r="6" fill="#38C875"/>
+    <rect x="207" y="142" width="1198" height="24" rx="12" fill="#E9EDF2"/>
+    <text x="230" y="159" fill="#596575" font-family="Roboto, Arial, sans-serif" font-size="12">freelancer.com/search/freelancers</text>
+    <rect x="96" y="176" width="1408" height="166" fill="#0D1725"/>
+    <text x="166" y="225" fill="#FFFFFF" font-family="Roboto, Arial, sans-serif" font-size="32" font-weight="700">Search</text>
+    <rect x="166" y="243" width="1268" height="43" rx="4" fill="#FFFFFF"/>
+    <circle cx="188" cy="264" r="6.5" fill="none" stroke="#263243" stroke-width="2"/>
+    <path d="m193 269 6 6" fill="none" stroke="#263243" stroke-width="2" stroke-linecap="round"/>
+    <text x="211" y="269" fill="#757C86" font-family="Roboto, Arial, sans-serif" font-size="15">Search Freelancers, Projects or Contests…</text>
+    <text x="166" y="320" fill="#FFFFFF" font-family="Roboto, Arial, sans-serif" font-size="14" font-weight="600">Freelancers</text>
+    <text x="286" y="320" fill="#D4D9E1" font-family="Roboto, Arial, sans-serif" font-size="14">Projects</text>
+    <text x="382" y="320" fill="#D4D9E1" font-family="Roboto, Arial, sans-serif" font-size="14">Contests</text>
+    <rect x="166" y="336" width="96" height="3" fill="#1772EB"/>
+    <rect x="96" y="342" width="1408" height="506" fill="#F8F9FB"/>
+    <text x="130" y="381" fill="#202B3A" font-family="Roboto, Arial, sans-serif" font-size="18" font-weight="700">Top Results</text>
+    <text x="1253" y="379" fill="#596575" font-family="Roboto, Arial, sans-serif" font-size="13">Sort by</text>
+    <rect x="1302" y="356" width="166" height="34" rx="5" fill="#FFFFFF" stroke="#D7DDE5"/>
+    <text x="1317" y="378" fill="#202B3A" font-family="Roboto, Arial, sans-serif" font-size="13">Best Match</text>
+    <path d="m1447 370 5 5 5-5" fill="none" stroke="#596575" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <g>
+      <rect x="130" y="400" width="1340" height="174" rx="7" fill="#FFFFFF" stroke="#DDE2E9"/>
+      <circle cx="172" cy="441" r="25" fill="#EAF2FC"/>
+      <text x="172" y="446" text-anchor="middle" fill="#176AD8" font-family="Roboto, Arial, sans-serif" font-size="14" font-weight="700">AG</text>
+      <text x="211" y="430" fill="#172231" font-family="Roboto, Arial, sans-serif" font-size="16" font-weight="700">Anthony G.</text>
+      <text x="294" y="430" fill="#737C88" font-family="Roboto, Arial, sans-serif" font-size="13">@anthoonyG</text>
+      <path d="M407 418l5 3v6c0 4-3 7-5 8-3-1-6-4-6-8v-6z" fill="#FF6700"/>
+      <text x="406" y="429" text-anchor="middle" fill="#FFFFFF" font-family="Arial" font-size="8" font-weight="700">✓</text>
+      <rect x="211" y="440" width="27" height="18" rx="3" fill="#FF7B00"/>
+      <text x="224.5" y="453" text-anchor="middle" fill="#FFFFFF" font-family="Roboto, Arial, sans-serif" font-size="11" font-weight="700">2.5</text>
+      <text x="246" y="454" fill="#F47721" font-family="Arial, sans-serif" font-size="15" letter-spacing="1">★★★★☆</text>
+      <text x="329" y="453" fill="#344054" font-family="Roboto, Arial, sans-serif" font-size="12">(65 Reviews)</text>
+      <text x="1490" y="430" text-anchor="end" fill="#172231" font-family="Roboto, Arial, sans-serif" font-size="20" font-weight="700">$25.00</text>
+      <text x="1490" y="450" text-anchor="end" fill="#596575" font-family="Roboto, Arial, sans-serif" font-size="13">AUD / hour</text>
+      <text x="148" y="487" fill="#69717D" font-family="Roboto, Arial, sans-serif" font-size="13">I've been prototyping &amp; designing websites for the past 6 years — custom design,</text>
+      <text x="148" y="506" fill="#69717D" font-family="Roboto, Arial, sans-serif" font-size="13">website prototyping, graphic design and mobile design.</text>
+      <rect x="148" y="526" width="86" height="23" rx="4" fill="#FFFFFF" stroke="#CCD3DC"/>
+      <text x="191" y="542" text-anchor="middle" fill="#263243" font-family="Roboto, Arial, sans-serif" font-size="11">Photoshop</text>
+      <rect x="242" y="526" width="116" height="23" rx="4" fill="#FFFFFF" stroke="#CCD3DC"/>
+      <text x="300" y="542" text-anchor="middle" fill="#263243" font-family="Roboto, Arial, sans-serif" font-size="11">Website Design</text>
+      <rect x="366" y="526" width="118" height="23" rx="4" fill="#FFFFFF" stroke="#CCD3DC"/>
+      <text x="425" y="542" text-anchor="middle" fill="#263243" font-family="Roboto, Arial, sans-serif" font-size="11">Graphic Design</text>
+      <text x="496" y="542" fill="#69717D" font-family="Roboto, Arial, sans-serif" font-size="11">+5 more</text>
+      <rect x="1355" y="520" width="94" height="34" rx="5" fill="#1772EB"/>
+      <text x="1402" y="542" text-anchor="middle" fill="#FFFFFF" font-family="Roboto, Arial, sans-serif" font-size="13" font-weight="600">Hire Me</text>
+    </g>
+    <g>
+      <rect x="130" y="588" width="1340" height="174" rx="7" fill="#FFFFFF" stroke="#DDE2E9"/>
+      <circle cx="172" cy="629" r="25" fill="#FFF1E6"/>
+      <text x="172" y="634" text-anchor="middle" fill="#D85F00" font-family="Roboto, Arial, sans-serif" font-size="14" font-weight="700">KB</text>
+      <text x="211" y="618" fill="#172231" font-family="Roboto, Arial, sans-serif" font-size="16" font-weight="700">King B.</text>
+      <text x="266" y="618" fill="#737C88" font-family="Roboto, Arial, sans-serif" font-size="13">@Kingb123</text>
+      <path d="M376 606l5 3v6c0 4-3 7-5 8-3-1-6-4-6-8v-6z" fill="#FF6700"/>
+      <text x="375" y="617" text-anchor="middle" fill="#FFFFFF" font-family="Arial" font-size="8" font-weight="700">✓</text>
+      <rect x="211" y="628" width="27" height="18" rx="3" fill="#FF7B00"/>
+      <text x="224.5" y="641" text-anchor="middle" fill="#FFFFFF" font-family="Roboto, Arial, sans-serif" font-size="11" font-weight="700">2.5</text>
+      <text x="246" y="642" fill="#F47721" font-family="Arial, sans-serif" font-size="15" letter-spacing="1">★★★★☆</text>
+      <text x="329" y="641" fill="#344054" font-family="Roboto, Arial, sans-serif" font-size="12">(65 Reviews)</text>
+      <text x="1490" y="618" text-anchor="end" fill="#172231" font-family="Roboto, Arial, sans-serif" font-size="20" font-weight="700">$25.00</text>
+      <text x="1490" y="638" text-anchor="end" fill="#596575" font-family="Roboto, Arial, sans-serif" font-size="13">AUD / hour</text>
+      <text x="148" y="675" fill="#69717D" font-family="Roboto, Arial, sans-serif" font-size="13">9 years of experience in website design, programming and online store building.</text>
+      <text x="148" y="694" fill="#69717D" font-family="Roboto, Arial, sans-serif" font-size="13">Custom design and web prototyping for small businesses.</text>
+      <rect x="148" y="714" width="86" height="23" rx="4" fill="#FFFFFF" stroke="#CCD3DC"/>
+      <text x="191" y="730" text-anchor="middle" fill="#263243" font-family="Roboto, Arial, sans-serif" font-size="11">Photoshop</text>
+      <rect x="242" y="714" width="116" height="23" rx="4" fill="#FFFFFF" stroke="#CCD3DC"/>
+      <text x="300" y="730" text-anchor="middle" fill="#263243" font-family="Roboto, Arial, sans-serif" font-size="11">Website Design</text>
+      <rect x="366" y="714" width="118" height="23" rx="4" fill="#FFFFFF" stroke="#CCD3DC"/>
+      <text x="425" y="730" text-anchor="middle" fill="#263243" font-family="Roboto, Arial, sans-serif" font-size="11">Graphic Design</text>
+      <text x="496" y="730" fill="#69717D" font-family="Roboto, Arial, sans-serif" font-size="11">+5 more</text>
+      <rect x="1355" y="708" width="94" height="34" rx="5" fill="#1772EB"/>
+      <text x="1402" y="730" text-anchor="middle" fill="#FFFFFF" font-family="Roboto, Arial, sans-serif" font-size="13" font-weight="600">Hire Me</text>
+    </g>
+  </g>
+  <text x="96" y="936" fill="#F0F3F8" font-family="Roboto, Arial, sans-serif" font-size="21" font-weight="500">One search experience across freelancers, projects, and contests.</text>
+  <text x="1230" y="936" fill="#ACCCF8" font-family="Roboto, Arial, sans-serif" font-size="13" font-weight="500" letter-spacing=".8">DESKTOP  /  PRODUCT DESIGN</text>
+</svg>

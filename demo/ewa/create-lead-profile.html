@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>Create client profile · EastWest Ageas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&display=block" rel="stylesheet">
+  <link rel="stylesheet" href="./create-lead.css">
+  <link rel="stylesheet" href="./create-lead-profile.css">
+</head>
+<body class="profile-page">
+  <div class="profile-progress" aria-hidden="true"><span id="profileProgress"></span></div>
+  <header class="profile-topbar">
+    <a class="brand" href="./create-lead.html" aria-label="EastWest Ageas lead portal">
+      <span class="brand-logo" aria-hidden="true"><img class="logo-mark" src="./assets/ewa-logo-mark.svg" alt=""><img class="logo-a" src="./assets/ewa-logo-a.svg" alt=""><img class="logo-b" src="./assets/ewa-logo-b.svg" alt=""><img class="logo-c" src="./assets/ewa-logo-c.svg" alt=""></span>
+    </a>
+  </header>
+  <main class="profile-main">
+    <div class="profile-layout">
+      <aside class="profile-sidebar">
+        <div class="profile-sidebar__heading"><h1>Create a client profile</h1><p>Profile setup</p></div>
+        <div class="demo-banner" id="demoBanner" role="status"><span>Sample client data is loaded for testing.</span><button type="button" id="clearDemo">Clear sample</button></div>
+        <div class="quote-summary" id="quoteSummary"><strong>Quick Quote</strong><span id="quoteGoals">Family protection, savings</span><span>Monthly <strong id="quoteBudget">₱8,000</strong></span></div>
+        <nav class="profile-nav" aria-label="Profile steps">
+          <p class="profile-nav__title">Profile steps</p>
+          <a href="#basic" data-section-link="basic" aria-current="step"><span class="profile-nav__number">1</span><span>Basic information</span></a>
+          <a href="#employment" data-section-link="employment"><span class="profile-nav__number">2</span><span>Employment</span></a>
+          <a href="#underwriting" data-section-link="underwriting"><span class="profile-nav__number">3</span><span>Underwriting</span></a>
+          <a href="#additional" data-section-link="additional"><span class="profile-nav__number">4</span><span>Additional information</span></a>
+        </nav>
+      </aside>
+      <div class="profile-content">
+        <form id="clientProfile" novalidate>
+          <section class="profile-section" id="basic" data-section="basic" aria-labelledby="basicTitle">
+            <header class="profile-section__head"><div><h2 id="basicTitle">Basic information</h2><p>Use the client's legal details to create a clear, searchable profile and reduce duplicate records.</p></div><span class="section-status"><span class="material-symbols-outlined" aria-hidden="true">person</span>Section 1 of 4</span></header>
+            <div class="basic-group"><h3>Legal name</h3><div class="form-grid form-grid--4">
+              <div class="field"><label for="firstName">First name <span aria-hidden="true">*</span></label><input id="firstName" name="firstName" autocomplete="given-name" required></div>
+              <div class="field"><label for="middleName">Middle name <span class="optional">Optional</span></label><input id="middleName" name="middleName" autocomplete="additional-name" aria-describedby="noMiddleHelp"><label class="check-row"><input id="noMiddle" name="noMiddle" type="checkbox" aria-controls="middleName"> Client has no middle name</label><span id="noMiddleHelp" class="field-help">Select this if the client has no middle name; the field will be disabled.</span></div>
+              <div class="field"><label for="lastName">Last name <span aria-hidden="true">*</span></label><input id="lastName" name="lastName" autocomplete="family-name" required></div>
+              <div class="field"><label for="suffix">Suffix <span class="optional">Optional</span></label><select id="suffix" name="suffix"><option value="">Select</option><option>Jr.</option><option>Sr.</option><option>II</option><option>III</option><option>IV</option><option>Other</option></select></div>
+              <div class="field"><label for="alias">Preferred / alias name <span class="optional">Optional</span></label><input id="alias" name="alias" autocomplete="nickname"></div>
+            </div></div>
+            <div class="basic-group"><h3>Personal details</h3><div class="form-grid form-grid--3">
+              <div class="field"><label for="birthDate">Date of birth <span aria-hidden="true">*</span></label><div class="date-control"><input class="control profile-date" id="birthDate" name="birthDate" type="text" inputmode="numeric" autocomplete="bday" placeholder="MM/DD/YYYY" data-date-max="today" required><button class="date-toggle" type="button" aria-label="Choose date of birth" aria-haspopup="dialog"><span class="material-symbols-outlined" aria-hidden="true">calendar_month</span></button><div class="date-picker profile-date-picker" role="dialog" aria-label="Choose date of birth" hidden></div></div></div>
+              <div class="field"><label for="gender">Sex assigned at birth <span class="optional">Optional</span></label><select id="gender" name="gender"><option value="">Select</option><option value="female">Female</option><option value="male">Male</option></select></div>
+              <div class="field"><label for="civilStatus">Civil status <span aria-hidden="true">*</span></label><select id="civilStatus" name="civilStatus" required><option value="">Select status</option><option>Single</option><option>Married</option><option>Divorced</option><option>Separated</option><option>Widowed</option></select></div>
+              <div class="field"><label for="nationality">Nationality <span aria-hidden="true">*</span></label><input id="nationality" name="nationality" autocomplete="country-name" required></div>
+              <div class="field"><label for="birthCity">Place of birth: city / province <span class="optional">Optional</span></label><input id="birthCity" name="birthCity"></div>
+              <div class="field"><label for="birthMunicipality">District / municipality <span class="optional">Optional</span></label><input id="birthMunicipality" name="birthMunicipality"></div>
+            </div></div>
+            <div class="basic-group"><h3>Contact details</h3><div class="form-grid form-grid--3">
+              <div class="field"><label for="mobile">Mobile number <span aria-hidden="true">*</span></label><input id="mobile" name="mobile" type="tel" autocomplete="tel" placeholder="+63 9XX XXX XXXX" required><p class="field-help">Used for customer-record updates, account security and support.</p></div>
+              <div class="field"><label for="alternateMobile">Alternate mobile <span class="optional">Optional</span></label><input id="alternateMobile" name="alternateMobile" type="tel" autocomplete="tel"></div>
+              <div class="field"><label for="email">Email address <span aria-hidden="true">*</span></label><input id="email" name="email" type="email" autocomplete="email" required><p class="field-help">For policy updates and customer portal access.</p></div>
+            </div></div>
+            <div class="basic-group"><h3>Government identification</h3><div class="form-grid form-grid--3">
+              <div class="field"><label for="tin">TIN <span class="optional">Optional</span></label><input id="tin" name="tin" autocomplete="off"></div>
+              <div class="field"><label for="sss">SSS number <span class="optional">Optional</span></label><input id="sss" name="sss" autocomplete="off"></div>
+              <div class="field"><label for="philhealth">PhilHealth number <span class="optional">Optional</span></label><input id="philhealth" name="philhealth" autocomplete="off"></div>
+              <div class="field"><label for="otherIdType">Other ID type <span class="optional">Optional</span></label><select id="otherIdType" name="otherIdType"><option value="">Select ID</option><option>Passport</option><option>Driver's license</option><option>Other</option></select></div>
+              <div class="field"><label for="otherIdNumber">Other ID number <span class="optional">Optional</span></label><input id="otherIdNumber" name="otherIdNumber" autocomplete="off"></div>
+            </div></div>
+          </section>
+
+          <section class="profile-section" id="employment" data-section="employment" aria-labelledby="employmentTitle">
+            <header class="profile-section__head"><div><h2 id="employmentTitle">Employment information</h2><p>Capture the client's work and funding profile for proposal preparation.</p></div><span class="section-status"><span class="material-symbols-outlined" aria-hidden="true">work</span>Section 2 of 4</span></header>
+            <div class="form-grid form-grid--3">
+              <div class="field field--full"><span class="group-label">Employment type <span aria-hidden="true">*</span></span><div class="radio-row"><label><input type="radio" name="employmentType" value="employed" required>Employed</label><label><input type="radio" name="employmentType" value="self-employed">Self-employed</label></div></div>
+              <div class="field"><label for="occupation">Occupation <span aria-hidden="true">*</span></label><input id="occupation" name="occupation" list="occupationOptions" autocomplete="organization-title" required><datalist id="occupationOptions"><option value="Business owner"><option value="Employee"><option value="Professional"><option value="Self-employed"><option value="Retired"></datalist></div>
+              <div class="field"><label for="sourceFunds">Source of funds <span aria-hidden="true">*</span></label><select id="sourceFunds" name="sourceFunds" required><option value="">Select source</option><option>Employment income</option><option>Business income</option><option>Professional practice</option><option>Investment income</option><option>Pension / retirement income</option><option>Other</option></select></div>
+                <div class="field"><label for="monthlyIncome">Average monthly income <span aria-hidden="true">*</span></label><div class="amount-control"><span aria-hidden="true">₱</span><input id="monthlyIncome" name="monthlyIncome" type="text" inputmode="numeric" data-amount required></div></div>
+              <div class="field field--full conditional" id="employerFields" hidden>
+                <div class="form-grid form-grid--3">
+                  <div class="field field--full"><label for="employer">Employer / company name <span aria-hidden="true">*</span></label><input id="employer" name="employer"></div>
+                  <div class="field"><label for="employerCountry">Country <span aria-hidden="true">*</span></label><input id="employerCountry" name="employerCountry" value="Philippines" autocomplete="country-name"></div>
+                  <div class="field"><label for="employerZip">ZIP code <span class="optional">Optional</span></label><input id="employerZip" name="employerZip" autocomplete="postal-code"></div>
+                  <div class="field field--full"><label for="employerStreet">House / unit, floor, building, street and barangay <span aria-hidden="true">*</span></label><input id="employerStreet" name="employerStreet" autocomplete="street-address"></div>
+                  <div class="field"><label for="employerDistrict">District / municipality <span aria-hidden="true">*</span></label><input id="employerDistrict" name="employerDistrict"></div>
+                  <div class="field"><label for="employerRegion">Region <span class="optional">Optional</span></label><input id="employerRegion" name="employerRegion"></div>
+                  <div class="field"><label for="employerCity">City / province <span aria-hidden="true">*</span></label><input id="employerCity" name="employerCity" autocomplete="address-level2"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="profile-section" id="underwriting" data-section="underwriting" aria-labelledby="underwritingTitle">
+            <header class="profile-section__head"><div><h2 id="underwritingTitle">Underwriting questionnaire</h2><p>Complete the insurer's health and eligibility questions with the client. Ask each question as written and record the response accurately.</p></div><span class="section-status"><span class="material-symbols-outlined" aria-hidden="true">health_and_safety</span>Section 3 of 4</span></header>
+            <aside class="notice"><span class="material-symbols-outlined" aria-hidden="true">info</span><p>Medical declaration wording must match the insurer-approved questionnaire. The health-question frame supplied earlier is no longer available, so this prototype does not substitute or invent medical questions.</p></aside>
+            <div class="inline-notice">Health questionnaire content: add the approved insurer questions and response options here. The assessment below contains the risk-profile questions available in the supplied reference.</div>
+            <div class="subsection">
+              <h3>Risk profile assessment</h3>
+              <p>Required for every client, including clients who are not currently considering an investment-linked product.</p>
+              <div class="assessment-list">
+                <fieldset class="assessment-question"><legend>1. How long will you keep your money invested?</legend><div class="answer-list">
+                  <label class="answer-option"><input type="radio" name="investDuration" value="under-1" required>A &nbsp; Less than 1 year</label><label class="answer-option"><input type="radio" name="investDuration" value="1-3">B &nbsp; 1 to 3 years</label><label class="answer-option"><input type="radio" name="investDuration" value="4-6">C &nbsp; 4 to 6 years</label><label class="answer-option"><input type="radio" name="investDuration" value="7-9">D &nbsp; 7 to 9 years</label><label class="answer-option"><input type="radio" name="investDuration" value="10-plus">E &nbsp; At least 10 years</label>
+                </div></fieldset>
+                <fieldset class="assessment-question"><legend>2. What is your goal in investing?</legend><div class="answer-list">
+                  <label class="answer-option"><input type="radio" name="investGoal" value="preservation" required>A &nbsp; Preserve capital in exchange for very low returns that may not keep pace with inflation</label><label class="answer-option"><input type="radio" name="investGoal" value="modest">B &nbsp; Accept modest fluctuations for modest income and growth</label><label class="answer-option"><input type="radio" name="investGoal" value="moderate">C &nbsp; Accept moderate fluctuations for moderate income and growth</label><label class="answer-option"><input type="radio" name="investGoal" value="long-term">D &nbsp; Seek long-term growth while accepting possible significant losses</label><label class="answer-option"><input type="radio" name="investGoal" value="maximize">E &nbsp; Maximize gains while accepting possible substantial losses</label>
+                </div></fieldset>
+                <fieldset class="assessment-question"><legend>3. What is your knowledge of financial products?</legend><div class="answer-list">
+                  <label class="answer-option"><input type="radio" name="financialKnowledge" value="limited" required>A &nbsp; Limited knowledge of financial products</label><label class="answer-option"><input type="radio" name="financialKnowledge" value="modest">B &nbsp; Modest knowledge of financial products</label><label class="answer-option"><input type="radio" name="financialKnowledge" value="satisfactory">C &nbsp; Satisfactory knowledge of money market funds, bonds, fixed-interest instruments and basic stock-market risks</label><label class="answer-option"><input type="radio" name="financialKnowledge" value="strong">D &nbsp; Strong knowledge of investment funds with equity exposure or direct investment in listed bonds and stocks, including risks</label><label class="answer-option"><input type="radio" name="financialKnowledge" value="advanced">E &nbsp; Advanced knowledge of domestic and foreign stocks, bonds and funds, and foreign-currency exposure, including risks</label>
+                </div></fieldset>
+                <fieldset class="assessment-question"><legend>4. What is your experience in investing?</legend><div class="answer-list">
+                  <label class="answer-option"><input type="radio" name="investExperience" value="none" required>A &nbsp; No experience; investment decisions are based on advice from financial experts</label><label class="answer-option"><input type="radio" name="investExperience" value="1-3">B &nbsp; 1 to 3 years; decisions are based on advice from financial experts</label><label class="answer-option"><input type="radio" name="investExperience" value="4-6">C &nbsp; 4 to 6 years; decisions use personal analysis and advice from financial experts</label><label class="answer-option"><input type="radio" name="investExperience" value="7-9">D &nbsp; 7 to 9 years; decisions use personal analysis and advice from financial experts</label><label class="answer-option"><input type="radio" name="investExperience" value="10-plus">E &nbsp; At least 10 years; decisions are based on personal analysis</label>
+                </div></fieldset>
+                <fieldset class="assessment-question"><legend>5. How much of your available / extra funds are you willing to invest?</legend><div class="answer-list">
+                  <label class="answer-option"><input type="radio" name="investFunds" value="10" required>A &nbsp; 10%</label><label class="answer-option"><input type="radio" name="investFunds" value="20">B &nbsp; Up to 20%</label><label class="answer-option"><input type="radio" name="investFunds" value="40">C &nbsp; Up to 40%</label><label class="answer-option"><input type="radio" name="investFunds" value="60">D &nbsp; Up to 60%</label><label class="answer-option"><input type="radio" name="investFunds" value="over-60">E &nbsp; More than 60%</label>
+                </div></fieldset>
+              </div>
+              <div class="risk-result" id="riskResult" aria-live="polite">
+                <div><strong id="riskLabel">Complete the assessment</strong><p id="riskDescription">Answer all five questions to calculate a profile.</p></div>
+                <div class="risk-result__score"><strong id="riskScore">0 / 25</strong><p>Assessment score</p></div>
+              </div>
+              <p class="field-help">Prototype scoring: each response is scored A=1 through E=5. Confirm the insurer's official scoring bands before using this result for advice or product suitability.</p>
+            </div>
+          </section>
+
+          <section class="profile-section" id="additional" data-section="additional" aria-labelledby="additionalTitle">
+            <header class="profile-section__head"><div><h2 id="additionalTitle">Additional information</h2><p>Capture financial disclosures, planning needs, and optional policy relationships for proposal preparation.</p></div><span class="section-status"><span class="material-symbols-outlined" aria-hidden="true">assignment</span>Section 4 of 4</span></header>
+            <div class="form-grid form-grid--2">
+              <div class="field field--full"><span class="group-label">Does the client have a DNFBP business or profession? <span aria-hidden="true">*</span></span><p class="field-help">Designated non-financial businesses and professions may include real estate agents and dealers.</p><div class="radio-row"><label><input type="radio" name="dnfbp" value="yes" required>Yes</label><label><input type="radio" name="dnfbp" value="no">No</label></div></div>
+              <div class="field field--full"><span class="group-label">Does the client have existing life insurance? <span aria-hidden="true">*</span></span><div class="radio-row"><label><input type="radio" name="hasInsurance" value="yes" required>Yes</label><label><input type="radio" name="hasInsurance" value="no">No</label></div></div>
+              <div class="field field--full conditional" id="existingInsuranceFields" hidden>
+                <div class="form-grid form-grid--3">
+                  <div class="field"><label for="policyCount">Number of existing policies</label><input id="policyCount" name="policyCount" type="number" min="1" inputmode="numeric"></div>
+                  <div class="field"><label for="provider">Insurance provider</label><select id="provider" name="provider"><option value="">Select provider</option><option>Sun Life</option><option>Pru Life</option><option>Manulife</option><option>Other</option></select></div>
+                  <div class="field conditional" id="otherProviderField" hidden><label for="otherProvider">Other provider name</label><input id="otherProvider" name="otherProvider"></div>
+                  <div class="field"><label for="aggregateInsured">Aggregate sum insured</label><div class="amount-control"><span aria-hidden="true">₱</span><input id="aggregateInsured" name="aggregateInsured" type="text" inputmode="numeric" data-amount></div></div>
+                  <div class="field"><label for="aggregatePremium">Aggregated annual premium</label><div class="amount-control"><span aria-hidden="true">₱</span><input id="aggregatePremium" name="aggregatePremium" type="text" inputmode="numeric" data-amount></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="subsection">
+              <h3>Calculation of needs</h3><p>Enter the client's estimates. The estate-planning shortfall updates automatically as figures change.</p>
+              <div class="form-grid form-grid--3">
+                <div class="field"><label for="futureEstate">Approximate future value of net estate</label><div class="amount-control"><span aria-hidden="true">₱</span><input id="futureEstate" name="futureEstate" type="text" inputmode="numeric" data-amount></div></div>
+                <div class="field"><label for="estateProvision">Provision for estate planning</label><div class="amount-control"><span aria-hidden="true">₱</span><input id="estateProvision" name="estateProvision" type="text" inputmode="numeric" data-amount></div></div>
+                <div class="field"><label for="taxLiability">Estimated tax liability payable</label><div class="amount-control"><span aria-hidden="true">₱</span><input id="taxLiability" name="taxLiability" type="text" inputmode="numeric" data-amount></div></div>
+              </div>
+              <div class="calc-result" aria-live="polite"><span>Estimated estate-planning shortfall</span><strong id="estateShortfall">PHP 0</strong></div>
+            </div>
+            <div class="subsection">
+              <h3>Policy setup</h3><p>A customer can have multiple policies. The policy owner and insured person may be different people.</p>
+              <div class="form-grid form-grid--3">
+                <div class="field"><label for="insuredRelationship">Insured person</label><select id="insuredRelationship" name="insuredRelationship"><option value="client">Client</option><option value="other">Someone else</option></select></div>
+                <div class="field"><label for="insuredName">Insured person's name</label><input id="insuredName" name="insuredName" placeholder="If different from client"></div>
+                <div class="field"><label for="ownerRelationship">Policy owner</label><select id="ownerRelationship" name="ownerRelationship"><option value="client">Client</option><option value="other">Someone else</option></select></div>
+                <div class="field"><label for="ownerName">Policy owner's name</label><input id="ownerName" name="ownerName" placeholder="If different from client"></div>
+              </div>
+              <div class="subsection">
+                <h3>Riders</h3><p>Add the rider type and coverage details for this proposed policy.</p>
+                <div class="repeater" id="riderList">
+                  <div class="repeater-row">
+                    <div class="field"><label>Rider type</label><select name="riderType[]"><option>Base plan</option><option>Accidental death</option><option>Accidental disablement</option><option>Term rider</option></select></div>
+                    <div class="field"><label>Benefit amount</label><div class="amount-control"><span aria-hidden="true">₱</span><input name="riderBenefit[]" type="text" inputmode="numeric" data-amount></div></div>
+                    <div class="field"><label>Years payable</label><input name="riderYears[]" type="number" min="0"></div>
+                    <div class="field"><label>Coverage end date</label><div class="date-control"><input class="control profile-date" name="riderEnd[]" type="text" inputmode="numeric" placeholder="MM/DD/YYYY" data-allow-future><button class="date-toggle" type="button" aria-label="Choose coverage end date" aria-haspopup="dialog"><span class="material-symbols-outlined" aria-hidden="true">calendar_month</span></button><div class="date-picker profile-date-picker" role="dialog" aria-label="Choose coverage end date" hidden></div></div></div>
+                    <button class="icon-button remove-row" type="button" aria-label="Remove rider"><span class="material-symbols-outlined" aria-hidden="true">delete</span></button>
+                  </div>
+                </div><button class="add-row" type="button" data-add="riderList" aria-label="Add rider"><span class="material-symbols-outlined" aria-hidden="true">add</span>Add rider</button>
+              </div>
+              <div class="subsection">
+                <h3>Beneficiaries</h3><p>Add each beneficiary and their share of the benefit.</p>
+                <div class="repeater" id="beneficiaryList">
+                  <div class="repeater-row">
+                    <div class="field"><label>Beneficiary name</label><input name="beneficiaryName[]" autocomplete="off"></div>
+                    <div class="field"><label>Relationship</label><input name="beneficiaryRelationship[]"></div>
+                    <div class="field"><label>Share (%)</label><input name="beneficiaryShare[]" type="number" min="0" max="100" inputmode="decimal"></div>
+                    <div class="field"><label>Date of birth</label><div class="date-control"><input class="control profile-date" name="beneficiaryBirth[]" type="text" inputmode="numeric" placeholder="MM/DD/YYYY" data-date-max="today"><button class="date-toggle" type="button" aria-label="Choose beneficiary date of birth" aria-haspopup="dialog"><span class="material-symbols-outlined" aria-hidden="true">calendar_month</span></button><div class="date-picker profile-date-picker" role="dialog" aria-label="Choose beneficiary date of birth" hidden></div></div></div>
+                    <button class="icon-button remove-row" type="button" aria-label="Remove beneficiary"><span class="material-symbols-outlined" aria-hidden="true">delete</span></button>
+                  </div>
+                </div><button class="add-row" type="button" data-add="beneficiaryList" aria-label="Add beneficiary"><span class="material-symbols-outlined" aria-hidden="true">add</span>Add beneficiary</button>
+              </div>
+            </div>
+          </section>
+          <footer class="profile-footer">
+            <span class="profile-footer__hint" id="stepHint">Step 1 of 4</span>
+            <div class="profile-actions"><button class="button button-secondary button-quiet" id="previousStep" type="button" hidden>Back</button><button class="button button-primary" id="nextStep" type="button">Continue</button></div>
+          </footer>
+        </form>
+      </div>
+    </div>
+  </main>
+  <div class="toast" id="profileToast" role="status" aria-live="polite" hidden></div>
+  <script>
+    const sections = [...document.querySelectorAll('[data-section]')];
+    const navLinks = [...document.querySelectorAll('[data-section-link]')];
+    const progress = document.getElementById('profileProgress');
+    const form = document.getElementById('clientProfile');
+    const toast = document.getElementById('profileToast');
+    const leadDraftKey = 'ewaLeadDraft';
+    const profileDraftKey = 'ewaClientProfileDraft';
+    const demoProfile = {
+      firstName:'Alex', middleName:'Sample', lastName:'Client', birthDate:'01/15/1990', gender:'female',
+      civilStatus:'Single', nationality:'Filipino', mobile:'+63 917 123 4567', email:'alex.sample@example.test',
+      monthlyIncome:'80,000'
+    };
+    let toastTimer;
+    let quoteData = null;
+    let profileDraft = null;
+    try { quoteData = JSON.parse(sessionStorage.getItem(leadDraftKey) || 'null'); } catch {}
+    try { profileDraft = JSON.parse(sessionStorage.getItem(profileDraftKey) || 'null'); } catch {}
+    const requestedStep = sections.findIndex(section => `#${section.id}` === window.location.hash);
+    let currentStep = requestedStep >= 0 ? requestedStep : Number.isInteger(profileDraft?.__step) ? Math.min(Math.max(profileDraft.__step,0),sections.length-1) : 0;
+    const completedSteps = new Set(Array.isArray(profileDraft?.__completed) ? profileDraft.__completed : []);
+    const initialData = quoteData ? {
+      ...demoProfile,
+      firstName: quoteData.firstName || demoProfile.firstName,
+      middleName: quoteData.middleName || '',
+      lastName: quoteData.lastName || demoProfile.lastName,
+      birthDate: quoteData.dob || demoProfile.birthDate,
+      gender: quoteData.gender || demoProfile.gender,
+      mobile: quoteData.phone ? formatPhone(quoteData.phone) : demoProfile.mobile,
+      email: quoteData.email || demoProfile.email
+    } : { ...demoProfile };
+    let isDemo = !quoteData || quoteData.isDemo === true;
+    for (const [name,value] of Object.entries(initialData)) {
+      const field = form.elements[name];
+      if (field && typeof value === 'string') field.value = value;
+    }
+    if (isDemo) {
+      form.elements.employmentType.value = 'employed';
+      form.elements.occupation.value = 'Professional';
+      form.elements.sourceFunds.value = 'Employment income';
+      form.elements.monthlyIncome.value = '80,000';
+      form.elements.employer.value = 'Sample Technology Inc.';
+      form.elements.employerCountry.value = 'Philippines';
+      form.elements.employerStreet.value = '100 Ayala Avenue, Barangay San Lorenzo';
+      form.elements.employerDistrict.value = 'Makati';
+      form.elements.employerCity.value = 'Makati City';
+      form.querySelector('[name="investDuration"][value="7-9"]').checked = true;
+      form.querySelector('[name="investGoal"][value="moderate"]').checked = true;
+      form.querySelector('[name="financialKnowledge"][value="satisfactory"]').checked = true;
+      form.querySelector('[name="investExperience"][value="4-6"]').checked = true;
+      form.querySelector('[name="investFunds"][value="40"]').checked = true;
+      form.querySelector('[name="dnfbp"][value="no"]').checked = true;
+      form.querySelector('[name="hasInsurance"][value="no"]').checked = true;
+    }
+    document.getElementById('demoBanner').hidden = !isDemo;
+    document.getElementById('quoteGoals').textContent = (quoteData?.insurance || ['family','savings'])
+      .map(goal => ({family:'Family protection',education:'Education fund',retirement:'Retirement planning',savings:'Savings',investments:'Investments',others:quoteData?.otherInsurance || 'Other'}[goal] || goal)).join(', ');
+    document.getElementById('quoteBudget').textContent = `₱${quoteData?.monthlyBudget || '8,000'}`;
+    document.querySelectorAll('[data-amount]').forEach(input => { if (input.value) input.value = formatAmount(input.value); });
+    const calendarStates = new Map();
+
+    function restoreProfileDraft(draft) {
+      if (!draft || typeof draft !== 'object') return;
+      const repeaterFor = { 'riderType[]':'riderList','riderBenefit[]':'riderList','riderYears[]':'riderList','riderEnd[]':'riderList','beneficiaryName[]':'beneficiaryList','beneficiaryRelationship[]':'beneficiaryList','beneficiaryShare[]':'beneficiaryList','beneficiaryBirth[]':'beneficiaryList' };
+      for (const [name,listId] of Object.entries(repeaterFor)) {
+        const count = Array.isArray(draft[name]) ? draft[name].length : 0;
+        while (document.getElementById(listId).children.length < count) addRow(listId);
+      }
+      for (const [name,value] of Object.entries(draft)) {
+        const fields = [...form.querySelectorAll(`[name="${CSS.escape(name)}"]`)];
+        if (!fields.length) continue;
+        if (fields[0].type === 'radio') fields.forEach(field => { field.checked = field.value === value; });
+        else if (fields[0].type === 'checkbox') fields[0].checked = value === true;
+        else if (Array.isArray(value)) value.forEach((item,index) => { if (fields[index]) fields[index].value = item; });
+        else fields[0].value = value;
+      }
+    }
+    function saveProfileDraft() {
+      const draft = {};
+      for (const field of form.elements) {
+        if (!field.name) continue;
+        if (field.type === 'radio') { if (field.checked) draft[field.name] = field.value; continue; }
+        if (field.type === 'checkbox') { draft[field.name] = field.checked; continue; }
+        if (field.name.endsWith('[]')) (draft[field.name] ||= []).push(field.value);
+        else draft[field.name] = field.value;
+      }
+      draft.__demo = isDemo;
+      draft.__step = currentStep;
+      draft.__completed = [...completedSteps];
+      try { sessionStorage.setItem(profileDraftKey, JSON.stringify(draft)); } catch {}
+    }
+    restoreProfileDraft(profileDraft);
+    document.getElementById('noMiddle').checked = form.elements.noMiddle.checked;
+    form.elements.middleName.disabled = form.elements.noMiddle.checked;
+    setConditional('employmentType','employed','employerFields',['employer','employerCountry','employerStreet','employerDistrict','employerCity']);
+    setConditional('hasInsurance','yes','existingInsuranceFields');
+    document.getElementById('otherProviderField').hidden = form.elements.provider.value !== 'Other';
+    showStep(currentStep,false);
+
+    function updateStepNavigation() {
+      navLinks.forEach((link,index) => {
+        const active = index === currentStep;
+        const complete = completedSteps.has(index);
+        if (active) link.setAttribute('aria-current','step');
+        else link.removeAttribute('aria-current');
+        link.classList.toggle('is-complete',complete);
+        const number = link.querySelector('.profile-nav__number');
+        number.textContent = complete ? '✓' : String(index+1);
+        number.setAttribute('aria-hidden','true');
+      });
+      progress.style.width = `${Math.round(((currentStep+1)/sections.length)*100)}%`;
+      document.getElementById('stepHint').textContent = `Step ${currentStep+1} of ${sections.length}`;
+      document.getElementById('previousStep').hidden = currentStep === 0;
+      document.getElementById('nextStep').textContent = currentStep === sections.length-1 ? 'Review profile' : 'Continue';
+    }
+    function showStep(index, focusHeading = true) {
+      currentStep = Math.min(Math.max(index,0),sections.length-1);
+      sections.forEach((section,i) => { section.hidden = i !== currentStep; });
+      history.replaceState(null,'',`${window.location.pathname}${window.location.search}#${sections[currentStep].id}`);
+      updateStepNavigation();
+      saveProfileDraft();
+      if (focusHeading) {
+        const heading = sections[currentStep].querySelector('h2');
+        heading.setAttribute('tabindex','-1');
+        heading.focus({preventScroll:true});
+        heading.scrollIntoView({behavior:'smooth',block:'start'});
+      }
+    }
+    navLinks.forEach((link,index) => link.addEventListener('click',event => {
+      event.preventDefault();
+      showStep(index);
+    }));
+
+    document.getElementById('clearDemo').addEventListener('click', () => {
+      try { sessionStorage.removeItem(leadDraftKey); } catch {}
+      form.reset();
+      isDemo = false;
+      try { sessionStorage.removeItem(profileDraftKey); } catch {}
+      completedSteps.clear();
+      form.elements.noMiddle.checked = false;
+      form.elements.middleName.disabled = false;
+      setConditional('employmentType','employed','employerFields',['employer','employerCountry','employerStreet','employerDistrict','employerCity']);
+      setConditional('hasInsurance','yes','existingInsuranceFields');
+      document.getElementById('otherProviderField').hidden = true;
+      document.getElementById('demoBanner').hidden = true;
+      document.getElementById('quoteGoals').textContent = 'Not provided';
+      document.getElementById('quoteBudget').textContent = 'Not provided';
+      updateShortfall();
+      updateRiskAssessment();
+      showStep(0,false);
+      showToast('Sample data cleared.');
+    });
+
+    function setConditional(radioName, value, targetId, requiredNames = []) {
+      const selected = form.querySelector(`input[name="${radioName}"]:checked`)?.value === value;
+      const block = document.getElementById(targetId);
+      block.hidden = !selected;
+      requiredNames.forEach(name => {
+        const control = form.elements[name];
+        if (control) control.required = selected;
+      });
+    }
+    form.addEventListener('change', event => {
+      if (event.target.name === 'employmentType') setConditional('employmentType', 'employed', 'employerFields', ['employer','employerCountry','employerStreet','employerDistrict','employerCity']);
+      if (event.target.name === 'hasInsurance') setConditional('hasInsurance', 'yes', 'existingInsuranceFields');
+      if (event.target.name === 'provider') {
+        const other = event.target.value === 'Other';
+        document.getElementById('otherProviderField').hidden = !other;
+      }
+      if (['futureEstate','estateProvision','taxLiability'].includes(event.target.id)) updateShortfall();
+      if (event.target.matches('[data-amount]')) event.target.value = formatAmount(event.target.value);
+      if (event.target.id === 'noMiddle') {
+        form.elements.middleName.disabled = event.target.checked;
+        if (event.target.checked) form.elements.middleName.value = '';
+      }
+      document.getElementById('employerFields').hidden = form.elements.employmentType.value !== 'employed';
+      document.getElementById('existingInsuranceFields').hidden = form.elements.hasInsurance.value !== 'yes';
+      document.getElementById('otherProviderField').hidden = form.elements.provider.value !== 'Other';
+      completedSteps.delete(currentStep);
+      updateStepNavigation();
+      updateRiskAssessment();
+      saveProfileDraft();
+    });
+    form.addEventListener('input', event => {
+      if (event.target.matches('[data-amount]')) formatAmountInput(event.target);
+      if (['futureEstate','estateProvision','taxLiability'].includes(event.target.id)) updateShortfall();
+      completedSteps.delete(currentStep);
+      updateStepNavigation();
+      updateRiskAssessment();
+      saveProfileDraft();
+    });
+    document.querySelectorAll('.profile-date').forEach(input => initDateInput(input));
+    document.addEventListener('click', event => {
+      const toggle = event.target.closest('.date-toggle');
+      if (toggle) { const input = toggle.closest('.date-control').querySelector('.profile-date'); openPicker(input); return; }
+      const picker = event.target.closest('.profile-date-picker');
+      if (!picker && !event.target.closest('.date-control')) closePickers();
+    });
+    document.addEventListener('pointerdown', event => {
+      if (!event.target.closest('.date-control')) closePickers();
+    });
+
+    function formatAmount(value) {
+      const digits = String(value || '').replace(/\D/g, '');
+      return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    }
+    function formatPhone(value) {
+      let digits=String(value||'').replace(/\D/g,'');
+      if(digits.startsWith('63')) digits=digits.slice(2);
+      if(digits.startsWith('0')) digits=digits.slice(1);
+      return digits.length===10?`+63 ${digits.slice(0,3)} ${digits.slice(3,6)} ${digits.slice(6)}`:value;
+    }
+    function formatAmountInput(input) {
+      const raw = input.value, caret = input.selectionStart ?? raw.length;
+      const digitsBefore = raw.slice(0,caret).replace(/\D/g,'').length;
+      const formatted = formatAmount(raw);
+      input.value = formatted;
+      let nextCaret = 0, seen = 0;
+      while (nextCaret < formatted.length && seen < digitsBefore) { if (/\d/.test(formatted[nextCaret])) seen++; nextCaret++; }
+      if (formatted[nextCaret] === ',') nextCaret++;
+      input.setSelectionRange(nextCaret,nextCaret);
+      return formatted;
+    }
+    function localDate(year,month,day) { return new Date(year,month,day,12); }
+    function toISODate(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
+    function parseDate(value) {
+      const text = String(value || '').trim();
+      const match = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/) || text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (!match) return null;
+      const month = text.includes('-') ? Number(match[2]) : Number(match[1]);
+      const day = text.includes('-') ? Number(match[3]) : Number(match[2]);
+      const year = text.includes('-') ? Number(match[1]) : Number(match[3]);
+      const date = localDate(year,month-1,day);
+      return date.getFullYear()===year && date.getMonth()===month-1 && date.getDate()===day ? date : null;
+    }
+    function formatDate(date) { return `${String(date.getMonth()+1).padStart(2,'0')}/${String(date.getDate()).padStart(2,'0')}/${date.getFullYear()}`; }
+    function maskDate(input,event) {
+      const raw=input.value;
+      const parsed=event.inputType==='insertFromPaste'?parseDate(raw):null;
+      const digits=raw.replace(/\D/g,'').slice(0,8);
+      const value=parsed&&digits.length!==8?formatDate(parsed):digits.length>4?`${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`:digits.length>2?`${digits.slice(0,2)}/${digits.slice(2)}`:digits.length===2?`${digits}/`:digits;
+      const caret=input.selectionStart??raw.length, digitsBefore=raw.slice(0,caret).replace(/\D/g,'').length;
+      input.value=value;
+      let next=0,seen=0;
+      while(next<value.length&&seen<digitsBefore){if(/\d/.test(value[next]))seen++;next++;}
+      if((digitsBefore===2||digitsBefore===4)&&value[next]==='/')next++;
+      input.setSelectionRange(next,next);
+      return value;
+    }
+    function initDateInput(input) {
+      const parsed=parseDate(input.value);
+      if(parsed) input.value=formatDate(parsed);
+      const state={input,picker:input.closest('.date-control').querySelector('.profile-date-picker'),cursor:null,view:'month',focus:null};
+      if(!state.picker.id) state.picker.id=`profileDatePicker${calendarStates.size+1}`;
+      input.setAttribute('aria-haspopup','dialog');input.setAttribute('aria-expanded','false');input.setAttribute('aria-controls',state.picker.id);
+      const toggle=input.closest('.date-control').querySelector('.date-toggle');toggle.setAttribute('aria-expanded','false');toggle.setAttribute('aria-controls',state.picker.id);
+      calendarStates.set(input,state);
+      input.addEventListener('input',event=>{maskDate(input,event);validateDateInput(input);});
+      input.addEventListener('change',()=>validateDateInput(input));
+      input.addEventListener('keydown',event=>{if(event.key==='ArrowDown'&&!event.altKey){event.preventDefault();openPicker(input);}});
+      validateDateInput(input);
+    }
+    function validateDateInput(input) {
+      const value=input.value.trim(), date=parseDate(value), max=maxFor(input);
+      let message='';
+      if(value&&!date) message='Enter a valid date in MM/DD/YYYY format.';
+      else if(date&&date<localDate(1900,0,1)) message='Enter a date from 1900 onward.';
+      else if(date&&max&&date>max) message='Date cannot be in the future.';
+      input.setCustomValidity(message);
+    }
+    function maxFor(input) { return input.hasAttribute('data-allow-future')?null:localDate(new Date().getFullYear(),new Date().getMonth(),new Date().getDate()); }
+    function openPicker(input) {
+      closePickers();
+      const state=calendarStates.get(input); if(!state) return;
+      const selected=parseDate(input.value), start=selected||new Date();
+      state.cursor=localDate(start.getFullYear(),start.getMonth(),1); state.focus=toISODate(selected||start); state.view='month';
+      state.picker.hidden=false; drawPicker(state,true);
+      input.setAttribute('aria-expanded','true');input.closest('.date-control').querySelector('.date-toggle').setAttribute('aria-expanded','true');
+    }
+    function closePickers(returnFocus=false) {
+      for(const state of calendarStates.values()) if(!state.picker.hidden) {
+        state.picker.hidden=true; state.input.setAttribute('aria-expanded','false');state.input.closest('.date-control').querySelector('.date-toggle').setAttribute('aria-expanded','false');
+        if(returnFocus) state.input.focus();
+      }
+    }
+    function drawPicker(state,focusTarget=false) {
+      const {picker,cursor,input}=state, minYear=1900, maxDate=maxFor(input), currentYear=new Date().getFullYear();
+      const title=state.view==='years'?`${Math.max(minYear,Math.floor(cursor.getFullYear()/24)*24)} – ${Math.floor(cursor.getFullYear()/24)*24+23}`:state.view==='months'?String(cursor.getFullYear()):new Intl.DateTimeFormat('en-US',{month:'long',year:'numeric'}).format(cursor);
+      let content='';
+      if(state.view==='month') {
+        const first=localDate(cursor.getFullYear(),cursor.getMonth(),1), start=localDate(cursor.getFullYear(),cursor.getMonth(),-first.getDay()+1), selected=parseDate(input.value), today=localDate(currentYear,new Date().getMonth(),new Date().getDate());
+        const days=Array.from({length:42},(_,i)=>{
+          const date=localDate(start.getFullYear(),start.getMonth(),start.getDate()+i), iso=toISODate(date), disabled=date<localDate(minYear,0,1)||(maxDate&&date>maxDate);
+          return `<button type="button" class="calendar-day ${date.getMonth()!==cursor.getMonth()?'is-outside':''} ${toISODate(today)===iso?'is-today':''}" data-date="${iso}" aria-label="${new Intl.DateTimeFormat('en-US',{dateStyle:'full'}).format(date)}" ${selected&&toISODate(selected)===iso?'aria-selected="true"':''} ${disabled?'disabled':''} tabindex="${state.focus===iso?'0':'-1'}">${date.getDate()}</button>`;
+        }).join('');
+        content=`<div class="calendar-weekdays" aria-hidden="true">${['S','M','T','W','T','F','S'].map((d,i)=>`<span aria-label="${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][i]}">${d}</span>`).join('')}</div><div class="calendar-days" role="grid" aria-label="${new Intl.DateTimeFormat('en-US',{month:'long',year:'numeric'}).format(cursor)}">${days}</div>`;
+      } else if(state.view==='months') {
+        content=`<div class="calendar-months">${Array.from({length:12},(_,i)=>`<button type="button" class="calendar-period-cell ${i===cursor.getMonth()?'is-current':''}" data-month="${i}" ${maxDate&&cursor.getFullYear()===maxDate.getFullYear()&&i>maxDate.getMonth()?'disabled':''}>${new Intl.DateTimeFormat('en-US',{month:'short'}).format(localDate(2020,i,1))}</button>`).join('')}</div>`;
+      } else {
+        const start=Math.max(minYear,Math.floor(cursor.getFullYear()/24)*24);
+        content=`<div class="calendar-years">${Array.from({length:24},(_,i)=>start+i).map(year=>`<button type="button" class="calendar-period-cell ${year===cursor.getFullYear()?'is-current':''}" data-year="${year}" ${maxDate&&year>maxDate.getFullYear()||year<minYear?'disabled':''}>${year}</button>`).join('')}</div>`;
+      }
+      const backDisabled=state.view==='month'?cursor.getFullYear()<=minYear&&cursor.getMonth()===0:state.view==='months'?cursor.getFullYear()<=minYear:Math.floor(cursor.getFullYear()/24)*24<=minYear;
+      const nextDisabled=maxDate&& (state.view==='month'?cursor.getFullYear()>maxDate.getFullYear()||cursor.getFullYear()===maxDate.getFullYear()&&cursor.getMonth()>=maxDate.getMonth():state.view==='months'?cursor.getFullYear()>=maxDate.getFullYear():Math.floor(cursor.getFullYear()/24)*24+24>maxDate.getFullYear());
+      picker.innerHTML=`<div class="calendar-header"><button type="button" class="calendar-nav" data-nav="-1" aria-label="Previous" ${backDisabled?'disabled':''}><span class="material-symbols-outlined" aria-hidden="true">chevron_left</span></button><button type="button" class="calendar-period" data-view-toggle>${title}<span class="material-symbols-outlined" aria-hidden="true">arrow_drop_down</span></button><button type="button" class="calendar-nav" data-nav="1" aria-label="Next" ${nextDisabled?'disabled':''}><span class="material-symbols-outlined" aria-hidden="true">chevron_right</span></button></div>${content}`;
+      picker.onclick=event=>{
+        const button=event.target.closest('button'); if(!button||button.disabled)return;
+        if(button.dataset.date){input.value=formatDate(parseDate(button.dataset.date));input.dispatchEvent(new Event('input',{bubbles:true}));input.dispatchEvent(new Event('change',{bubbles:true}));closePickers(true);return;}
+        if(button.dataset.viewToggle!==undefined){state.view=state.view==='month'?'years':state.view==='years'?'months':'years';drawPicker(state,true);return;}
+        if(button.dataset.year){state.cursor=localDate(Number(button.dataset.year),cursor.getMonth(),1);state.view='months';drawPicker(state,true);return;}
+        if(button.dataset.month!==undefined){state.cursor=localDate(cursor.getFullYear(),Number(button.dataset.month),1);state.view='month';drawPicker(state,true);return;}
+        if(button.dataset.nav){state.cursor=state.view==='years'?localDate(cursor.getFullYear()+Number(button.dataset.nav)*24,cursor.getMonth(),1):state.view==='months'?localDate(cursor.getFullYear()+Number(button.dataset.nav),cursor.getMonth(),1):localDate(cursor.getFullYear(),cursor.getMonth()+Number(button.dataset.nav),1);state.focus=null;drawPicker(state,true);}
+      };
+      picker.onkeydown=event=>{
+        if(event.key==='Escape'){event.preventDefault();closePickers(true);return;}
+        if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(event.key)||state.view!=='month')return;
+        const active=parseDate(event.target.dataset.date||state.focus||''); if(!active)return;
+        event.preventDefault();const next=new Date(active);
+        if(event.key==='ArrowLeft')next.setDate(next.getDate()-1);if(event.key==='ArrowRight')next.setDate(next.getDate()+1);if(event.key==='ArrowUp')next.setDate(next.getDate()-7);if(event.key==='ArrowDown')next.setDate(next.getDate()+7);if(event.key==='Home')next.setDate(next.getDate()-next.getDay());if(event.key==='End')next.setDate(next.getDate()+6-next.getDay());if(event.key==='PageUp')next.setMonth(next.getMonth()-1);if(event.key==='PageDown')next.setMonth(next.getMonth()+1);
+        const max=maxFor(input);if(next<localDate(1900,0,1))next.setTime(localDate(1900,0,1).getTime());if(max&&next>max)next.setTime(max.getTime());state.focus=toISODate(next);state.cursor=localDate(next.getFullYear(),next.getMonth(),1);drawPicker(state,true);
+      };
+      if(focusTarget)(picker.querySelector(`[data-date="${state.focus}"]`)||picker.querySelector('.calendar-period'))?.focus();
+    }
+
+    function updateShortfall() {
+      const n = id => Number(document.getElementById(id).value.replace(/,/g,'') || 0);
+      const amount = Math.max(0, n('futureEstate') - n('estateProvision') - n('taxLiability'));
+      document.getElementById('estateShortfall').textContent = `₱${new Intl.NumberFormat('en-PH',{maximumFractionDigits:0}).format(amount)}`;
+    }
+    const riskScales = {
+      investDuration:['under-1','1-3','4-6','7-9','10-plus'],
+      investGoal:['preservation','modest','moderate','long-term','maximize'],
+      financialKnowledge:['limited','modest','satisfactory','strong','advanced'],
+      investExperience:['none','1-3','4-6','7-9','10-plus'],
+      investFunds:['10','20','40','60','over-60']
+    };
+    function getRiskAssessment() {
+      const answers = Object.entries(riskScales).map(([name,scale]) => {
+        const value = form.querySelector(`[name="${name}"]:checked`)?.value;
+        return value ? scale.indexOf(value) + 1 : 0;
+      });
+      if (answers.some(score => !score)) return { complete:false, score:answers.reduce((sum,score)=>sum+score,0), label:'Complete the assessment', description:'Answer all five questions to calculate a profile.' };
+      const score = answers.reduce((sum,value)=>sum+value,0);
+      if (score <= 9) return { complete:true, score, label:'Cautious', description:'Prioritizes capital stability and lower exposure to investment risk.' };
+      if (score <= 14) return { complete:true, score, label:'Balanced', description:'Shows a measured balance between stability and potential growth.' };
+      if (score <= 19) return { complete:true, score, label:'Growth-oriented', description:'Shows greater tolerance for fluctuations in pursuit of growth.' };
+      return { complete:true, score, label:'Aggressive', description:'Shows high tolerance for fluctuations and potential losses.' };
+    }
+    function updateRiskAssessment() {
+      const result = getRiskAssessment();
+      document.getElementById('riskLabel').textContent = result.label;
+      document.getElementById('riskDescription').textContent = result.description;
+      document.getElementById('riskScore').textContent = `${result.score} / 25`;
+      return result;
+    }
+    function addRow(listId) {
+      const original = document.querySelector(`#${listId} .repeater-row`);
+      const row = original.cloneNode(true);
+      row.querySelectorAll('input').forEach(input => { input.value = ''; input.removeAttribute('id'); });
+      row.querySelectorAll('.profile-date-picker').forEach(picker => picker.removeAttribute('id'));
+      row.querySelectorAll('select').forEach(select => { select.selectedIndex = 0; });
+      document.getElementById(listId).append(row);
+      row.querySelectorAll('.profile-date').forEach(input => initDateInput(input));
+    }
+    document.querySelectorAll('[data-add]').forEach(button => button.addEventListener('click', () => addRow(button.dataset.add)));
+    document.addEventListener('click', event => {
+      const remove = event.target.closest('.remove-row');
+      if (!remove) return;
+      const list = remove.closest('.repeater');
+      if (list.children.length > 1) remove.closest('.repeater-row').remove();
+      else list.querySelectorAll('input').forEach(input => { input.value = ''; });
+      saveProfileDraft();
+    });
+    function showToast(message) {
+      toast.textContent = message;
+      toast.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toast.hidden = true; }, 4200);
+    }
+    function validateSection(index) {
+      const invalid = [...sections[index].querySelectorAll(':invalid')].filter(control => !control.closest('[hidden]'));
+      if (invalid.length) {
+        invalid[0].focus();
+        invalid[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+        invalid[0].reportValidity();
+        return false;
+      }
+      return true;
+    }
+    function validateAllSections() {
+      for (let index=0; index<sections.length; index++) {
+        showStep(index,false);
+        if (!validateSection(index)) return false;
+        completedSteps.add(index);
+        updateStepNavigation();
+      }
+      return true;
+    }
+    document.getElementById('previousStep').addEventListener('click',() => showStep(currentStep-1));
+    document.getElementById('nextStep').addEventListener('click',() => {
+      if (currentStep === sections.length-1) {
+        if (!validateAllSections()) return;
+        saveProfileDraft();
+        window.location.href = './create-lead-review.html';
+        return;
+      }
+      if (!validateSection(currentStep)) return;
+      completedSteps.add(currentStep);
+      showStep(currentStep+1);
+    });
+    document.querySelectorAll('[data-add]').forEach(button => button.addEventListener('click', saveProfileDraft));
+    updateShortfall();
+    updateRiskAssessment();
+  </script>
+</body>
+</html>

@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#ffffff">
+  <title>Create a client profile · EastWest Ageas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined&display=block" rel="stylesheet">
+  <link rel="stylesheet" href="./create-lead.css">
+  <style>
+    .clear-demo { margin:0 0 0 auto; padding:3px 8px; border:0; border-radius:999px; background:transparent; color:var(--color-primary); font:700 12px var(--font-sans); cursor:pointer; white-space:nowrap; }
+    .profile-link { display:inline-flex; align-items:center; justify-content:center; min-height:40px; margin-top:24px; text-decoration:none; }
+    @media(max-width:620px) { .clear-demo { font-size:11px; } }
+  </style>
+  <script type="module" src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.80.0/dist/dotlottie-wc.js"></script>
+</head>
+<body>
+  <div class="app">
+    <div class="progress-track" aria-hidden="true"><div class="progress-value" id="progress"></div></div>
+    <div class="confetti-layer" id="confettiLayer" aria-hidden="true"></div>
+    <a class="brand" href="#" aria-label="EastWest Ageas home" onclick="return false">
+      <span class="brand-logo" aria-hidden="true"><img class="logo-mark" src="./assets/ewa-logo-mark.svg" alt=""><img class="logo-a" src="./assets/ewa-logo-a.svg" alt=""><img class="logo-b" src="./assets/ewa-logo-b.svg" alt=""><img class="logo-c" src="./assets/ewa-logo-c.svg" alt=""></span>
+    </a>
+    <main class="wizard" id="wizard" aria-live="polite"></main>
+  </div>
+  <script>
+    const icons = {
+      account: '<span class="material-symbols-outlined">account_circle</span>',
+      person: '<span class="material-symbols-outlined">person</span>',
+      business: '<span class="material-symbols-outlined">business</span>',
+      calendar: '<span class="material-symbols-outlined">calendar_month</span>',
+      gender: '<span class="material-symbols-outlined">contacts_product</span>',
+      phone: '<span class="material-symbols-outlined">smartphone</span>',
+      email: '<span class="material-symbols-outlined">mail</span>',
+      insurance: '<span class="material-symbols-outlined">health_and_safety</span>',
+      family: '<span class="material-symbols-outlined">family_restroom</span>',
+      education: '<span class="material-symbols-outlined">school</span>',
+      retirement: '<span class="material-symbols-outlined">elderly</span>',
+      savings: '<span class="material-symbols-outlined">savings</span>',
+      investments: '<span class="material-symbols-outlined">trending_up</span>',
+      other: '<span class="material-symbols-outlined">more_horiz</span>',
+      info: '<span class="material-symbols-outlined">info</span>',
+      check: '<span class="material-symbols-outlined">check</span>',
+      back: '<span class="material-symbols-outlined">arrow_back</span>'
+    };
+    const leadDraftKey = 'ewaLeadDraft';
+    const demoLead = { insurance: ['family','savings'], monthlyBudget: '8,000', firstName: 'Alex', middleName: 'Sample', lastName: 'Client', dob: '01/15/1990', gender: 'female', phone: '9171234567', email: 'alex.sample@example.test' };
+    let savedLead = null;
+    try { savedLead = JSON.parse(sessionStorage.getItem(leadDraftKey) || 'null'); } catch {}
+    const state = { step: 0, data: savedLead || { ...demoLead }, isDemo: savedLead ? savedLead.isDemo === true : true, touched: {}, calendarOpen: false, calendarView: 'month', calendarCursor: null, calendarFocus: null };
+    const steps = [
+      // Temporarily hidden while the flow starts with the client’s coverage goals.
+      // { title: 'Choose account type', icon: 'account', render: accountStep, validate: () => state.data.account ? null : 'Choose an account type to continue.' },
+      { title: 'Client’s Coverage Goals', icon: 'insurance', render: insuranceStep, validate: validateInsurance },
+      { title: 'Monthly Budget Allocation', icon: 'savings', render: budgetStep, validate: validateBudget },
+      { title: 'Client’s Name', icon: 'person', render: nameStep, validate: validateName },
+      { title: 'Client’s Date of birth', icon: 'calendar', render: birthStep, validate: validateBirth },
+      { title: 'Client’s Gender', icon: 'gender', render: genderStep, validate: () => state.data.gender ? null : 'Select the client’s sex assigned at birth to continue.' },
+      { title: 'Client’s Phone Number', icon: 'phone', render: phoneStep, validate: validatePhone },
+      { title: 'Client’s Email Address', icon: 'email', render: emailStep, validate: validateEmail },
+      { title: 'Client lead profile created', success: true, render: successStep }
+    ];
+    const wizard = document.getElementById('wizard');
+    const progress = document.getElementById('progress');
+    function saveLeadDraft() {
+      try { sessionStorage.setItem(leadDraftKey, JSON.stringify({ ...state.data, isDemo: state.isDemo })); } catch {}
+    }
+    saveLeadDraft();
+
+    function notice(text) { return `<aside class="notice">${icons.info}<p>${text}</p></aside>`; }
+    function field(id, label, placeholder, type='text', autocomplete='') {
+      const value = escapeHtml(state.data[id] || '');
+      const err = state.touched[id] ? fieldError(id) : '';
+      return `<div class="field ${err ? 'is-invalid' : ''}" data-field="${id}"><label class="field-label" for="${id}">${label}</label><input class="control" id="${id}" name="${id}" type="${type}" placeholder="${placeholder}" value="${value}" autocomplete="${autocomplete}" aria-describedby="${id}-error" ${err ? 'aria-invalid="true"' : ''}><p class="field-error" id="${id}-error" role="alert">${err}</p></div>`;
+    }
+    function accountStep() {
+      return `<div class="choice-list" role="group" aria-label="Account type">
+        ${choiceCard('account','individual','Individual','For an individual client',icons.person)}
+        ${choiceCard('account','corporate','Corporate','For a business or organization',icons.business)}
+      </div>${state.touched.account&&!state.data.account?'<p class="choice-error" role="alert">Choose an account type to continue.</p>':''}`;
+    }
+    function choiceCard(key, value, title, desc, icon, cls='') {
+      const selected=key==='insurance'?Array.isArray(state.data[key])&&state.data[key].includes(value):state.data[key]===value;
+      return `<button class="choice-card ${cls}" type="button" data-choice="${key}" data-value="${value}" aria-pressed="${selected}"><span class="choice-symbol">${icon}</span><span class="choice-copy"><strong>${title}</strong><span>${desc}</span></span><span class="choice-check">${icons.check}</span></button>`;
+    }
+    function nameStep() {
+      return `${notice('Enter the client’s name as it appears on their government-issued ID. Accurate legal details are required to create the policy and account.')}
+        <div class="form-stack">${field('firstName','First name','Enter the client’s first name','text','given-name')}
+        <div>${field('middleName','Middle name <span class="optional">(Optional)</span>','Enter the client’s middle name','text','additional-name')}<label class="check-row"><input id="noMiddle" type="checkbox" ${state.data.noMiddle?'checked':''}> The client has no middle name</label></div>
+        ${field('lastName','Last name','Enter the client’s last name','text','family-name')}</div>`;
+    }
+    function birthStep() {
+      const err=state.touched.dob?fieldError('dob'):'';
+      return `${notice('The client’s date of birth helps confirm coverage eligibility and provide accurate pricing.')}<div class="field ${err?'is-invalid':''}" data-field="dob"><div class="date-control"><input class="control" id="dob" name="dob" type="text" inputmode="numeric" autocomplete="bday" placeholder="MM/DD/YYYY" value="${escapeHtml(formatDateInput(state.data.dob||''))}" aria-label="Client’s date of birth" aria-haspopup="dialog" aria-expanded="${state.calendarOpen}" aria-controls="datePicker" aria-describedby="dob-error" ${err?'aria-invalid="true"':''}><button class="date-toggle" id="dateToggle" type="button" aria-label="Open the client’s date of birth calendar" aria-haspopup="dialog" aria-expanded="${state.calendarOpen}" aria-controls="datePicker"><span class="material-symbols-outlined" aria-hidden="true">calendar_month</span></button><div class="date-picker" id="datePicker" role="dialog" aria-label="Choose the client’s date of birth" ${state.calendarOpen?'':'hidden'}></div></div><p class="field-error" id="dob-error" role="alert">${err}</p><aside class="age-card" id="dobAge" aria-live="polite" hidden><img src="./assets/dob-age-icon.svg" alt=""><strong id="dobAgeTitle"></strong><p>Verify the date of birth for an accurate assessment.</p></aside></div>`;
+    }
+    function genderStep() { return `${notice('This information helps calculate coverage costs. Confirm the client’s sex assigned at birth; it may differ from their current gender identity.')}<div class="choice-list" role="group" aria-label="Client’s sex assigned at birth">${choiceCard('gender','female','Female','', '<span class="material-symbols-outlined">woman</span>','gender-card')}${choiceCard('gender','male','Male','', '<span class="material-symbols-outlined">man_4</span>','gender-card')}</div>${state.touched.gender&&!state.data.gender?'<p class="choice-error" role="alert">Select an option to continue.</p>':''}`; }
+    function phoneStep() {
+      const err=state.touched.phone?fieldError('phone'):'';
+      return `${notice('The client’s mobile number will be used for important updates, account recovery, and security alerts.')}<div class="field ${err?'is-invalid':''}" data-field="phone"><div class="phone-control ${err?'is-invalid':''}"><span class="phone-prefix" aria-label="Country code">🇵🇭 <span>+63</span></span><input class="phone-input" id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel-national" placeholder="917 123 4567" aria-label="Client’s mobile number" value="${escapeHtml(state.data.phone||'')}" aria-describedby="phone-error" ${err?'aria-invalid="true"':''}></div><p class="field-error" id="phone-error" role="alert">${err}</p></div>`;
+    }
+    function emailStep() {
+      const err=state.touched.email?fieldError('email'):'';
+      return `${notice('The client’s email address will be used for account access, coverage details, and important updates.')}<div class="field ${err?'is-invalid':''}" data-field="email"><input class="control" id="email" name="email" type="email" autocomplete="email" placeholder="client@example.com" aria-label="Client’s email address" value="${escapeHtml(state.data.email||'')}" aria-describedby="email-error" ${err?'aria-invalid="true"':''}><p class="field-error" id="email-error" role="alert">${err}</p></div>`;
+    }
+    function insuranceStep() {
+      const options=[
+        ['family','Family Protection',icons.family],
+        ['education','Education Fund',icons.education],
+        ['retirement','Retirement Planning',icons.retirement],
+        ['savings','Savings',icons.savings],
+        ['investments','Investments',icons.investments],
+        ['others','Others',icons.other]
+      ];
+      const selections=Array.isArray(state.data.insurance)?state.data.insurance:[];
+      const otherError=state.touched.otherInsurance&&selections.includes('others')&&!state.data.otherInsurance?.trim();
+      return `<p class="step-description insurance-description">Select goals that apply. We use this to give recommended products based on their needs.</p><div class="choice-list insurance-list" role="group" aria-label="Insurance needs">${options.map(([value,label,icon])=>choiceCard('insurance',value,label,'',icon,'insurance-card')).join('')}</div>${state.touched.insurance&&!selections.length?'<p class="choice-error" role="alert">Select at least one coverage goal for the client.</p>':''}${selections.includes('others')?`<div class="field ${otherError?'is-invalid':''} insurance-other" data-field="otherInsurance"><label class="field-label" for="otherInsurance">What type of plan is the client interested in?</label><input class="control" id="otherInsurance" name="otherInsurance" type="text" placeholder="Describe the client’s coverage goals" value="${escapeHtml(state.data.otherInsurance||'')}" aria-describedby="otherInsurance-error" ${otherError?'aria-invalid="true"':''}><p class="field-error" id="otherInsurance-error" role="alert">${otherError?'Describe the client’s plan needs to continue.':''}</p></div>`:''}`;
+    }
+    function budgetStep() {
+      const error=state.touched.monthlyBudget?fieldError('monthlyBudget'):'';
+      return `${notice('The client’s monthly budget helps narrow suitable coverage, plan, and add-on recommendations.')}<div class="field ${error?'is-invalid':''}" data-field="monthlyBudget"><div class="budget-control"><span aria-hidden="true">₱</span><input id="monthlyBudget" name="monthlyBudget" type="text" inputmode="numeric" autocomplete="off" placeholder="e.g. 5,000" aria-label="Client’s monthly budget in Philippine pesos" value="${escapeHtml(state.data.monthlyBudget||'')}" aria-describedby="monthlyBudget-error" ${error?'aria-invalid="true"':''}></div><p class="field-error" id="monthlyBudget-error" role="alert">${error}</p></div>`;
+    }
+    function successStep() {
+      return `<p class="success-copy">Quick Quote is ready. Continue to the full profile to add employment, underwriting and policy details.</p><a class="button button-primary profile-link" href="./create-lead-profile.html">Continue to client profile</a>`;
+    }
+    function render() {
+      const step=steps[state.step];
+      document.querySelector('.app').classList.toggle('is-success',Boolean(step.success));
+      wizard.classList.toggle('is-success',Boolean(step.success));
+      progress.style.width=step.success?'100%':`${Math.max(8,((state.step+1)/(steps.length-1))*100)}%`;
+      const content=step.render();
+      wizard.innerHTML=`${state.isDemo&&!step.success?'<aside class="notice"><span class="material-symbols-outlined" aria-hidden="true">info</span><p>Sample test data is prefilled. Replace or clear it before using this flow with a real client.</p><button class="clear-demo" id="clearDemoLead" type="button">Use blank form</button></aside>':''}<header class="step-head">${step.success?`<div class="success-mark" aria-hidden="true">${icons.check}</div>`:`<div class="step-icon" aria-hidden="true">${icons[step.icon]}</div>`}<h1>${step.title}</h1></header><section class="step-content" aria-label="${step.title}">${step.success?successStep():content}</section><div class="button-row">${state.step===0||step.success?'<span></span>':'<button class="button button-secondary" id="backButton" type="button">Back</button>'}<button class="button button-primary" id="continueButton" type="button">${step.success?'Back to Sales Portal':state.step===steps.length-2?'Create client profile':'Continue'}</button></div>`;
+      updateDOBAge();
+      if(step.success) playConfetti();
+      wizard.querySelectorAll('[data-choice]').forEach(button=>button.addEventListener('click',()=>{
+        if(button.dataset.choice==='insurance') {
+          const selected=new Set(Array.isArray(state.data.insurance)?state.data.insurance:[]);
+          selected.has(button.dataset.value)?selected.delete(button.dataset.value):selected.add(button.dataset.value);
+          state.data.insurance=[...selected];
+          state.touched.insurance=true;
+        } else {
+          state.data[button.dataset.choice]=button.dataset.value;
+          state.touched[button.dataset.choice]=true;
+        }
+        if(button.dataset.choice==='account' && button.dataset.value==='corporate') state.data.account='corporate';
+        state.isDemo=false;
+        saveLeadDraft();
+        render();
+      }));
+      wizard.querySelectorAll('input,select').forEach(control=>{
+        control.addEventListener('input',handleInput);
+        control.addEventListener('change',handleInput);
+        control.addEventListener('blur',()=>{const key=control.id==='noMiddle'?'':control.id;if(key){state.touched[key]=true;refreshFieldState(key);}});
+      });
+      wizard.querySelector('#dateToggle')?.addEventListener('click',toggleDatePicker);
+      wizard.querySelector('#dob')?.addEventListener('keydown',event=>{
+        if((event.altKey&&event.key==='ArrowDown')||event.key==='ArrowDown') { event.preventDefault(); if(!state.calendarOpen)openDatePicker(); }
+      });
+      if(state.calendarOpen) drawDatePicker();
+      wizard.querySelector('#backButton')?.addEventListener('click',previous);
+      wizard.querySelector('#continueButton')?.addEventListener('click',next);
+      wizard.querySelector('#clearDemoLead')?.addEventListener('click',()=>{state.data={};state.isDemo=false;try{sessionStorage.removeItem(leadDraftKey);}catch{}render();});
+    }
+    function handleInput(event) {
+      const el=event.currentTarget;
+      if(el.id==='noMiddle') {
+        state.data.noMiddle=el.checked;
+        if(el.checked){state.data.middleName='';state.touched.middleName=false;const middle=wizard.querySelector('#middleName');if(middle)middle.value='';refreshFieldState('middleName');}
+      } else if(el.id==='monthlyBudget') {
+        state.data.monthlyBudget=formatBudgetInput(el);
+      } else if(el.id==='dob') {
+        const masked=maskDateInput(el,event);
+        state.data.dob=masked;
+        state.touched.dob=true;
+        updateDOBAge();
+      } else {
+        state.data[el.id]=el.value;
+        if(el.id==='middleName' && el.value.trim()){state.data.noMiddle=false;const noMiddle=wizard.querySelector('#noMiddle');if(noMiddle)noMiddle.checked=false;}
+      }
+      if(el.id!=='noMiddle') state.isDemo=false;
+      saveLeadDraft();
+      if(el.id!=='noMiddle' && state.touched[el.id]) refreshFieldState(el.id);
+    }
+    function formatBudgetInput(input) {
+      const raw=input.value, caret=input.selectionStart??raw.length;
+      const digitsBefore=raw.slice(0,caret).replace(/\D/g,'').length;
+      const digits=raw.replace(/\D/g,'');
+      const formatted=digits.replace(/\B(?=(\d{3})+(?!\d))/g,',');
+      input.value=formatted;
+      let nextCaret=0, seen=0;
+      while(nextCaret<formatted.length&&seen<digitsBefore){if(/\d/.test(formatted[nextCaret]))seen++;nextCaret++;}
+      if(formatted[nextCaret]===',')nextCaret++;
+      input.setSelectionRange(nextCaret,nextCaret);
+      return formatted;
+    }
+    function maskDateInput(input,event) {
+      const raw=input.value;
+      const parsed=event.inputType==='insertFromPaste'?parseDateInput(raw):null;
+      const digits=raw.replace(/\D/g,'').slice(0,8);
+      const formatted=parsed&&digits.length!==8?formatDateInput(raw):digits.length>4?`${digits.slice(0,2)}/${digits.slice(2,4)}/${digits.slice(4)}`:digits.length>2?`${digits.slice(0,2)}/${digits.slice(2)}`:digits.length===2?`${digits}/`:digits;
+      const caret=input.selectionStart??raw.length;
+      const digitsBefore=raw.slice(0,caret).replace(/\D/g,'').length;
+      input.value=formatted;
+      let nextCaret=0, seen=0;
+      while(nextCaret<formatted.length&&seen<digitsBefore){if(/\d/.test(formatted[nextCaret]))seen++;nextCaret++;}
+      if(digitsBefore===2&&formatted[nextCaret]==='/')nextCaret++;
+      if(digitsBefore===4&&formatted[nextCaret]==='/')nextCaret++;
+      input.setSelectionRange(nextCaret,nextCaret);
+      return formatted;
+    }
+    function refreshFieldState(id) {
+      const wrapper=wizard.querySelector(`[data-field="${id}"]`);
+      if(!wrapper) return;
+      const error=state.touched[id]?fieldError(id):'';
+      wrapper.classList.toggle('is-invalid',Boolean(error));
+      const control=wrapper.querySelector('input,select');
+      if(control) {
+        if(error) control.setAttribute('aria-invalid','true');
+        else control.removeAttribute('aria-invalid');
+      }
+      const message=wrapper.querySelector('.field-error');
+      if(message) message.textContent=error;
+      const phoneControl=wrapper.querySelector('.phone-control');
+      if(phoneControl) phoneControl.classList.toggle('is-invalid',Boolean(error));
+    }
+    function validateName() {
+      const person=/^[\p{L}][\p{L}\p{M} .’'-]*$/u;
+      for(const [key,label] of [['firstName','first name'],['lastName','last name']]) if(!state.data[key]?.trim()) return `Enter the client’s ${label}.`; else if(!person.test(state.data[key].trim())) return `The client’s ${label} can contain letters, spaces, apostrophes, periods and hyphens.`;
+      if(state.data.middleName && !person.test(state.data.middleName.trim())) return 'Enter a valid client middle name or mark that the client has no middle name.';
+      return null;
+    }
+    function validateBirth() {
+      if(!state.data.dob?.trim()) return 'Enter the client’s date of birth.';
+      const date=parseDateInput(state.data.dob);
+      if(!date) return 'Enter the client’s date of birth in MM/DD/YYYY format.';
+      const age=calculateAge(date);
+      const now=new Date();
+      if(date>localDate(now.getFullYear(),now.getMonth(),now.getDate())) return 'The client’s date of birth cannot be in the future.';
+      if(age<18) return 'The client must be at least 18 years old to create a profile.';
+      return null;
+    }
+    function calculateAge(date) {
+      const today=new Date();
+      let age=today.getFullYear()-date.getFullYear();
+      if(today.getMonth()<date.getMonth()||(today.getMonth()===date.getMonth()&&today.getDate()<date.getDate())) age--;
+      return age;
+    }
+    function updateDOBAge() {
+      const card=wizard.querySelector('#dobAge');
+      if(!card) return;
+      const date=parseDateInput(state.data.dob);
+      const now=new Date();
+      if(!date||date>localDate(now.getFullYear(),now.getMonth(),now.getDate())) { card.hidden=true; return; }
+      wizard.querySelector('#dobAgeTitle').textContent=`Client age: ${calculateAge(date)}`;
+      card.hidden=false;
+    }
+    function validatePhone() {
+      const digits=(state.data.phone||'').replace(/\D/g,'');
+      if(!digits) return 'Enter the client’s mobile number.';
+      if(digits.length<10 || digits.length>10) return 'Enter a valid 10-digit Philippine mobile number for the client.';
+      if(!/^9\d{9}$/.test(digits)) return 'Enter a valid client mobile number starting with 9.';
+      return null;
+    }
+    function validateEmail() {
+      const email=(state.data.email||'').trim();
+      if(!email) return 'Enter the client’s email address.';
+      if(!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return 'Enter a valid client email address, such as client@example.com.';
+      return null;
+    }
+    function validateInsurance() {
+      const selected=Array.isArray(state.data.insurance)?state.data.insurance:[];
+      if(!selected.length) return 'Select at least one coverage goal for the client.';
+      if(selected.includes('others')&&!state.data.otherInsurance?.trim()) return 'Describe the client’s plan needs to continue.';
+      return null;
+    }
+    function validateBudget() {
+      const value=String(state.data.monthlyBudget||'').trim();
+      if(!value) return 'Enter the amount the client can allocate each month.';
+      const amount=value.replace(/,/g,'');
+      if(!/^\d+$/.test(amount)||!Number.isFinite(Number(amount))||Number(amount)<=0) return 'Enter a whole peso amount greater than zero for the client.';
+      return null;
+    }
+    function fieldError(id) {
+      const person=/^[\p{L}][\p{L}\p{M} .’'-]*$/u;
+      if(id==='firstName'||id==='lastName') {
+        const label=id==='firstName'?'first name':'last name', value=(state.data[id]||'').trim();
+        if(!value) return `Enter the client’s ${label.toLowerCase()}.`;
+        return person.test(value)?'':`The client’s ${label.toLowerCase()} can contain letters, spaces, apostrophes, periods and hyphens.`;
+      }
+      if(id==='middleName' && state.data.middleName) return person.test(state.data.middleName.trim())?'':'Enter a valid client middle name or mark that the client has no middle name.';
+      if(id==='dob') return validateBirth(); if(id==='phone') return validatePhone(); if(id==='email') return validateEmail();
+      if(id==='otherInsurance') return state.data.otherInsurance?.trim()?'':'Describe the client’s plan needs to continue.';
+      if(id==='monthlyBudget') return validateBudget()||'';
+      return '';
+    }
+    function next() {
+      if(state.step===steps.length-1){Object.keys(state.data).forEach(k=>delete state.data[k]);state.step=0;state.touched={};render();return;}
+      const error=steps[state.step].validate?.();
+      if(error) { if(state.step===2){state.touched.firstName=true;state.touched.lastName=true;if(state.data.middleName)state.touched.middleName=true;} else {const fieldKey={0:'insurance',1:'monthlyBudget',3:'dob',4:'gender',5:'phone',6:'email'}[state.step]||'gender';state.touched[fieldKey]=true;if(state.step===0&&state.data.insurance?.includes('others'))state.touched.otherInsurance=true;} render(); wizard.querySelector('[aria-invalid="true"]')?.focus(); return; }
+      if(state.step===2 && !state.data.noMiddle && !state.data.middleName?.trim()) state.data.middleName='';
+      state.calendarOpen=false; state.step=Math.min(state.step+1,steps.length-1); state.touched={}; render(); window.scrollTo({top:0,behavior:'smooth'});
+    }
+    function previous() { state.calendarOpen=false;state.step=Math.max(0,state.step-1);state.touched={};render(); }
+    function escapeHtml(value) { return String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char])); }
+    function localDate(year,month,day) { return new Date(year,month,day,12); }
+    function toISODate(date) { return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`; }
+    function parseDateInput(value) {
+      const text=String(value||'').trim(); let y,m,d; let match;
+      if((match=text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/))) [,y,m,d]=match;
+      else if((match=text.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{4})$/))) [,m,d,y]=match;
+      else return null;
+      const date=localDate(Number(y),Number(m)-1,Number(d));
+      return date.getFullYear()===Number(y)&&date.getMonth()===Number(m)-1&&date.getDate()===Number(d)?date:null;
+    }
+    function formatDateInput(value) {
+      const date=parseDateInput(value);
+      return date?`${String(date.getMonth()+1).padStart(2,'0')}/${String(date.getDate()).padStart(2,'0')}/${date.getFullYear()}`:value;
+    }
+    function toggleDatePicker() { state.calendarOpen?closeDatePicker():openDatePicker(); }
+    function openDatePicker() {
+      const selected=parseDateInput(state.data.dob);
+      const start=selected||new Date();
+      state.calendarOpen=true; state.calendarView='month'; state.calendarCursor=localDate(start.getFullYear(),start.getMonth(),1); state.calendarFocus=toISODate(selected||start);
+      const input=wizard.querySelector('#dob'); if(input) input.setAttribute('aria-expanded','true');
+      const toggle=wizard.querySelector('#dateToggle'); if(toggle) toggle.setAttribute('aria-expanded','true');
+      const picker=wizard.querySelector('#datePicker'); if(picker){picker.hidden=false;drawDatePicker(true);}
+    }
+    function closeDatePicker(returnFocus=false) {
+      state.calendarOpen=false;
+      const picker=wizard.querySelector('#datePicker'); if(picker) picker.hidden=true;
+      const input=wizard.querySelector('#dob'); if(input) input.setAttribute('aria-expanded','false');
+      const toggle=wizard.querySelector('#dateToggle'); if(toggle) toggle.setAttribute('aria-expanded','false');
+      if(returnFocus) input?.focus();
+    }
+    function drawDatePicker(focusTarget=false) {
+      const picker=wizard.querySelector('#datePicker'); if(!picker||!state.calendarCursor) return;
+      const cursor=state.calendarCursor;
+      const minYear=1900,maxDate=new Date(); maxDate.setHours(23,59,59,999);
+      const title=state.calendarView==='years'?`${Math.max(minYear,Math.floor(cursor.getFullYear()/24)*24)} – ${Math.min(maxDate.getFullYear(),Math.floor(cursor.getFullYear()/24)*24+23)}`:state.calendarView==='months'?String(cursor.getFullYear()):new Intl.DateTimeFormat('en-US',{month:'long',year:'numeric'}).format(cursor);
+      let cells='';
+      if(state.calendarView==='month') {
+        const first=localDate(cursor.getFullYear(),cursor.getMonth(),1); const start=localDate(cursor.getFullYear(),cursor.getMonth(),-first.getDay()+1);
+        const selected=parseDateInput(state.data.dob); const today=localDate(new Date().getFullYear(),new Date().getMonth(),new Date().getDate());
+        const names=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+        for(let i=0;i<42;i++) {
+          const date=localDate(start.getFullYear(),start.getMonth(),start.getDate()+i), iso=toISODate(date), outside=date.getMonth()!==cursor.getMonth(), disabled=date<localDate(minYear,0,1)||date>today;
+          const isSelected=selected&&toISODate(selected)===iso, isToday=toISODate(today)===iso;
+          cells+=`<button type="button" class="calendar-day ${outside?'is-outside':''} ${isToday?'is-today':''}" role="gridcell" data-date="${iso}" aria-label="${new Intl.DateTimeFormat('en-US',{dateStyle:'full'}).format(date)}" ${isSelected?'aria-selected="true"':''} ${disabled?'disabled':''} tabindex="${state.calendarFocus===iso?'0':'-1'}">${date.getDate()}</button>`;
+        }
+        cells=`<div class="calendar-weekdays" aria-hidden="true">${['S','M','T','W','T','F','S'].map((d,i)=>`<span aria-label="${names[i]}">${d}</span>`).join('')}</div><div class="calendar-days" role="grid" aria-label="${new Intl.DateTimeFormat('en-US',{month:'long',year:'numeric'}).format(cursor)}">${cells}</div>`;
+      } else if(state.calendarView==='months') {
+        cells=`<div class="calendar-months">${Array.from({length:12},(_,i)=>`<button type="button" class="calendar-period-cell ${i===cursor.getMonth()?'is-current':''}" data-month="${i}" ${cursor.getFullYear()===maxDate.getFullYear()&&i>maxDate.getMonth()?'disabled':''}>${new Intl.DateTimeFormat('en-US',{month:'short'}).format(localDate(2020,i,1))}</button>`).join('')}</div>`;
+      } else {
+        const startYear=Math.max(minYear,Math.floor(cursor.getFullYear()/24)*24);
+        cells=`<div class="calendar-years">${Array.from({length:24},(_,i)=>startYear+i).map(year=>`<button type="button" class="calendar-period-cell ${year===cursor.getFullYear()?'is-current':''}" data-year="${year}" ${year>maxDate.getFullYear()||year<minYear?'disabled':''}>${year}</button>`).join('')}</div>`;
+      }
+      const canPrev=state.calendarView==='years'?Math.floor(cursor.getFullYear()/24)*24>minYear:state.calendarView==='months'?cursor.getFullYear()>minYear:cursor.getFullYear()>minYear||cursor.getMonth()>0;
+      const canNext=state.calendarView==='years'?Math.floor(cursor.getFullYear()/24)*24+24<=maxDate.getFullYear():state.calendarView==='months'?cursor.getFullYear()<maxDate.getFullYear():cursor.getFullYear()<maxDate.getFullYear()||cursor.getMonth()<maxDate.getMonth();
+      picker.innerHTML=`<div class="calendar-header"><button class="calendar-nav" type="button" data-calendar-action="previous" aria-label="Previous ${state.calendarView==='years'?'24 years':state.calendarView==='months'?'year':'month'}" ${canPrev?'':'disabled'}><span class="material-symbols-outlined" aria-hidden="true">chevron_left</span></button><button class="calendar-period" type="button" data-calendar-action="toggle-view" aria-label="Choose ${state.calendarView==='month'?'month and year':state.calendarView==='months'?'year':'year range'}">${title}<span class="material-symbols-outlined" aria-hidden="true">arrow_drop_down</span></button><button class="calendar-nav" type="button" data-calendar-action="next" aria-label="Next ${state.calendarView==='years'?'24 years':state.calendarView==='months'?'year':'month'}" ${canNext?'':'disabled'}><span class="material-symbols-outlined" aria-hidden="true">chevron_right</span></button></div>${cells}`;
+      picker.onclick=event=>{
+        const button=event.target.closest('button'); if(!button||button.disabled) return;
+      if(button.dataset.date) { state.data.dob=formatDateInput(button.dataset.date);state.touched.dob=true;closeDatePicker();const input=wizard.querySelector('#dob');if(input)input.value=state.data.dob;refreshFieldState('dob');updateDOBAge();saveLeadDraft();input?.focus();return; }
+        if(button.dataset.year) { state.calendarCursor=localDate(Number(button.dataset.year),cursor.getMonth(),1);state.calendarFocus=toISODate(localDate(Number(button.dataset.year),cursor.getMonth(),1));state.calendarView='months';drawDatePicker(true);return; }
+        if(button.dataset.month!==undefined) { state.calendarCursor=localDate(cursor.getFullYear(),Number(button.dataset.month),1);state.calendarFocus=toISODate(state.calendarCursor);state.calendarView='month';drawDatePicker(true);return; }
+        if(button.dataset.calendarAction==='toggle-view') { state.calendarView=state.calendarView==='month'?'years':state.calendarView==='years'?'months':'years';drawDatePicker(true);return; }
+        if(button.dataset.calendarAction==='previous'||button.dataset.calendarAction==='next') {
+          const direction=button.dataset.calendarAction==='previous'?-1:1;
+          if(state.calendarView==='years')state.calendarCursor=localDate(cursor.getFullYear()+direction*24,cursor.getMonth(),1);
+          else if(state.calendarView==='months')state.calendarCursor=localDate(cursor.getFullYear()+direction,cursor.getMonth(),1);
+          else state.calendarCursor=localDate(cursor.getFullYear(),cursor.getMonth()+direction,1);
+          state.calendarFocus=null;drawDatePicker(true);
+        }
+      };
+      picker.onkeydown=event=>handleCalendarKeydown(event);
+      if(focusTarget) (picker.querySelector(`[data-date="${state.calendarFocus}"]`)||picker.querySelector('.calendar-period'))?.focus();
+    }
+    function handleCalendarKeydown(event) {
+      if(event.key==='Escape') { event.preventDefault();closeDatePicker(true);return; }
+      if(!['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Home','End','PageUp','PageDown'].includes(event.key)) return;
+      if(state.calendarView==='years'&&event.target.dataset.year) {
+        const current=Number(event.target.dataset.year), rangeStart=Math.max(1900,Math.floor(state.calendarCursor.getFullYear()/24)*24); let year=current;
+        if(event.key==='ArrowLeft')year--; if(event.key==='ArrowRight')year++; if(event.key==='ArrowUp')year-=4; if(event.key==='ArrowDown')year+=4;
+        if(event.key==='Home')year=rangeStart; if(event.key==='End')year=Math.min(rangeStart+23,new Date().getFullYear());
+        if(event.key==='PageUp')year-=24; if(event.key==='PageDown')year+=24;
+        year=Math.max(1900,Math.min(new Date().getFullYear(),year)); event.preventDefault();
+        pickerFocusPeriod('year',year); return;
+      }
+      if(state.calendarView==='months'&&event.target.dataset.month!==undefined) {
+        const current=Number(event.target.dataset.month), year=state.calendarCursor.getFullYear(); let month=current,targetYear=year;
+        if(event.key==='ArrowLeft')month--; if(event.key==='ArrowRight')month++; if(event.key==='ArrowUp')month-=3; if(event.key==='ArrowDown')month+=3;
+        if(event.key==='Home')month=0; if(event.key==='End')month=11;
+        if(event.key==='PageUp')targetYear--; if(event.key==='PageDown')targetYear++;
+        if(month<0&&targetYear===year&&year>1900){targetYear--;month=11;}
+        if(month>11&&targetYear===year&&year<new Date().getFullYear()){targetYear++;month=0;}
+        targetYear=Math.max(1900,Math.min(new Date().getFullYear(),targetYear));
+        if(targetYear!==year){state.calendarCursor=localDate(targetYear,month,1);drawDatePicker();}
+        month=Math.max(0,Math.min(11,month)); event.preventDefault(); pickerFocusPeriod('month',month); return;
+      }
+      const activeDate=parseDateInput(event.target.closest('[data-date]')?.dataset.date||state.calendarFocus||'');
+      if(!activeDate) return;
+      event.preventDefault(); let next=new Date(activeDate);
+      if(event.key==='ArrowLeft')next.setDate(next.getDate()-1);
+      if(event.key==='ArrowRight')next.setDate(next.getDate()+1);
+      if(event.key==='ArrowUp')next.setDate(next.getDate()-7);
+      if(event.key==='ArrowDown')next.setDate(next.getDate()+7);
+      if(event.key==='Home')next.setDate(next.getDate()-next.getDay());
+      if(event.key==='End')next.setDate(next.getDate()+(6-next.getDay()));
+      if(event.key==='PageUp')next=shiftCalendarMonth(next,event.altKey?-12:-1);
+      if(event.key==='PageDown')next=shiftCalendarMonth(next,event.altKey?12:1);
+      const minDate=localDate(1900,0,1), maxDate=localDate(new Date().getFullYear(),new Date().getMonth(),new Date().getDate());
+      if(next<minDate)next=minDate;
+      if(next>maxDate)next=maxDate;
+      state.calendarFocus=toISODate(next);state.calendarCursor=localDate(next.getFullYear(),next.getMonth(),1);drawDatePicker(true);
+    }
+    function pickerFocusPeriod(kind,value) {
+      const picker=wizard.querySelector('#datePicker'); if(!picker)return;
+      picker.querySelector(`[data-${kind}="${value}"]`)?.focus();
+    }
+    function shiftCalendarMonth(date,amount) {
+      const target=localDate(date.getFullYear(),date.getMonth()+amount,1);
+      const lastDay=new Date(target.getFullYear(),target.getMonth()+1,0).getDate();
+      return localDate(target.getFullYear(),target.getMonth(),Math.min(date.getDate(),lastDay));
+    }
+    document.addEventListener('pointerdown',event=>{if(state.calendarOpen&&!event.target.closest('.date-control'))closeDatePicker();});
+    function playConfetti() {
+      if(window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const layer=document.getElementById('confettiLayer'); if(!layer) return;
+      layer.replaceChildren();
+      const colors=['#ad2676','#e68d4d','#f4c15d','#60b9a8','#6b83d4'];
+      for(let i=0;i<72;i++) {
+        const piece=document.createElement('span');
+        piece.className='confetti-piece';
+        piece.style.setProperty('--x',`${Math.random()*100}%`);
+        piece.style.setProperty('--delay',`${Math.random()*1.3}s`);
+        piece.style.setProperty('--duration',`${2.4+Math.random()*1.8}s`);
+        piece.style.setProperty('--drift',`${Math.round(Math.random()*220-110)}px`);
+        piece.style.setProperty('--turn',`${Math.round(Math.random()*1080-540)}deg`);
+        piece.style.setProperty('--color',colors[i%colors.length]);
+        layer.append(piece);
+      }
+      const player=document.createElement('dotlottie-wc');
+      player.setAttribute('src',new URL('./assets/confetti.lottie',document.baseURI).href); player.setAttribute('autoplay',''); player.setAttribute('mode','forward');
+      layer.append(player);
+      window.setTimeout(()=>{if(player.isConnected)player.remove();},6000);
+    }
+    render();
+  </script>
+</body>
+</html>

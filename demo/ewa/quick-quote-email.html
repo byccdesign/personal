@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f3f5f5">
+  <title>Your Quick Quote summary | EastWest Ageas</title>
+  <style>
+    * { box-sizing:border-box; }
+    body { margin:0; padding:32px 16px; background:#f3f5f5; color:#263234; font-family:Arial,Helvetica,sans-serif; }
+    .preview { width:100%; max-width:720px; margin:0 auto; }
+    .preview-label { margin:0 0 14px; color:#687477; font-size:12px; }
+    .mail-meta { margin-bottom:16px; padding:16px 20px; border:1px solid #e3e7e7; border-radius:6px; background:#fff; font-size:13px; line-height:1.8; }
+    .mail-meta strong { display:inline-block; width:58px; color:#687477; font-weight:700; }
+    .email { overflow:hidden; border:1px solid #e3e7e7; border-radius:6px; background:#fff; }
+    .brand { padding:22px 34px; border-bottom:1px solid #ecefef; color:#263234; font-size:17px; font-weight:700; }
+    .brand span { color:#af1f72; }
+    .body { padding:36px 34px 30px; }
+    .eyebrow { margin:0 0 10px; color:#af1f72; font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; }
+    h1 { margin:0 0 14px; font-size:28px; line-height:1.2; }
+    p { margin:0 0 16px; color:#596467; font-size:15px; line-height:1.6; }
+    .summary { width:100%; margin:24px 0; border-collapse:collapse; }
+    .summary th,.summary td { padding:14px 0; border-bottom:1px solid #e8ebeb; text-align:left; vertical-align:top; font-size:14px; line-height:1.5; }
+    .summary th { width:38%; color:#687477; font-weight:400; }
+    .summary td { color:#263234; font-weight:700; }
+    .goal-list { margin:0; padding-left:18px; }
+    .goal-list li { margin:0 0 4px; }
+    .budget { margin:24px 0; padding:18px 20px; border-left:3px solid #af1f72; background:#f8f4f6; }
+    .budget-label { display:block; margin-bottom:5px; color:#687477; font-size:12px; }
+    .budget strong { font-size:24px; }
+    .button { display:inline-block; margin:6px 0 22px; padding:13px 20px; border-radius:4px; background:#af1f72; color:#fff !important; font-size:14px; font-weight:700; text-decoration:none; }
+    .fine-print { padding:18px 20px; border:1px solid #e3e7e7; border-radius:4px; background:#f8f9f9; color:#687477; font-size:12px; line-height:1.55; }
+    .footer { padding:22px 34px 26px; border-top:1px solid #ecefef; color:#687477; font-size:12px; line-height:1.6; }
+    .footer p { margin:0 0 8px; font-size:12px; }
+    @media(max-width:520px) { body { padding:16px 10px; } .brand { padding:18px 20px; } .body { padding:28px 20px 24px; } .footer { padding:20px; } h1 { font-size:24px; } .summary th { width:42%; padding-right:12px; } }
+  </style>
+</head>
+<body>
+  <main class="preview">
+    <p class="preview-label">EMAIL PREVIEW · SAMPLE DETAILS FOR DEMONSTRATION</p>
+    <section class="mail-meta" aria-label="Email details">
+      <div><strong>To</strong> Alex Sample &lt;alex.sample@example.test&gt;</div>
+      <div><strong>From</strong> Your EastWest Ageas financial advisor</div>
+      <div><strong>Subject</strong> Your EastWest Ageas Quick Quote summary</div>
+    </section>
+    <article class="email">
+      <header class="brand">EastWest <span>Ageas</span></header>
+      <div class="body">
+        <p class="eyebrow">Your Quick Quote</p>
+        <h1>A starting point for your plans, Alex</h1>
+        <p>Thanks for sharing what matters to you. Here’s a summary of the details you provided. Your financial advisor can use them to explore suitable options with you.</p>
+
+        <table class="summary" role="presentation">
+          <tbody>
+            <tr><th scope="row">Name</th><td>Alex Sample Client</td></tr>
+            <tr><th scope="row">Date of birth</th><td>January 15, 1990</td></tr>
+            <tr><th scope="row">Sex assigned at birth</th><td>Female</td></tr>
+            <tr><th scope="row">Coverage goals</th><td><ul class="goal-list"><li>Family protection</li><li>Savings</li></ul></td></tr>
+          </tbody>
+        </table>
+
+        <div class="budget"><span class="budget-label">Monthly budget allocation</span><strong>₱8,000</strong></div>
+        <p>This summary reflects the information entered in Quick Quote. It is not a product recommendation or a final price. Your advisor can discuss plan features, eligibility, and next steps with you.</p>
+        <a class="button" href="#advisor-follow-up">Continue with your advisor</a>
+
+        <div class="fine-print"><strong>Important:</strong> This Quick Quote summary is for discussion purposes only. It is not an insurance application, sales illustration, policy, or offer of coverage. Any available product, premium, benefits, and coverage are subject to the insurer’s assessment, applicable terms, and approval.</div>
+      </div>
+      <footer class="footer" id="advisor-follow-up">
+        <p><strong>Need to update something?</strong> Reply to the financial advisor who shared this email.</p>
+        <p>EastWest Ageas · This sample message contains fictional client details for prototype use.</p>
+      </footer>
+    </article>
+  </main>
+</body>
+</html>
