@@ -5352,6 +5352,7 @@ a:visited {
     .case-content-list li {
       position: relative;
       padding-left: 16px;
+      line-height: 1.65;
     }
 
     .case-content-list li::before {
@@ -5734,7 +5735,7 @@ a:visited {
       color: #111111;
       font-family: "Plus Jakarta Sans", sans-serif;
       letter-spacing: -0.03em;
-      font-weight: 500;
+      font-weight: 600;
       line-height: 1.35;
     }
 
