@@ -30,7 +30,6 @@ html {
 }
 
 p {
-    color:var(--description);
     font-size: clamp(16px, 1.12vw, 18px);
     font-weight: 400;
     line-height: 1.65;
@@ -7783,11 +7782,135 @@ Reusable content patterns for product case study pages.
 .case-study-outcome__copy p { max-width: 660px; }
 .case-study-link { display: inline-block; margin-top: 16px; }
 
+/* Modular feature showcase for product case studies */
+.case-feature-bento {
+  width: 100%;
+  min-width: 0;
+  margin: 8px 0 0;
+}
+.case-feature-bento__header {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(260px, .8fr);
+  gap: clamp(24px, 5vw, 72px);
+  align-items: end;
+  margin: 0 0 30px;
+}
+.case-feature-bento__eyebrow {
+  margin: 0 0 12px;
+  color: #5367ef;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.case-feature-bento__header h2 {
+  max-width: 720px;
+  margin: 0;
+  color: #202326;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: clamp(30px, 4vw, 52px);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -.055em;
+}
+.case-feature-bento__header > p {
+  max-width: 420px;
+  margin: 0 0 2px;
+  color: #5d6268;
+  font-size: 15px;
+  line-height: 1.65;
+  letter-spacing: -.02em;
+}
+.case-feature-bento__grid {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 16px;
+}
+.case-feature-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e1e4e8;
+  border-radius: 14px;
+  background: #f7f8fa;
+}
+.case-feature-card--wide { grid-column: span 7; }
+.case-feature-card--compact { grid-column: span 5; }
+.case-feature-card__media {
+  position: relative;
+  overflow: hidden;
+  background: #eef0f5;
+}
+.case-feature-card--wide .case-feature-card__media,
+.case-feature-card--compact .case-feature-card__media { aspect-ratio: 16 / 9; }
+.case-feature-card__media video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: #eef0f5;
+}
+.case-feature-card__media-label {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  padding: 7px 10px;
+  border: 1px solid rgba(255,255,255,.68);
+  border-radius: 999px;
+  background: rgba(255,255,255,.88);
+  color: #353941;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: .02em;
+  pointer-events: none;
+  backdrop-filter: blur(8px);
+}
+.case-feature-card__copy {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  padding: 21px 23px 24px;
+}
+.case-feature-card__index {
+  color: #656a72;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.4;
+  letter-spacing: .11em;
+}
+.case-feature-card__copy h3 {
+  margin: 0;
+  color: #202326;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: clamp(18px, 1.7vw, 23px);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -.035em;
+}
+.case-feature-card__copy p {
+  max-width: 580px;
+  margin: 0;
+  color: #5d6268;
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: -.015em;
+}
+
 @media (max-width: 850px) {
   .case-study-flow { grid-template-columns: 1fr 1fr; }
   .case-study-flow__step:nth-child(2) { border-right: 0; }
   .case-study-flow__step:nth-child(-n+2) { border-bottom: 1px solid currentColor; }
   .case-study-outcome__inner { grid-template-columns: 1fr; gap: 24px; }
+  .case-feature-bento__header { grid-template-columns: 1fr; gap: 16px; align-items: start; }
+  .case-feature-bento__header > p { max-width: 600px; }
+  .case-feature-bento__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .case-feature-card--wide,
+  .case-feature-card--compact { grid-column: span 1; }
+  .case-feature-card--wide .case-feature-card__media,
+  .case-feature-card--compact .case-feature-card__media { aspect-ratio: 16 / 9; }
 }
 
 @media (max-width: 560px) {
@@ -7795,4 +7918,9 @@ Reusable content patterns for product case study pages.
   .case-study-flow__step, .case-study-flow__step:nth-child(2) { border-right: 0; border-bottom: 1px solid currentColor; }
   .case-study-flow__step:last-child { border-bottom: 0; }
   .case-study-figure--contained { padding: 12px; }
+  .case-feature-bento__header { margin-bottom: 22px; }
+  .case-feature-bento__grid { grid-template-columns: 1fr; gap: 14px; }
+  .case-feature-card--wide,
+  .case-feature-card--compact { grid-column: 1; }
+  .case-feature-card__copy { padding: 18px 18px 20px; }
 }
