@@ -5361,27 +5361,54 @@ a:visited {
 
     .case-content-list li::before {
       position: absolute;
-      top: 0.55em;
+      top: 0.65em;
       left: 0;
-      width: 6px;
-      height: 6px;
+      width: 7px;
+      height: 7px;
       border-radius: 50%;
       background: #dedede;
       content: "";
     }
 
     .case-content-list--numbered {
-      margin-left: 16px;
-      padding-left: 20px;
-      list-style: decimal;
+      counter-reset: case-content-number;
+      gap: 24px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
     }
 
     .case-content-list--numbered li {
-      padding-left: 4px;
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr);
+      column-gap: 16px;
+      position: static;
+      padding: 0;
+      counter-increment: case-content-number;
     }
 
     .case-content-list--numbered li::before {
       display: none;
+    }
+
+    .case-content-list--numbered .case-content-list__number::before {
+      display: block;
+      width: auto;
+      height: auto;
+      border-radius: 0;
+      background: var(--22, linear-gradient(129deg, #FFAD30 38.66%, #FF852A 70.8%, #FF5C23 102.94%));
+      color: transparent;
+      content: counter(case-content-number);
+      font-family: "Plus Jakarta Sans", sans-serif;
+      font-size: 24px;
+      font-weight: 600;
+      line-height: normal;
+      letter-spacing: -0.96px;
+      text-align: center;
+      white-space: nowrap;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .case-content {
@@ -7779,7 +7806,7 @@ Reusable content patterns for product case study pages.
 .case-study-detail { padding: 22px 24px; border: 1px solid rgba(31,31,31,.22); border-radius: 8px; }
 .case-study-detail h3 { margin: 0 0 8px; font-size: 18px; }
 .case-study-detail p { margin: 0; font-size: 14px; line-height: 1.6; }
-.case-study-note { margin: 0 0; padding: 22px 24px; border-left: 3px solid #a42679; background: rgba(164,38,121,.06); }
+.case-study-note { margin: 0 0; padding: 22px 24px;     border-left: 3px solid #ff5c23; background: #fff8e5; }
 .case-study-note p { margin: 0; }
 .case-study-outcome { padding: 54px 0 88px; }
 .case-study-outcome__inner { display: grid; grid-template-columns: minmax(230px,.7fr) minmax(0,1.3fr); gap: 6vw; align-items: start; }
