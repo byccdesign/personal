@@ -501,6 +501,8 @@ a:visited {
       border: 0;
       font-weight: 600;
       text-decoration: none;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
 
     .nav-links {
@@ -568,11 +570,10 @@ a:visited {
     .navbar.scrolled {
       top: 18px;
       padding: 1vw 0.9vw;
-      border: none;
-      background: rgb(255 255 255 / 46%);
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.18);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
+      background: rgb(255 255 255 / 75%);
+      box-shadow: 0 10px 20px rgb(180 180 180 / 18%);
+      backdrop-filter: blur(50px);
+      -webkit-backdrop-filter: blur(50px);
     }
 
     .navbar.scrolled .nav-logo,
@@ -5301,8 +5302,11 @@ a:visited {
       color: #166534;
       font-size: 10px;
       font-weight: 700;
-      line-height: 1;
+      line-height: 1.5;
       letter-spacing: -0.04em;
+      text-wrap: pretty;
+      text-align:left;
+      -webkit-text-align:left;
       text-transform: uppercase;
     }
 
