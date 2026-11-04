@@ -47,12 +47,41 @@
   </button>
 
  <nav class="nav-links" id="primary-navigation">
-    <!-- <a href="/product">Product</a> -->
     <a href="/notes/">Notes</a>
     <a href="/about">About</a>
-    <a href="/contact">Contact</a>
-  </nav>
+    <div class="nav-contact" data-contact-menu>
+      <button class="nav-contact__toggle" type="button" aria-expanded="false" aria-controls="nav-contact-panel">
+        Contact
+      </button>
+      <div class="nav-contact__panel" id="nav-contact-panel" aria-hidden="true" inert>
+        <div class="nav-contact__item">
+          <span class="nav-contact__label">Email</span>
+          <button class="nav-contact__copy-row" type="button" aria-label="Copy email address" title="Copy email address" data-copy-email>
+            <span class="nav-contact__value">hi@christine-uy.com</span>
+            <span class="nav-contact__copy" aria-hidden="true">
+              <svg class="nav-contact__copy-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <rect x="7" y="7" width="10" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+                <path d="M13 7V5.8A1.8 1.8 0 0 0 11.2 4H5.8A1.8 1.8 0 0 0 4 5.8v5.4A1.8 1.8 0 0 0 5.8 13H7" fill="none" stroke="currentColor" stroke-width="1.6" />
+              </svg>
+              <svg class="nav-contact__check-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="m4.5 10.2 3.6 3.5 7.5-7.4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" />
+              </svg>
+            </span>
+          </button>
+        </div>
+        <div class="nav-contact__item">
+          <span class="nav-contact__label">LinkedIn</span>
+          <a class="nav-contact__value" href="https://www.linkedin.com/in/christine-uy/" target="_blank" rel="noopener noreferrer">@christine-uy</a>
+        </div>
 
+        <div class="nav-contact__item">
+          <span class="nav-contact__label">Dribbble</span>
+          <a class="nav-contact__value" href="https://dribbble.com/creatvetin" target="_blank" rel="noopener noreferrer">@creatvetin</a>
+        </div>
+        <span class="nav-contact__status" aria-live="polite" data-copy-status></span>
+      </div>
+    </div>
+</nav>
 </header>
 
   <!-- Hero -->
@@ -116,9 +145,9 @@
     <article class="featured-work featured-work--ewa fade-in-up" data-case-study-url="/product-ewa" data-tooltip="View Case Study" role="link" tabindex="0">
       <div class="featured-work__header">
         <div class="featured-work__copy" data-node-id="793:1347">
-          <h2 class="work-section__title">Fragmented insurance ecosystem into 1 connected journey</h2>
+          <h2 class="work-section__title">Connecting insurance sales, service, and policy operations</h2>
           <p>
-          I led design and UX strategy across sales, service, and policy operations, putting application and issuance in one flow. Policy issuance fell from 3 days to 1, core system costs dropped 65%, and 70% of new-business workflows are now automated. 
+          I led design and UX strategy to bring application and policy issuance into one connected journey. The new workflow cut policy issuance from 3 days to 1, reduced core system costs by 65%, and automated 70% of new-business workflows.
          </p>
           <div class="project-tags" aria-label="Project disciplines" data-node-id="793:1382">
             <span>Financial Services/Insurance</span>
@@ -176,8 +205,8 @@
   <article class="featured-work featured-work--marketplace-growth fade-in-up" data-case-study-url="/product-marketplace-growth" data-tooltip="View Case Study" role="link" tabindex="0">
       <div class="featured-work__header">
         <div class="featured-work__copy">
-          <h2 class="work-section__title">Improving trust, discovery, and hiring across Freelancer.com’s global marketplace</h2>
-          <p>As a product designer on the Growth, Core, and Search teams, I worked on identity verification, search, and hiring flows. Across those teams, verified accounts rose 35%, hiring support tickets fell 35%, and hourly-hiring revenue grew 60%.</p>
+          <h2 class="work-section__title">Improving trust and hiring across a global freelance marketplace</h2>
+          <p>As a product designer across the Growth, Core, and Search teams, I worked on identity verification, discovery, and hiring. Across this work, verified accounts increased 35%, hiring support tickets fell 35%, and hourly-hiring revenue grew 60%.</p>
           <div class="project-tags" aria-label="Project disciplines">
             <span>Marketplace Growth</span>
             <span>Onboarding &amp; KYC</span>
@@ -195,9 +224,9 @@
     <article class="featured-work featured-work--design-system fade-in-up" data-case-study-url="/product-design-system" data-tooltip="View Case Study" role="link" tabindex="0">
       <div class="featured-work__header">
         <div class="featured-work__copy">
-          <h2 class="work-section__title">Scaling Bits into a shared design foundation for Freelancer.com product ecosystem used by 80 million users</h2>
+          <h2 class="work-section__title">Evolving Bits, the design system behind Freelancer.com’s 80-million-user ecosystem</h2>
           <p>
-I contributed to evolving Bits, Freelancer.com's design system, strengthening its foundations, reusable components, and accessibility guidance to support a more consistent, and scalable experience.</p>
+I helped strengthen Bits’ foundations, reusable components, and accessibility guidance so product teams could build more consistent experiences across Freelancer.com’s ecosystem.</p>
 <div class="project-tags" aria-label="Project disciplines">
             <span>Global Marketplace</span>
             <span>Web App Migration</span>
@@ -219,8 +248,8 @@ I contributed to evolving Bits, Freelancer.com's design system, strengthening it
     <article class="featured-work featured-work--canvas fade-in-up" data-case-study-url="https://mymindcanvas.vercel.app/" data-open-new-window="true" data-tooltip="Try MyMind" role="link" tabindex="0">
       <div class="featured-work__header">
         <div class="featured-work__copy">
-          <h2 class="work-section__title">From messy ideas to clear work</h2>
-          <p>MyMind is the canvas I designed and built to hold ideas, research, and process flows in one place. I used AI-assisted development to prototype and refine the interactions.</p>
+          <h2 class="work-section__title">Turning scattered ideas into clear, workable flows</h2>
+          <p>I designed and built MyMind, an open canvas for bringing ideas, research, and process flows together. Using AI-assisted development, I prototyped and refined the interactions.</p>
           <div class="project-tags" aria-label="Project disciplines">
             <span>React, Canvas API</span>
             <span>AI-assisted Development</span>
@@ -273,8 +302,8 @@ I contributed to evolving Bits, Freelancer.com's design system, strengthening it
     <article class="featured-work featured-work--design-lead fade-in-up" data-case-study-url="/product-ewa-leadership" data-tooltip="View Case Study" role="link" tabindex="0">
       <div class="featured-work__header">
         <div class="featured-work__copy">
-          <h2 class="work-section__title">Leading a design team through a year-long insurance transformation</h2>
-          <p>As Design Manager, I set one product direction for the team and built the practice behind it: hiring criteria, a competency matrix, regular critiques, and a shared design system. The team kept building on it after I left.</p>
+          <h2 class="work-section__title">Building the design practice behind an insurance transformation</h2>
+          <p>As Design Manager, I aligned the team around a shared product direction and established hiring criteria, a competency matrix, regular critiques, and a shared design system. The team continued building on that foundation after I left.</p>
           <div class="project-tags" aria-label="Project disciplines">
             <span>Design Leadership</span>
             <span>Product and UX Strategy</span>

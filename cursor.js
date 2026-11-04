@@ -811,6 +811,96 @@
     }
 
     /* =========================
+    CONTACT DROPDOWN
+    ========================= */
+
+    const contactMenu = document.querySelector('[data-contact-menu]');
+
+    if (contactMenu) {
+      const contactToggle = contactMenu.querySelector('.nav-contact__toggle');
+      const contactPanel = contactMenu.querySelector('.nav-contact__panel');
+      const copyEmailButton = contactMenu.querySelector('[data-copy-email]');
+      const copyStatus = contactMenu.querySelector('[data-copy-status]');
+      let copyFeedbackTimer;
+
+      function setContactMenuOpen(isOpen) {
+        contactMenu.classList.toggle('is-open', isOpen);
+        contactToggle.setAttribute('aria-expanded', String(isOpen));
+        contactPanel.setAttribute('aria-hidden', String(!isOpen));
+        contactPanel.inert = !isOpen;
+      }
+
+      contactToggle.addEventListener('click', () => {
+        setContactMenuOpen(!contactMenu.classList.contains('is-open'));
+      });
+
+      if (navLinks) {
+        navLinks.addEventListener('click', (event) => {
+          if (event.target.closest('a')) {
+            setContactMenuOpen(false);
+          }
+        });
+      }
+
+      if (navToggle) {
+        navToggle.addEventListener('click', () => {
+          if (!document.body.classList.contains('nav-open')) {
+            setContactMenuOpen(false);
+          }
+        });
+      }
+
+      document.addEventListener('click', (event) => {
+        if (!contactMenu.contains(event.target)) {
+          setContactMenuOpen(false);
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && contactMenu.classList.contains('is-open')) {
+          setContactMenuOpen(false);
+          contactToggle.focus();
+        }
+      });
+
+      copyEmailButton.addEventListener('click', async () => {
+        const email = 'hi@christine-uy.com';
+
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(email);
+          } else {
+            const textArea = document.createElement('textarea');
+            textArea.value = email;
+            textArea.setAttribute('readonly', '');
+            textArea.style.position = 'fixed';
+            textArea.style.opacity = '0';
+            document.body.appendChild(textArea);
+            textArea.select();
+            const copied = document.execCommand('copy');
+            textArea.remove();
+            if (!copied) throw new Error('Clipboard copy failed');
+          }
+
+          copyEmailButton.classList.add('is-copied');
+          copyEmailButton.setAttribute('aria-label', 'Email address copied');
+          copyEmailButton.title = 'Copied';
+          copyStatus.textContent = 'Email address copied';
+          window.clearTimeout(copyFeedbackTimer);
+          copyFeedbackTimer = window.setTimeout(() => {
+            copyEmailButton.classList.remove('is-copied');
+            copyEmailButton.setAttribute('aria-label', 'Copy email address');
+            copyEmailButton.title = 'Copy email address';
+            copyStatus.textContent = '';
+          }, 1800);
+        } catch (error) {
+          copyStatus.textContent = 'Could not copy email address';
+          copyEmailButton.setAttribute('aria-label', 'Could not copy email address');
+        }
+      });
+    }
+
+    /* =========================
     NOTES TYPEWRITER
     ========================= */
 

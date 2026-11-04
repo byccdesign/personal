@@ -38,7 +38,42 @@
 <header class="navbar" id="navbar">
   <div class="nav-logo"><a href="/">Christine Uy</a></div>
   <button class="nav-toggle" type="button" aria-controls="primary-navigation" aria-expanded="false" aria-label="Open menu"><span></span><span></span></button>
-  <nav class="nav-links" id="primary-navigation"><!-- <a href="/product" aria-current="page">Product</a> --><a href="/notes/">Notes</a><a href="/about">About</a><a href="/contact">Contact</a></nav>
+ <nav class="nav-links" id="primary-navigation">
+    <a href="/notes/">Notes</a>
+    <a href="/about">About</a>
+    <div class="nav-contact" data-contact-menu>
+      <button class="nav-contact__toggle" type="button" aria-expanded="false" aria-controls="nav-contact-panel">
+        Contact
+      </button>
+      <div class="nav-contact__panel" id="nav-contact-panel" aria-hidden="true" inert>
+        <div class="nav-contact__item">
+          <span class="nav-contact__label">Email</span>
+          <button class="nav-contact__copy-row" type="button" aria-label="Copy email address" title="Copy email address" data-copy-email>
+            <span class="nav-contact__value">hi@christine-uy.com</span>
+            <span class="nav-contact__copy" aria-hidden="true">
+              <svg class="nav-contact__copy-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <rect x="7" y="7" width="10" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+                <path d="M13 7V5.8A1.8 1.8 0 0 0 11.2 4H5.8A1.8 1.8 0 0 0 4 5.8v5.4A1.8 1.8 0 0 0 5.8 13H7" fill="none" stroke="currentColor" stroke-width="1.6" />
+              </svg>
+              <svg class="nav-contact__check-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="m4.5 10.2 3.6 3.5 7.5-7.4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" />
+              </svg>
+            </span>
+          </button>
+        </div>
+        <div class="nav-contact__item">
+          <span class="nav-contact__label">LinkedIn</span>
+          <a class="nav-contact__value" href="https://www.linkedin.com/in/christine-uy/" target="_blank" rel="noopener noreferrer">@christine-uy</a>
+        </div>
+
+        <div class="nav-contact__item">
+          <span class="nav-contact__label">Dribbble</span>
+          <a class="nav-contact__value" href="https://dribbble.com/creatvetin" target="_blank" rel="noopener noreferrer">@creatvetin</a>
+        </div>
+        <span class="nav-contact__status" aria-live="polite" data-copy-status></span>
+      </div>
+    </div>
+ </nav>
 </header>
 
 <nav class="case-anchor-nav" aria-label="Case study sections">
