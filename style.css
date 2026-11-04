@@ -30,8 +30,6 @@ html {
 }
 
 p {
-    font-size: clamp(16px, 1.12vw, 18px);
-    font-weight: 400;
     line-height: 1.65;
     letter-spacing: -0.04em;
 }
@@ -3536,25 +3534,18 @@ a:visited {
       height: 100vh;
       min-height: 720px;
       overflow: hidden;
-      background: radial-gradient(
-        ellipse 990px 600px at 10.3% 48.3%,
-        #fff 0%,
-        #ffe8bf 25%,
-        #ffd180 50%,
-        #ffc560 62.5%,
-        #ffb940 75%,
-        #ffae20 87.5%,
-        #ffa810 93.75%,
-        #ffa200 100%
-      );
+      background:
+      radial-gradient(ellipse 240% 68% at 50% -8%, #ffad30 0%, #fff8e5 42%, #fff 100%), #fff;
     }
 
     /* BIG C OUTLINE */
     .c-wrapper {
       position: absolute;
-      top: 342px;
-      left: calc(50% - 107px);
-      width: 801px;
+      top: 50%;
+      left: 50%;
+      z-index: 1;
+      width: min(78vw, 920px);
+      transform: translate(-50%, -50%);
       pointer-events: none;
     }
 
@@ -3573,8 +3564,8 @@ a:visited {
 
     .c-outline {
       fill: none;
-      stroke: rgba(255, 255, 255, 0.92);
-      stroke-width: 1;
+      stroke: #ffecd0;
+      stroke-width: 1.5;
       stroke-linecap: round;
       stroke-linejoin: round;
       animation: drawOutline 5.5s ease-in-out infinite;
@@ -3616,11 +3607,23 @@ a:visited {
     }
 
     /* HERO TEXT */
-    .center-content {
+    .hero-copy {
       position: absolute;
-      top: 120px;
-      left: var(--site-edge);
-      z-index: 2;
+      top: 50%;
+      left: 50%;
+      z-index: 3;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 64px;
+      width: min(900px, calc(100% - 48px));
+      transform: translate(-50%, -50%);
+      text-align: center;
+    }
+
+    .center-content {
+      position: static;
+      width: 100%;
       color: var(--text);
       user-select: none;
     }
@@ -3641,7 +3644,7 @@ a:visited {
     .title-line {
       display: block;
       font-family: "Plus Jakarta Sans", sans-serif;
-      width: 820px;
+      width: 100%;
       font-size: 60px;
       text-wrap: balance;
       line-height: 1.08;
@@ -3674,9 +3677,10 @@ a:visited {
     .dot {
       width: 10px;
       height: 10px;
-      background: var(--line);
+      background: var(--accent);
       border-radius: 50%;
       animation: pulse 2s infinite;
+      box-shadow: 0 0 0 3px #fff8e5;
     }
 
     @keyframes pulse {
@@ -3693,16 +3697,14 @@ a:visited {
 
     /* DESCRIPTION */
     .description {
-      position: absolute;
-      top: 390px;
-      left: var(--site-edge);
-      width: 535px;
-      z-index: 3;
+      position: static;
+      width: min(630px, 100%);
       color: var(--text);
-      font-size: 18px;
+      font-size: 20px;
       line-height: 30px;
       font-weight: 400;
       letter-spacing: -0.04em;
+      text-align: center;
     }
 
     .description > p + p {
@@ -3715,9 +3717,14 @@ a:visited {
 
     .location {
       margin-top: 24px;
-      font-size: 18px;
+      font-size: 20px;
       line-height: 30px;
       line-height: normal;
+      text-align: center;
+    }
+
+    .location .info {
+      justify-content: center;
     }
 
     .location strong {
@@ -3739,23 +3746,22 @@ a:visited {
 
     @media (max-width: 900px) {
       .c-wrapper {
-        top: 330px;
-        left: 14%;
-        width: 120vw;
+        width: min(110vw, 720px);
       }
 
-      .center-content {
-        top: 120px;
-        left: calc(var(--site-edge) + 18px);
-        right: calc(var(--site-edge) + 18px);
+      .hero-copy {
+        width: calc(100% - 36px);
+        gap: 64px;
       }
 
       .title-line {
         margin-left: 0;
         width: 100%;
         max-width: 100%;
-        font-size: clamp(40px, 10.8vw, 48px);
-        line-height: 1.04;
+        font-size: clamp(40px, 10.8vw, 32px);
+        line-height: 1.2;
+        letter-spacing: -0.06em;
+        font-weight: 500;
         overflow-wrap: normal;
         word-break: normal;
         hyphens: none;
@@ -3767,13 +3773,9 @@ a:visited {
       }
 
       .description {
-        top: auto;
-        bottom: 48px;
-        left: calc(var(--site-edge) + 18px);
-        width: min(360px, calc(100% - 48px));
-        font-size: .9rem;
-        line-height: 1.5;
-        transform: none;
+        width: min(535px, 100%);
+        font-size: 16px;
+        line-height: 26px;
         text-wrap: balance;
       }
 
@@ -3783,13 +3785,8 @@ a:visited {
     }
 
     @media (max-width: 420px) {
-      .center-content {
-        left: calc(var(--site-edge) + 12px);
-        right: calc(var(--site-edge) + 12px);
-      }
-
-      .description {
-        left: calc(var(--site-edge) + 12px);
+      .hero-copy {
+        width: calc(100% - 24px);
       }
     }
 
