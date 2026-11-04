@@ -306,12 +306,11 @@ a:visited {
       max-height: min(72vh, 560px);
       padding: 26px 24px 24px;
       overflow: visible;
-      border: 1px solid rgba(17, 17, 17, 0.12);
+      border:none;
+      /* border: 1px solid rgba(17, 17, 17, 0.12); */
       border-radius: 14px;
-      background: transparent;
-      box-shadow:
-        0 14px 28px rgba(0, 0, 0, 0.14),
-        0 2px 8px rgba(0, 0, 0, 0.08);
+      background: rgb(255 255 255 / 75%);
+      box-shadow:0 10px 20px rgb(180 180 180 / 18%);
       opacity: 0;
       pointer-events: none;
       visibility: hidden;
@@ -5384,6 +5383,7 @@ a:visited {
       column-gap: 16px;
       position: static;
       padding: 0;
+      align-items: self-start;
       counter-increment: case-content-number;
     }
 
