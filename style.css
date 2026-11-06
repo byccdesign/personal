@@ -8398,6 +8398,12 @@ Reusable content patterns for product case study pages.
   scroll-snap-align: none;
 }
 
+.work-photo-slider[data-draggable-carousel] .work-photo-slide--video {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .work-photo-slider[data-draggable-carousel] [data-carousel-clone] {
   display: none;
 }
@@ -8407,6 +8413,10 @@ Reusable content patterns for product case study pages.
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+.work-photo-slider[data-draggable-carousel] .work-photo-slide--video video {
+  object-position: center;
 }
 
 .work-photo-slider[data-draggable-carousel] img {
