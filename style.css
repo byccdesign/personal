@@ -3750,7 +3750,7 @@ a:visited {
     /* DESCRIPTION */
     .description {
       position: static;
-      width: min(760px, 100%);
+      width: min(590px, 100%);
       color: var(--text);
       font-size: 20px;
       line-height: 30px;

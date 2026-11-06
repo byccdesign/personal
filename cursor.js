@@ -771,15 +771,12 @@
 
     const navbar = document.getElementById('navbar');
     const backToTop = document.querySelector('.back-to-top');
+    const mobileNavigation = window.matchMedia('(max-width: 768px)');
 
     function updateScrollControls() {
       const hasScrolled = window.scrollY > 50;
 
-    if (hasScrolled) {
-        navbar.classList.add('scrolled');
-    } else {
-        navbar.classList.remove('scrolled');
-    }
+      navbar.classList.toggle('scrolled', mobileNavigation.matches && hasScrolled);
 
       if (backToTop) {
         backToTop.classList.toggle('is-visible', window.scrollY > 500);
@@ -787,6 +784,7 @@
     }
 
     window.addEventListener('scroll', updateScrollControls);
+    window.addEventListener('resize', updateScrollControls, { passive: true });
     updateScrollControls();
 
     if (backToTop) {
