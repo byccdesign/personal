@@ -4954,6 +4954,12 @@ a:visited {
       opacity: 1;
     }
 
+    @media (hover: none), (pointer: coarse) {
+      .floating-case-tooltip {
+        display: none;
+      }
+    }
+
     .featured-work__header {
         display: block;
         width: min(100%, 800px);
