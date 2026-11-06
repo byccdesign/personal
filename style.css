@@ -565,7 +565,7 @@ a:visited {
       font-weight: 500;
       letter-spacing: -0.04em;
       cursor: pointer;
-      transition: color 0.35s ease, transform 0.35s ease;
+      transition: color 0.35s ease-out, transform 0.35s ease-out;
     }
 
     .nav-contact__toggle:hover {
@@ -818,6 +818,12 @@ a:visited {
       font-weight: 500;
     }
 
+    @media (min-width: 769px) {
+      .navbar {
+        position: absolute;
+      }
+    }
+
     /* =========================
     MOBILE
     ========================= */
@@ -999,7 +1005,7 @@ a:visited {
         transform: translateY(0);
         transition:
             opacity 0s,
-            transform 0.18s ease,
+            transform 0.18s ease-out,
             visibility 0s;
       }
     }
@@ -8320,6 +8326,7 @@ Reusable content patterns for product case study pages.
 
   .case-study-split__byline {
     font-size: 13px;
+    line-height: 1.0;
   }
 
   .case-study-split__media {
