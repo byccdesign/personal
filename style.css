@@ -8250,6 +8250,17 @@ Reusable content patterns for product case study pages.
   margin: 0 auto 80px;
 }
 
+@media (min-width: 761px) {
+  .case-study-split--wide-copy {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+    gap: clamp(36px, 4vw, 64px);
+  }
+
+  .case-study-split--wide-copy .case-study-split__title {
+    max-width: 900px;
+  }
+}
+
 .case-study-split__content {
   min-width: 0;
 }
