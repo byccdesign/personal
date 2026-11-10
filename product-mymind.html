@@ -1,199 +1,459 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="author" content="Christine Uy">
-  <meta name="description" content="A self-initiated product design and AI-assisted development exploration: designing and building a flexible canvas around how I think.">
-  <meta name="theme-color" content="#F9F9F9">
-  <meta property="og:title" content="MyMind — A personal canvas built with AI-assisted development | Christine Uy">
-  <meta property="og:description" content="Designing and building a flexible canvas around my systems-thinking workflow.">
-  <meta property="og:image" content="https://christine-uy.com/vid/mymind/mymind-demo-case-study.jpg">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="author" content="Christine Uy" />
+  <meta name="description" content="MyMind: A flexible workspace for visual thinking" />
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <meta name="theme-color" content="#FFF9F0">
+  <meta property="og:image" content="img/meta-designsystem.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair:ital,opsz,wght@0,5..1200,300..900;1,5..1200,300..900&amp;family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&amp;display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair:ital,opsz,wght@0,5..1200,300..900;1,5..1200,300..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">
   <link rel="stylesheet" href="/brand.css">
-  <title>MyMind — A personal canvas built with AI-assisted development | Christine Uy</title>
-  <style>
-    .mymind-case { --mymind-ink: #202326; --mymind-muted: #5d6268; }
-    .mymind-case .project-hero { min-height: auto; padding-bottom: 72px; background: #f6f6f4; }
-    .mymind-case .project-hero__content { padding-top: 142px; }
-    .mymind-case .project-hero__title { max-width: 780px; }
-    .mymind-case .project-hero__summary { max-width: 700px; }
-    .mymind-case .project-hero__visual { position: relative; top: auto; left: auto; display: block; width: min(1200px, calc(100% - 2 * var(--site-edge))); height: auto; max-height: 660px; margin: 48px auto 0; object-fit: cover; object-position: center; pointer-events: auto; border: 1px solid #dedfdf; border-radius: 10px; box-shadow: 0 18px 60px rgba(23, 30, 35, .10); }
-    .mymind-case .case-content { padding-top: 74px; }
-    .mymind-case .case-content-copy h3 { margin: 20px 0 0; color: var(--mymind-ink); font-size: 21px; font-weight: 600; line-height: 1.35; letter-spacing: -0.02em; }
-    .mymind-case .case-content-copy p { max-width: 780px; }
-    .mymind-case .mymind-outcomes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; margin: 8px 0 0; background: #dfe2e3; border: 1px solid #dfe2e3; }
-    .mymind-case .mymind-outcomes article { min-height: 150px; padding: 24px; background: #f7f8f8; }
-    .mymind-case .mymind-outcomes h3 { margin: 0 0 10px; font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
-    .mymind-case .mymind-outcomes p { margin: 0; color: var(--mymind-muted); font-size: 15px; line-height: 1.6; }
-    .mymind-case .mymind-note { padding: 20px 24px; border-left: 3px solid #4f6df5; background: #f4f6ff; color: #373c48; }
-    .mymind-case .mymind-ai-loop { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 18px 0 24px; background: #dfe2e3; border: 1px solid #dfe2e3; }
-    .mymind-case .mymind-ai-loop article { min-height: 162px; padding: 20px; background: #f7f8f8; }
-    .mymind-case .mymind-ai-loop span { color: #5367ef; font-size: 12px; font-weight: 750; letter-spacing: .1em; }
-    .mymind-case .mymind-ai-loop h3 { margin-top: 12px; font-size: 17px; }
-    .mymind-case .mymind-ai-loop p { margin-bottom: 0; font-size: 14px; }
-    .mymind-case .mymind-links { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
-    .mymind-case .mymind-links a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border: 1px solid #c9cccf; border-radius: 4px; color: var(--mymind-ink); font-size: 14px; text-decoration: none; }
-    .mymind-case .mymind-links a:hover { border-color: #4f6df5; }
-    @media (max-width: 700px) {
-      .mymind-case .project-hero__content { padding-top: 110px; }
-      .mymind-case .project-hero__visual { width: calc(100% - 32px); margin-top: 32px; }
-      .mymind-case .mymind-outcomes { grid-template-columns: 1fr; }
-      .mymind-case .mymind-outcomes article { min-height: 0; }
-      .mymind-case .mymind-ai-loop { grid-template-columns: 1fr 1fr; }
-      .mymind-case .mymind-ai-loop article { min-height: 0; }
-    }
-  </style>
+  <link rel="stylesheet" href="/button-specimen.css">
+  <link rel="stylesheet" href="/exploded-runtime.css" data-xp-own>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@500;600&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block">
+  <title>Christine Uy - MyMind: A flexible workspace for visual thinking</title>
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-TLHF72YDD8"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-TLHF72YDD8');
+  </script>
 </head>
 <body>
-  <div class="cursor"></div>
-  <div class="cursor-ring"></div>
-  <header class="navbar" id="navbar">
-    <div class="nav-logo" aria-label="Christine Uy — homepage"><a href="/">Christine Uy</a></div>
-    <button class="nav-toggle" type="button" aria-controls="primary-navigation" aria-expanded="false" aria-label="Open menu"><span></span><span></span></button>
-    <nav class="nav-links" id="primary-navigation">
-      <a href="/product" aria-current="page">Product</a><a href="/notes/">Notes</a><a href="/about">About</a><a href="/contact">Contact</a>
-    </nav>
-  </header>
+<div class="cursor"></div><div class="cursor-ring"></div>
+<header class="navbar" id="navbar">
+  <div class="nav-logo"><a href="/">Christine Uy</a></div>
+  <button class="nav-toggle" type="button" aria-controls="primary-navigation" aria-expanded="false" aria-label="Open menu"><span></span><span></span></button>
+ <nav class="nav-links" id="primary-navigation">
+    <a href="/notes/">Notes</a>
+    <a href="/about">About</a>
+    <div class="nav-contact" data-contact-menu>
+      <button class="nav-contact__toggle" type="button" aria-expanded="false" aria-controls="nav-contact-panel">
+        Contact
+      </button>
+      <div class="nav-contact__panel" id="nav-contact-panel" aria-hidden="true" inert>
+        <div class="nav-contact__item">
+          <span class="nav-contact__label">Email</span>
+          <button class="nav-contact__copy-row" type="button" aria-label="Copy email address" title="Copy email address" data-copy-email>
+            <span class="nav-contact__value">hi@christine-uy.com</span>
+            <span class="nav-contact__copy" aria-hidden="true">
+              <svg class="nav-contact__copy-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <rect x="7" y="7" width="10" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.6" />
+                <path d="M13 7V5.8A1.8 1.8 0 0 0 11.2 4H5.8A1.8 1.8 0 0 0 4 5.8v5.4A1.8 1.8 0 0 0 5.8 13H7" fill="none" stroke="currentColor" stroke-width="1.6" />
+              </svg>
+              <svg class="nav-contact__check-icon" viewBox="0 0 20 20" aria-hidden="true" focusable="false">
+                <path d="m4.5 10.2 3.6 3.5 7.5-7.4" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" />
+              </svg>
+            </span>
+          </button>
+        </div>
+        <div class="nav-contact__item">
+          <span class="nav-contact__label">LinkedIn</span>
+          <a class="nav-contact__value" href="https://www.linkedin.com/in/christine-uy/" target="_blank" rel="noopener noreferrer">@christine-uy</a>
+        </div>
 
-  <nav class="case-anchor-nav" aria-label="Case study sections">
-    <div class="case-anchor-nav__rail" aria-hidden="true"><a href="#project-details-title"></a><a href="#challenge-title"></a><a href="#process-title"></a><a href="#solution-title"></a><a href="#reflection-title"></a></div>
-    <div class="case-anchor-card"><p>Content</p><a href="#project-details-title">Overview</a><a href="#challenge-title">Opportunity</a><a href="#process-title">Process</a><a href="#solution-title">Solution</a><a href="#reflection-title">Reflection</a></div>
-  </nav>
-
-  <main class="project-case-study project-case-study--project-hero mymind-case">
-    <section class="project-hero" aria-labelledby="summary-title">
-      <div class="project-hero__content fade-in-up">
-        <div class="project-hero__tags"><span>Personal project</span><span>Product design</span><span>AI-assisted development</span></div>
-        <h1 class="project-hero__title" id="summary-title">MyMind: shaping a product idea into a working canvas with AI</h1>
-        <p class="project-hero__summary">I designed a visual-thinking workspace around my systems-thinking habits, then used AI-assisted development to turn it into a working prototype. I kept product judgment, testing, and iteration in my hands.</p>
+        <div class="nav-contact__item">
+          <span class="nav-contact__label">Dribbble</span>
+          <a class="nav-contact__value" href="https://dribbble.com/creatvetin" target="_blank" rel="noopener noreferrer">@creatvetin</a>
+        </div>
+        <span class="nav-contact__status" aria-live="polite" data-copy-status></span>
       </div>
-      <img class="project-hero__visual" src="/vid/mymind/mymind-demo-case-study.jpg" alt="MyMind canvas showing a generated payment workflow with connected customer, platform, and account nodes." width="1920" height="930" fetchpriority="high">
+    </div>
+ </nav>
+</header>
+
+<nav class="case-anchor-nav" aria-label="Case study sections">
+  <div class="case-anchor-nav__rail">
+    <a href="#prototype" aria-label="Demo"></a>
+    <a href="#context" aria-label="Overview"></a>
+    <a href="#context-heading" aria-label="Context"></a>
+    <a href="#approach" aria-label="How I built it"></a>
+    <a href="#iteration" aria-label="Iteration"></a>
+    <a href="#accessibility" aria-label="Accessibility"></a>
+    <a href="#ai-integration" aria-label="AI integration"></a>
+    <a href="#media-display" aria-label="Media display"></a>
+    <a href="#moodboarding" aria-label="Moodboarding"></a>
+    <a href="#drawing-tools" aria-label="Drawing and highlight tools"></a>
+    <a href="#tasks-tables" aria-label="Task lists and tables"></a>
+    <a href="#iconography" aria-label="Iconography"></a>
+    <a href="#comments" aria-label="Comments and annotations"></a>
+    <a href="#exporting" aria-label="Exporting"></a>
+  </div>
+  <div class="case-anchor-card">
+    <p>Content</p>
+    <a href="#prototype">Demo</a>
+    <a href="#context">Overview</a>
+    <a href="#context-heading">Context</a>
+    <a href="#approach">How I built it</a>
+    <a href="#iteration">Iterating</a>
+    <a href="#accessibility">Accessibility</a>
+    <a href="#ai-integration">AI Integration</a>
+    <a href="#media-display">Media Display</a>
+    <a href="#moodboarding">Moodboarding</a>
+    <a href="#drawing-tools">Draw and Highlight</a>
+    <a href="#tasks-tables">Task Lists and Tables</a>
+    <a href="#iconography">Icons</a>
+    <a href="#comments">Comments</a>
+    <a href="#exporting">Exporting</a>
+  </div>
+</nav>
+
+  <main class="project-case-study project-case-study--project-hero">
+    <section class="impact-metrics impact-metrics--outcomes" id="prototype" aria-label="Interactive MyMind prototype">
+      <div class="impact-metrics__inner">
+
+
+        <div class="case-content-embed-block case-content-embed-block--mobile-offset">
+        <figure class="interactive-embed case-content-embed" data-interactive-embed style="--embed-height: 800px;">
+          <iframe src="https://christine-uy.com/MyMind/sample-process-d8t1?page=page-1" loading="lazy" allow="fullscreen"></iframe>
+          <button class="interactive-embed__gate" type="button" aria-label="Activate the MyMind prototype">
+            <span>
+              <strong>Click to interact</strong>
+              <small>Scroll and zoom stay locked until this embed is active.</small>
+            </span>
+          </button>
+          <button class="interactive-embed__release" type="button" aria-label="Stop interacting with the MyMind prototype">
+            Done <kbd>Esc</kbd>
+          </button>
+        </figure>
+        </div>
+
+      </div>
     </section>
+  <section class="case-content" aria-labelledby="project-details-title">
+    <div class="case-content__inner">
+      <article class="case-content-row case-content-row--intro" id="context">
+        <div class="case-content-row__label">
+          <h2 id="project-details-title">MyMind</h2>
+          <p>Independent Product (2026)</p>
+        </div>
 
-    <section class="case-content" aria-label="MyMind case study">
-      <div class="case-content__inner">
-        <article class="case-content-row case-content-row--intro" aria-labelledby="project-details-title">
-          <div class="case-content-row__label"><h2 id="project-details-title">Project overview</h2><p>Independent exploration</p></div>
-          <div>
-            <p class="case-content__lede">MyMind is a self-initiated product concept and working prototype. I designed the experience and built it with AI-assisted development, exploring the overlap between flexible canvases, structured diagrams, and generative tools.</p>
-            <div class="case-content-meta">
-              <div class="case-content-meta__wide"><p class="case-content-meta__label">Contribution</p><p class="case-content-meta__value">Product direction · UX and interaction design · React / Canvas API prototype · AI-assisted implementation</p></div>
-              <div><p class="case-content-meta__label">Role</p><p class="case-content-meta__value">Independent product designer and builder</p></div>
-              <div><p class="case-content-meta__label">Status</p><p class="case-content-meta__value">Functional personal prototype</p></div>
+        <div class="case-content-intro-copy">
+          <p class="case-content__lede">
+            I designed and built an independent canvas application to bring ideas, research, diagrams, and workflows into one flexible workspace. Using AI-assisted development, I translated my product vision into a working prototype while retaining ownership of the experience, architecture decisions, and iteration.
+          </p>
+
+          <div class="case-content-meta">
+            <div class="case-content-meta__wide">
+              <p class="case-content-meta__label">Scope</p>
+              <p class="case-content-meta__value">Product Direction  · UX · Interaction Design · Prototyping</p>
             </div>
-            <div class="mymind-links"><a href="https://mymindcanvas.vercel.app/editor/canvas-mvystdmj-788y4" target="_blank" rel="noreferrer">Explore the live canvas</a><a href="https://creatvetin.substack.com/p/exploration-designing-and-building" target="_blank" rel="noreferrer">Read the build reflection</a></div>
-          </div>
-        </article>
 
-        <section class="case-feature-bento" aria-labelledby="mymind-demo-title">
-          <header class="case-feature-bento__header">
             <div>
-              <p class="case-feature-bento__eyebrow">A flexible workspace, feature by feature</p>
-              <h2 id="mymind-demo-title">One canvas. Multiple ways to move an idea forward.</h2>
+              <p class="case-content-meta__label">Role</p>
+              <p class="case-content-meta__value">Product Designer & Builder</p>
             </div>
-            <p>Each tool supports a different moment in the work—from catching a rough thought to shaping and discussing a process.</p>
-          </header>
-          <div class="case-feature-bento__grid">
-            <article class="case-feature-card case-feature-card--wide">
-              <div class="case-feature-card__media"><video controls muted playsinline preload="metadata" poster="/vid/mymind/case-structure.jpg" aria-label="Editing an AI-generated process flow on the MyMind canvas."><source src="/vid/mymind/case-structure.mp4" type="video/mp4"></video><span class="case-feature-card__media-label">AI-assisted structure</span></div>
-              <div class="case-feature-card__copy"><span class="case-feature-card__index">01 / SHAPE</span><h3>Turn a prompt into an editable first draft</h3><p>Generate a process flow, then rearrange nodes and connections directly on the canvas as the thinking evolves.</p></div>
-            </article>
-            <article class="case-feature-card case-feature-card--compact">
-              <div class="case-feature-card__media"><video controls muted playsinline preload="metadata" poster="/vid/mymind/case-capture.jpg" aria-label="Drawing freely on a MyMind canvas and moving a sketch."><source src="/vid/mymind/case-capture.mp4" type="video/mp4"></video><span class="case-feature-card__media-label">Freeform canvas</span></div>
-              <div class="case-feature-card__copy"><span class="case-feature-card__index">02 / CAPTURE</span><h3>Start wherever the idea is</h3><p>Sketch, jot a note, or collect references without choosing a rigid format first.</p></div>
-            </article>
-            <article class="case-feature-card case-feature-card--compact">
-              <div class="case-feature-card__media"><video controls muted playsinline preload="metadata" poster="/vid/mymind/case-create.jpg" aria-label="Using command search to add tools to the MyMind canvas."><source src="/vid/mymind/case-create.mp4" type="video/mp4"></video><span class="case-feature-card__media-label">Command search</span></div>
-              <div class="case-feature-card__copy"><span class="case-feature-card__index">03 / CREATE</span><h3>Bring useful actions closer</h3><p>Find canvas tools from one searchable menu, keeping attention on the work in progress.</p></div>
-            </article>
-            <article class="case-feature-card case-feature-card--wide">
-              <div class="case-feature-card__media"><video controls muted playsinline preload="metadata" poster="/vid/mymind/case-collaborate.jpg" aria-label="Placing a comment beside a workflow on the MyMind canvas."><source src="/vid/mymind/case-collaborate.mp4" type="video/mp4"></video><span class="case-feature-card__media-label">Comments in context</span></div>
-              <div class="case-feature-card__copy"><span class="case-feature-card__index">04 / DISCUSS</span><h3>Keep feedback attached to the work</h3><p>Place comments beside the flow they refer to, so conversation stays connected to the idea.</p></div>
-            </article>
-          </div>
-        </section>
 
-        <article class="case-content-row" aria-labelledby="challenge-title">
-          <div class="case-content-row__label"><h2 id="challenge-title">The opportunity</h2></div>
-          <div class="case-content-copy">
-            <h3>I think in systems, so I start with a blank canvas</h3>
-            <p>I use an open workspace to collect details, map how they connect, and move between rough ideas and process flows. In the tools I tried, the features I wanted were spread across products, while the bundled features and subscriptions did not always fit the way I worked. I wanted a flexible canvas with the interactions I reached for most and the option to work offline.</p>
-            <h3>Could one workspace stay open-ended and still help me make structure?</h3>
-            <p>The design challenge was to make useful tools easy to reach without turning the canvas into a rigid diagram editor. AI could help me build a first draft faster, but I needed to understand and change the result, keep control of my work, and refine the tool around my actual habits.</p>
-          </div>
-        </article>
-
-        <article class="case-content-row" aria-labelledby="process-title">
-          <div class="case-content-row__label"><h2 id="process-title">Design + build process</h2></div>
-          <div class="case-content-copy">
-            <h3>1. Start with a flexible workspace</h3>
-            <p>I treated the canvas as the shared foundation rather than designing separate destinations for every kind of thinking. Notes, diagrams, images, and drawing tools can live together in the same working space.</p>
-            <h3>2. Make creation conversational, not opaque</h3>
-            <p>I explored natural-language creation as an optional shortcut. A prompt can produce a first-draft process flow, while the resulting nodes and connections remain editable on the canvas.</p>
-            <h3>3. Build and refine against real interactions</h3>
-            <p>I used the running prototype to examine practical details such as selecting and moving objects, editing canvas content, navigating a large workspace, and exporting work. I also shared iterations with product, QA, and engineering peers and used their informal feedback to guide refinements.</p>
-            <aside class="mymind-note"><strong>Scope note:</strong> This is a self-directed prototype, not a formally validated product. I make no adoption, usability, or business-outcome claims.</aside>
-          </div>
-        </article>
-
-        <article class="case-content-row" aria-labelledby="ai-workflow-title">
-          <div class="case-content-row__label"><h2 id="ai-workflow-title">How I adapted my AI workflow</h2><p>Human-led, AI-assisted</p></div>
-          <div class="case-content-copy">
-            <p>I treated AI as an implementation partner, while I stayed responsible for the product direction, interaction choices, and whether a change belonged in the tool.</p>
-            <div class="mymind-ai-loop" aria-label="My AI-assisted design and development workflow">
-              <article><span>01 / FRAME</span><h3>Describe the behavior</h3><p>Start from a real workflow and define the interaction I want to make easier.</p></article>
-              <article><span>02 / CONTEXT</span><h3>Show the problem</h3><p>Use annotated screenshots, written notes, and screen recordings to make the request concrete.</p></article>
-              <article><span>03 / BUILD</span><h3>Work in small iterations</h3><p>Use Codex for the core build and iteration, with Copilot for smaller tasks.</p></article>
-              <article><span>04 / VERIFY</span><h3>Run, inspect, refine</h3><p>Try the behavior in the app, inspect code diffs, explain bugs, and revert changes that break the architecture.</p></article>
+            <div>
+                <p class="case-content-meta__label">Technology</p>
+                <p class="case-content-meta__value">React, Canvas API</p>
             </div>
-            <p><strong>A lesson in context:</strong> Switching models midway without carrying the app’s architectural decisions caused regressions. I reverted those changes and learned to preserve the reasoning and constraints alongside the code. The useful skill was not prompting once; it was maintaining direction through iteration.</p>
-            <p>Peers in product, QA, and engineering also tested and critiqued the evolving prototype. That informal feedback helped me catch issues, but it was not a formal research study.</p>
-          </div>
-        </article>
 
-        <article class="case-content-row" aria-labelledby="solution-title">
-          <div class="case-content-row__label"><h2 id="solution-title">Solution</h2></div>
-          <div class="case-content-copy">
-            <p>The result is a working personal prototype that brings visual thinking and structured work into one environment. The product is organized around three connected jobs:</p>
-            <div class="mymind-outcomes">
-              <article><h3>Capture</h3><p>Add notes, links, images, checklists, tables, and freehand marks without choosing a rigid format first.</p></article>
-              <article><h3>Shape</h3><p>Generate a process flow from a prompt, then edit the nodes and connections as the idea becomes clearer.</p></article>
-              <article><h3>Share</h3><p>Present or continue work through canvas sharing, comments, and exports in formats including PDF, PNG, and SVG.</p></article>
-            </div>
-            <h3>Design decisions</h3>
-            <p><strong>Editable AI output:</strong> generation creates a starting structure, not a finished answer. Keeping the result in the canvas lets people correct, rearrange, and extend it.</p>
-            <p><strong>One surface, multiple modes:</strong> people can switch between open-ended ideation and more structured mapping without moving their work to a separate tool.</p>
-            <p><strong>Useful beyond generation:</strong> comments, sharing, and exports support the work after the initial idea has taken shape.</p>
-          </div>
-        </article>
 
-        <article class="case-content-row" aria-labelledby="reflection-title">
-          <div class="case-content-row__label"><h2 id="reflection-title">Reflection and next steps</h2></div>
-          <div class="case-content-copy">
-            <p>Building the prototype made the product trade-off tangible: more capability can make a canvas feel powerful, but it can also make the first useful action harder to find. The next design step would be to test the experience with people doing concrete tasks, such as turning a short brief into a process map and sharing it with a collaborator.</p>
-            <p>I would evaluate time to first useful output, how often people edit generated content, whether they can recover from an unwanted result, and whether sharing preserves enough context for another person to respond. Those are questions for validation, not results claimed by this exploration.</p>
           </div>
-        </article>
 
-        <article class="case-content-row">
-          <div class="case-content-row__label"><h2>Explore</h2></div>
-          <div class="case-content-copy"><p>See the product in context and read the original build reflection.</p><div class="mymind-links"><a href="https://mymindcanvas.vercel.app/editor/canvas-mvystdmj-788y4" target="_blank" rel="noreferrer">Open the live MyMind canvas</a><a href="https://creatvetin.substack.com/p/exploration-designing-and-building" target="_blank" rel="noreferrer">Original Substack article</a><a href="https://www.linkedin.com/pulse/exploration-designing-building-my-own-canvas-app-ai-assisted-uy-rkkhf/" target="_blank" rel="noreferrer">LinkedIn build reflection</a></div></div>
-        </article>
+        </div>
+      </article>
+
+    <!-- Challenge -->
+    <div class="case-content-row">
+      <div class="case-content-row__label"><h2 id="context-heading">Context</h2><p>Problem</p></div>
+      <div class="case-content-copy">
+        <h3>I start with a blank canvas to understand how things connect</h3>
+        <p>I often start projects with a blank canvas. I collect references, notes, diagrams, and research, then connect them to understand the bigger picture.</p>
+        <p>For the past years, I’ve used a lot of tools like Miro, Whimsical, Lucidchart, and Figjam to create process flows, mind map, dump ideas, but somehow<span class="case-content-highlight">I like features that exists but not included in one way or another. Subscriptions are going up and there are features I don’t need, so I built what I actually needed for my personal use.</span></p>
+        <p>Rather than adapting my workflow to another tool, I want to make how I naturally work, and wanted to make it available offline too. Basically an extension of my brain, not a tool that I need to learn and wait for a feature that I want.</p>
+
+        <figure class="case-content-media case-content-media--captioned">
+          <img src="https://substackcdn.com/image/fetch/$s_!7Mry!,w_1456,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fe240d517-8f4e-4235-b6a8-f870662969b5_3244x1580.png" alt="MyMind flexible canvas application">
+          <figcaption>Documented my progress from version 1</figcaption>
+        </figure>
+
+        <aside class="case-study-note">
+          <p>This is designed for my personal workflow, so it’s not intended for public use. <b>The design thinking process wasn’t replace by AI, it just helped me make my ideas come to life.</b></p>
+        </aside>
+
       </div>
-    </section>
+
+    </div>
+
+
+    <div class="case-content-row" id="approach">
+      <div class="case-content-row__label"><h2>How I built it</h2><p>Choosing the right tool and appraoch</p> </div>
+      <div class="case-content-copy">
+        <figure class="case-content-media case-content-media--captioned">
+          <img src="https://substackcdn.com/image/fetch/$s_!o_fN!,f_auto,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F9ce13645-bb39-4531-b7f5-b198d8a8be15_1856x1672.png">
+          <figcaption>Sample diagram structure of MyMind (Version 1)</figcaption>
+        </figure>
+        <h3>Human-led, AI-assisted Development</h3>
+        <p>I stayed responsible for product direction, interaction choices, and deciding whether a change belonged in the experience. I used AI tools as implementation partners, giving them concrete context rather than relying on broad, one-line prompts.
+
+        <h3>Things I’ve noticed while using 3 AI models inside Visual Studio</h3>
+        <p>I’ve tried using 3 AI models side by side and here are the things I’ve found:</p>
+          
+        <ol class="case-content-list case-content-list--numbered">
+          <li><span class="case-content-list__number" aria-hidden="true"></span>
+           <span><h4>Co-pilot</h4>It was good but I only have limited credits. I used it for smaller tasks.</span>
+          </li>
+          <li><span class="case-content-list__number" aria-hidden="true"></span>
+           <span><h4>Codex</h4>It was used mostly for building and iterating this app from the start. I was able to use my credits effectively, and it actually understood the context of what I was building to maintain coherence through refactors.</span>
+          </li>
+          <li><span class="case-content-list__number" aria-hidden="true"></span>
+           <span><h4>Claude</h4>It was okay but it didn't understood the context of what I was building and how my code is structured.</span>
+          </li>
+
+        </ol>
+
+        <p>Switching models midway doesn’t have the context of why you made certain decisions. It’s not about choosing which is the best but more over the consistency which I think it’s important for building AI-integrated products.</p>
+        <aside class="case-study-note">
+          <p>AI-assisted development is a new way of building products. <b>It’s not a replacement for human-led design thinking, but it can be a powerful tool for accelerating the process.</b></p>
+        </aside>
+
+      </div>
+    </div>
+
+
+    <div class="case-content-row" id="iteration">
+      <div class="case-content-row__label"><h2>Iterating</h2><p>Inspect and Refine</p></div>
+      <div class="case-content-copy">
+        <h3>Collaborative Testing</h3>
+        <p>I've shared the app with a few friends and colleagues to get feedback on the experience. I’ve also used it myself for actual projects to see how it fits into my workflow.</p>
+         <figure class="case-content-media case-content-media--captioned">
+          <img src="https://substackcdn.com/image/fetch/$s_!mZ2g!,w_1456,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2F17ebfaeb-e372-42b9-a3c3-2858f447eedb_1946x856.png">
+          <figcaption>Using natural language to fix the bugs I've found</figcaption>
+        </figure>
+
+        <h3>Improving the Experience</h3>
+        <p>I've iterated on it based on feedback and my own observations. I've made changes to the UI, interaction patterns, and overall flow of the app to make it more intuitive and efficient.</p>
+        <figure class="case-content-media case-content-media--captioned">
+          <img src="https://substackcdn.com/image/fetch/$s_!ybiU!,w_1456,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fac0a5876-681b-46e7-a993-f74f198612c6_2174x1448.png">
+          <figcaption>Including images and screen recording for additional context</figcaption>
+        </figure>
+
+        <h3>Stress Testing</h3>
+        <p>Codex help me to stress test the app with large media files and data sets, then optimize the web performance.</p>
+       </div>
+    </div>
+
+
+    <div class="case-content-row" id="accessibility">
+      <div class="case-content-row__label"><h2>Accessibility</h2></div>
+      <div class="case-content-copy">
+        <h3>Added by standard</h3>
+        <p>Accessible keyboard navigation is crucial for users with disabilities. Personally, I always use keyboard shortcuts to navigate the app efficiently. I've implemented standard keyboard shortcuts for common actions to use the app efficiently without relying on a mouse.</p>
+        <figure class="case-content-media case-content-media--captioned">
+          <img src="vid/mymind/shortcuts.png">
+        </figure>
+
+        <figure class="case-content-media case-content-media--captioned">
+          <video src="/vid/mymind/quick-tools.optimized.mp4" autoplay muted loop playsinline preload="metadata" aria-hidden="true"></video>
+        </figure>
+
+
+      </div>
+    </div>
+
+
+
+    <div class="case-content-row" id="ai-integration">
+      <div class="case-content-row__label"><h2>AI Integration</h2></div>
+      <div class="case-content-copy">
+        <h3>Creating a process flow from requirements</h3>
+        <figure class="case-content-media case-content-media--captioned">
+          <img src="vid/mymind/generate-process.png">
+          <figcaption>Using AI to generate process flows</figcaption>
+        </figure>
+        <p>I've tried integrating Open AI API into the app to help me generate processs flows using natural language. Learning more about it which requires understanding the API endpoints and handling the responses effectively.</p>
+        <p>Additionally, one of the most important thing to consider for me is the cost implications of using the Open API which requires a lot of tokens and price varies per model.</p>
+      </div>
+    </div>
+
+
+    <div class="case-content-row" id="media-display">
+      <div class="case-content-row__label"><h2>Media Display</h2><p>Animated GIF, Docs, PDF, Youtube</p></div>
+      <div class="case-content-copy">
+        <figure class="case-content-media case-content-media--captioned">
+          <img src="https://substackcdn.com/image/fetch/$s_!rmp8!,w_1456,c_limit,f_webp,q_auto:good,fl_progressive:steep/https%3A%2F%2Fsubstack-post-media.s3.amazonaws.com%2Fpublic%2Fimages%2Fd0afd071-9082-4d44-a85d-fd91fed3c285_1640x976.png">
+        </figure>
+        <h3>Display GIF and other formats like CSV, Google Docs/Sheets</h3>
+        <p>During ideation or research phases, I need to visualize and interact with various types of media. Lots of documents like project brief in google docs or sheets format, csv files, and other media types are not natively supported in Figma or Figjam. So I tried building it in a way that would allow me to display these media types within the canvas as it helps me to see it in a bigger context.</p>
+        
+        <h3>Problem Encountered</h3>
+        <p>GIFs are large in size and can slow down the performance of the canvas.</p>
+        
+        <h3>Solution</h3>
+        <p>To optimize GIFs for web use, I've implemented lazy loading to improve performance. Allows you to play it on hover and manually control playback.</p>
+
+        <figure class="case-content-media case-content-media--captioned">
+        <video src="/vid/mymind/display-gif.optimized.mp4" autoplay muted loop playsinline preload="metadata" aria-hidden="true"></video> 
+        </figure>
+          
+        </div>
+    </div>
+
+
+
+    <div class="case-content-row" id="moodboarding">
+      <div class="case-content-row__label"><h2>Moodboarding</h2><p>Sorting Algorithm</p></div>
+      <div class="case-content-copy">
+        <h3>Sort Images by Colour, Masonry Display</h3>
+        <p>When I have a lot of images, I want to sort them by color to see the overall color palette. This is useful for mood boards, design inspiration, and visual storytelling.</p>
+        <p>To achieve this, I implemented a color sorting algorithm that analyzes the dominant colors in each image and sorts them accordingly. </p>
+       
+          <figure class="case-content-media case-content-media--captioned">
+        <video src="/vid/mymind/sort-colour.optimized.mp4" autoplay muted loop playsinline preload="metadata" aria-hidden="true"></video> 
+        </figure>
+
+      </div>
+    </div>
+
+
+    <div class="case-content-row" id="drawing-tools">
+      <div class="case-content-row__label"><h2>Draw and Highlight</h2><p>Simple Tools</p> </div>
+      <div class="case-content-copy">
+        <h3>Draw and Highlight</h3>       
+        <p>I've implemented simple drawing tools that will allow me to highlight and annotate on top of the elements.</p>
+
+        <figure class="case-content-media case-content-media--captioned">
+          <video src="/vid/mymind/drawing-tool-01.optimized.mp4" autoplay muted loop playsinline preload="metadata" aria-hidden="true"></video> 
+        </figure>
+
+        <h3>Applying standard functionality</h3>
+        <p><b>Holding Shift</b> while drawing a line to create a straight horizontal, vertical or 45 degree is applied.</p>
+        
+        <figure class="case-content-media case-content-media--captioned">
+         <video src="/vid/mymind/drawing-tool-02.optimized.mp4" autoplay muted loop playsinline preload="metadata" aria-hidden="true"></video> 
+        </figure>        
+
+      </div>
+    </div>
+ 
+
+    <div class="case-content-row" id="tasks-tables">
+      <div class="case-content-row__label"><h2>Task Lists and Tables</h2><p>Structured Data Management</p></div>
+      <div class="case-content-copy">
+        <h3>Organization of Tasks and Information</h3>
+        <p>To organize tasks and information, I implemented a simple table and to-do list feature. This allows me to create structured data within the canvas, making it easier to manage and track progress.</p>
+          
+        <figure class="case-content-media case-content-media--captioned">
+         <video src="/vid/mymind/tables-tasks.optimized.mp4" autoplay muted loop playsinline preload="metadata" aria-hidden="true"></video> 
+        </figure>        
+
+      </div>
+    </div>
+
+
+    <div class="case-content-row" id="iconography">
+      <div class="case-content-row__label"><h2>Icons</h2><p>Use of Open Source Library</p></div>
+      <div class="case-content-copy">
+        <h3>Iconography</h3>
+        <p>I've first opt-in to use Google Material icons however I want to have a different iconography that will fit the overall aesthetic of MyMind that is open source. I've used <a href="https://lucide.dev/icons/" target="_blank" rel="noopener noreferrer">Lucide library</a> for the system icons of the app and within the canvas.</p>          
+        <figure class="case-content-media case-content-media--captioned">
+         <video src="/vid/mymind/icons.optimized.mp4" autoplay muted loop playsinline preload="metadata" aria-hidden="true"></video> 
+        </figure>        
+
+      </div>
+    </div>
+
+    <div class="case-content-row" id="comments">
+      <div class="case-content-row__label"><h2>Comments and Annotations</h2></div>
+      <div class="case-content-copy">
+        <p>Simple comments and annotations can be added to any element in the canvas. Categorized by pages.</p>         
+        <figure class="case-content-media case-content-media--captioned">
+         <video src="/vid/mymind/comments.optimized.mp4" autoplay muted loop playsinline preload="metadata" aria-hidden="true"></video> 
+        </figure>        
+
+      </div>
+    </div>
+  
+
+    <div class="case-content-row" id="exporting">
+      <div class="case-content-row__label"><h2>Exporting</h2><p>Without Limits</p></div>
+      <div class="case-content-copy">
+        <h3>Export Everything into 1 file or just selected items in the canvas</h3>
+        <p>The canvas is unlimited, generally it can export the whole board into PDF/JPG/PNG/GIF or SVG. This is useful for sharing my work with others or for archiving purposes.</p>
+        
+        <h3>.MyMind File type</h3>
+        <p>It is a JSON file that contains all the data and information of the canvas. This allows me to easily import and export my work, making it easy to collaborate with others or to continue working on a project at a later time.</p>
+        </p>
+        <figure class="case-content-media case-content-media--captioned">
+         <img src="vid/mymind/export.png" alt="Export functionality in MyMind">
+        </figure>        
+
+      </div>
+    </div>
+
+
+
+
+</div>
+</section>
+
+
+
   </main>
 
+
+  <!-- Footer -->
   <footer class="site-footer fade-in-up" id="contact">
-    <div class="footer-inner"><div class="footer-heading" aria-label="Availability"><p data-text="Available for work."><span class="footer-amp"> &amp; </span>Available for work</p></div><div class="footer-rule" aria-hidden="true"></div><div class="footer-meta"><div class="footer-made"><p class="footer-label">Made by</p><p class="footer-value">Christine Uy</p></div><address class="footer-links"><div><p class="footer-label">Email</p><a class="footer-value" href="mailto:hi@christine-uy.com">hi@christine-uy.com</a></div><div><p class="footer-label">LinkedIn</p><a class="footer-value" href="https://www.linkedin.com/in/christine-uy" target="_blank" rel="noreferrer">christine-uy</a></div></address></div></div>
+    <div class="footer-inner">
+      <div class="footer-heading" aria-label="Availability">
+
+        <p data-text="Available for work."><span class="footer-amp"> & </span>Available for work</p>
+      </div>
+
+      <div class="footer-rule" aria-hidden="true"></div>
+
+      <div class="footer-meta">
+        <div class="footer-made">
+          <p class="footer-label">Made by</p>
+          <p class="footer-value">Christine Uy</p>
+        </div>
+
+        <address class="footer-links">
+          <div class="footer-link-group">
+            <p class="footer-label">Email</p>
+            <a class="footer-value" href="mailto:hi@christine-uy.com">hi@christine-uy.com</a>
+          </div>
+
+          <div class="footer-link-group">
+            <p class="footer-label">Dribbble</p>
+            <a class="footer-value" href="https://www.dribbble.com/creatvetin" target="_blank" rel="noreferrer">creatvetin</a>
+          </div>
+
+          <div class="footer-link-group">
+            <p class="footer-label">LinkedIn</p>
+            <a class="footer-value" href="https://www.linkedin.com/in/christine-uy" target="_blank" rel="noreferrer">christine-uy</a>
+          </div>
+        </address>
+      </div>
+    </div>
   </footer>
-  <button class="back-to-top" type="button" aria-label="Back to top"><img src="/img/back-to-top.svg" alt="" aria-hidden="true"></button>
-  <script src="/cursor.js" defer></script>
+
+
+
+
+  <button class="back-to-top" type="button" alt="Back to top" aria-label="Back to top">
+    <img src="/img/back-to-top.svg" alt="" aria-hidden="true">
+  </button>
+
+ <script src="/cursor.js" defer></script>
+ <script src="/exploded-runtime.js" defer></script>
+ <script src="/button-specimen.js" defer></script>
+
 </body>
 </html>

@@ -6306,6 +6306,12 @@ a:visited {
       gap: 24px;
     }
 
+    @media (max-width: 768px) {
+      .case-content-embed-block--mobile-offset {
+        margin-top: 62px;
+      }
+    }
+
     .case-content-embed__title {
       max-width: 814px;
       margin: 0 auto;
