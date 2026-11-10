@@ -476,8 +476,8 @@ a:visited {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      width: calc(100% - (var(--site-gutter) * 2));
-      max-width: var(--site-max-width);
+      width: min(calc(100% - 80px), 1648px);
+      max-width: none;
       padding: 18px 0 26px;
       border-radius: 20px;
       background: transparent;
@@ -838,7 +838,7 @@ a:visited {
       }
 
       .navbar {
-        width: calc(100% - (var(--site-gutter) * 2));
+        width: min(calc(100% - 80px), 1648px);
         padding: 16px 18px;
       }
 
@@ -3750,7 +3750,7 @@ a:visited {
     /* DESCRIPTION */
     .description {
       position: static;
-      width: min(590px, 100%);
+      width: min(700px, 100%);
       color: var(--text);
       font-size: 20px;
       line-height: 30px;
@@ -7475,8 +7475,8 @@ a:visited {
     }
 
     .footer-inner {
-      width: calc(100% - (var(--site-gutter) * 2));
-      max-width: var(--site-max-width);
+      width: min(calc(100% - 80px), 1648px);
+      max-width: none;
       margin: 0 auto;
     }
 
@@ -8446,6 +8446,12 @@ Reusable content patterns for product case study pages.
 }
 
 @media (max-width: 760px) {
+  .navbar,
+  .footer-inner {
+    width: min(calc(100% - 36px), 680px);
+    max-width: none;
+  }
+
   .work-photo-slider[data-draggable-carousel] {
     --carousel-inline-inset: max(18px, calc((100vw - 680px) / 2));
   }
