@@ -47,7 +47,7 @@
   </button>
 
  <nav class="nav-links" id="primary-navigation">
-    <a href="/notes/">Notes</a>
+    <a href="/" aria-current="page">Work</a>
     <a href="/about">About</a>
     <div class="nav-contact" data-contact-menu>
       <button class="nav-contact__toggle" type="button" aria-expanded="false" aria-controls="nav-contact-panel">
@@ -135,6 +135,62 @@
 
   <!-- Work -->
   <main class="work-section" id="product" aria-label="Selected work">
+
+  <!-- MyMind -->
+    <article class="featured-work featured-work--canvas fade-in-up" data-case-study-url="/product-mymind" data-tooltip="Read How I Built It" role="link" tabindex="0">
+      <div class="featured-work__header">
+        <div class="featured-work__copy">
+          <h2 class="work-section__title">MyMind: A flexible workspace for visual thinking</h2>
+          <p>Designed and built an open canvas to bring ideas, research, diagrams, and workflows into one flexible workspace. </p>
+          <div class="project-tags" aria-label="Project disciplines">
+            <span>React, Canvas API</span>
+            <span>Independent Product</span>
+            <span>AI-assisted Development</span>
+            <span>Product Design</span>
+            <span>Interaction Design</span>
+          </div>
+        </div>
+      </div>
+      <div class="mymind-showcase" aria-label="Three ways to work with ideas in MyMind">
+        <article class="mymind-feature-card">
+          <figure class="mymind-feature-card__media">
+            <video data-motion-preview muted loop playsinline preload="none" poster="/vid/mymind/case-capture-1.png" aria-hidden="true" tabindex="-1">
+              <source src="/vid/mymind/idea.compressed.mp4" type="video/mp4">
+            </video>
+          </figure>
+          <div class="mymind-feature-card__copy">
+            <p class="mymind-feature-card__step">Idea and Exploration</p>
+            <h3>Start with whatever you have.</h3>
+            <p>Bring notes, files, images, links, and quick sketches onto one open canvas.</p>
+          </div>
+        </article>
+        <article class="mymind-feature-card">
+          <figure class="mymind-feature-card__media">
+            <video data-motion-preview muted loop playsinline preload="none" poster="/vid/mymind/shape-card.jpg" aria-hidden="true" tabindex="-1">
+              <source src="/vid/mymind/shape-card.mp4" type="video/mp4">
+            </video>
+          </figure>
+          <div class="mymind-feature-card__copy">
+            <p class="mymind-feature-card__step">Design Partner</p>
+            <h3>Give a rough idea some structure.</h3>
+            <p>Use a prompt to create a first-draft flow, then edit every node and connection.</p>
+          </div>
+        </article>
+        <article class="mymind-feature-card">
+          <figure class="mymind-feature-card__media">
+            <video data-motion-preview muted loop playsinline preload="none" poster="/vid/mymind/share-card.jpg" aria-hidden="true" tabindex="-1">
+              <source src="/vid/mymind/share-card.mp4" type="video/mp4">
+            </video>
+          </figure>
+          <div class="mymind-feature-card__copy">
+            <p class="mymind-feature-card__step">Collaborate</p>
+            <h3>Keep the conversation with the work.</h3>
+            <p>Add comments to a canvas, share it, or export it when it is ready to move on.</p>
+          </div>
+        </article>
+      </div>
+    </article>
+
 
   <!-- EWA -->
     <article class="featured-work featured-work--ewa featured-work--case-study" data-case-study-url="/product-ewa" data-tooltip="View Case Study" role="link" tabindex="0">
@@ -270,60 +326,7 @@
       </div>
       </div>
     </article> -->
-  <!-- MyMind -->
-    <article class="featured-work featured-work--canvas fade-in-up" data-case-study-url="https://mymindcanvas.vercel.app/" data-open-new-window="true" data-tooltip="Try MyMind" role="link" tabindex="0">
-      <div class="featured-work__header">
-        <div class="featured-work__copy">
-          <h2 class="work-section__title">MyMind: A flexible workspace for visual thinking</h2>
-          <p>Designed and built an open canvas to bring ideas, research, diagrams, and workflows into one flexible workspace. </p>
-          <div class="project-tags" aria-label="Project disciplines">
-            <span>React, Canvas API</span>
-            <span>Independent Product</span>
-            <span>AI-assisted Development</span>
-            <span>Product Design</span>
-            <span>Interaction Design</span>
-          </div>
-        </div>
-      </div>
-      <div class="mymind-showcase" aria-label="Three ways to work with ideas in MyMind">
-        <article class="mymind-feature-card">
-          <figure class="mymind-feature-card__media">
-            <video data-motion-preview muted loop playsinline preload="none" poster="/vid/mymind/case-capture-1.png" aria-hidden="true" tabindex="-1">
-              <source src="/vid/mymind/idea.compressed.mp4" type="video/mp4">
-            </video>
-          </figure>
-          <div class="mymind-feature-card__copy">
-            <p class="mymind-feature-card__step">Idea and Exploration</p>
-            <h3>Start with whatever you have.</h3>
-            <p>Bring notes, files, images, links, and quick sketches onto one open canvas.</p>
-          </div>
-        </article>
-        <article class="mymind-feature-card">
-          <figure class="mymind-feature-card__media">
-            <video data-motion-preview muted loop playsinline preload="none" poster="/vid/mymind/shape-card.jpg" aria-hidden="true" tabindex="-1">
-              <source src="/vid/mymind/shape-card.mp4" type="video/mp4">
-            </video>
-          </figure>
-          <div class="mymind-feature-card__copy">
-            <p class="mymind-feature-card__step">Design Partner</p>
-            <h3>Give a rough idea some structure.</h3>
-            <p>Use a prompt to create a first-draft flow, then edit every node and connection.</p>
-          </div>
-        </article>
-        <article class="mymind-feature-card">
-          <figure class="mymind-feature-card__media">
-            <video data-motion-preview muted loop playsinline preload="none" poster="/vid/mymind/share-card.jpg" aria-hidden="true" tabindex="-1">
-              <source src="/vid/mymind/share-card.mp4" type="video/mp4">
-            </video>
-          </figure>
-          <div class="mymind-feature-card__copy">
-            <p class="mymind-feature-card__step">Collaborate</p>
-            <h3>Keep the conversation with the work.</h3>
-            <p>Add comments to a canvas, share it, or export it when it is ready to move on.</p>
-          </div>
-        </article>
-      </div>
-    </article>
+
 
   </main>
 
