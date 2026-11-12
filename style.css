@@ -5742,7 +5742,7 @@ a:visited {
     .impact-metrics {
       background:#232a3b;
       color: var(--bg);
-      padding: clamp(88px, 9vw, 120px) 0 clamp(96px, 10vw, 120px);
+      padding: clamp(64px, 9vw, 90px) 0 clamp(64px, 9vw, 90px);
     }
     
     .impact-metrics--leadership {
@@ -5787,7 +5787,7 @@ a:visited {
 
     .impact-metrics__leadership-intro {
       margin: 0;
-      padding-bottom: 48px;
+      /* padding-bottom: 48px; */
       color: var(--bg);
       font-size: clamp(16px, 1.12vw, 18px);
       font-weight: 400;
@@ -5798,10 +5798,11 @@ a:visited {
 
     .case-leadership-point {
       display: grid;
+      margin-top: 24px;
       grid-template-columns: minmax(180px, 0.52fr) minmax(0, 0.48fr);
       gap: clamp(24px, 4vw, 64px);
-      padding: 32px 0;
-      border-top: 1px solid #383e4b;
+      padding: 16px 0;
+      /* border-top: 1px solid #383e4b; */
     }
 
     .case-leadership-point h3 {
@@ -6683,14 +6684,14 @@ a:visited {
       }
 
       .impact-metrics__leadership-intro {
-        padding-bottom: 32px;
+        padding-bottom: 0;
         text-align: left;
       }
 
       .case-leadership-point {
         grid-template-columns: 1fr;
         gap: 12px;
-        padding: 24px 0;
+        padding: 8px 0;
       }
 
       .case-leadership-list {

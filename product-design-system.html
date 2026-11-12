@@ -164,12 +164,13 @@
     <div class="case-content-row">
       <div class="case-content-row__label"><h2 id="challenge-heading">Challenge</h2><p>Problem</p></div>
       <div class="case-content-copy">
-        <h3>A growing product ecosystem needed a shared design language</h3>
+        <h3>The product look like it was built by different teams</h3>
         <p>As Freelancer.com expanded its digital ecosystem, products across its group of companies including Loadshift.com.au and Escrow.com. It needed consistent, reusable design foundations while maintaining their distinct product identities.</p>
         <p>Without consistent standards, familiar interactions could behave differently depending on where users encountered them. Designers and engineers also had to repeatedly interpret existing patterns or recreate solutions.</p>
-        <aside class="case-study-note">
-            <p>How do we create a shared design foundation that improves consistency and accessibility while giving individual products the flexibility to evolve?</p>
-          </aside>
+        <ol class="case-content-list case-content-list--numbered">
+          <li><span class="case-content-list__number" aria-hidden="true"></span><span> The cost wasn't just visual. It was time, consistency, and confidence spent again on every release.</span></li>
+          <li><span class="case-content-list__number" aria-hidden="true"></span><span>We needed to define what should remain consistent across products and where teams could have product-specific flexibility.</span></li>
+        </ol>
       </div>
     </div>
 
@@ -182,9 +183,14 @@
     <div class="case-content-row case-content-row--reverse" id="audit">
       <div class="case-content-row__label"><h2>The Audit</h2><p>Understanding the current state</p></div>
       <div class="case-content-copy">
-        <h3>Understanding the existing system before improving it</h3>
-        <p>We reviewed the design files and mapped Bits from its foundations through components, states, and patterns. Connecting the parts helped product, design, and engineering discuss <span class="case-content-highlight">what should be shared across products and where teams needed product-specific flexibility.</span></p>
-        <p>The audit also exposed missing states and documentation gaps, giving the team a clearer basis for organizing and evolving the system.</p>
+        <h3>I began with a full UI audit</h3>
+       <ol class="case-content-list case-content-list--numbered">
+         <li><span class="case-content-list__number" aria-hidden="true"></span><span>Create an inventory what existed across the product,</span></li>
+         <li><span class="case-content-list__number" aria-hidden="true"></span><span>Check UI component duplicates, inconsistent tokens, and patterns. Error handlings which is the most important in our forms handlings that needs to be address.</span></li>
+         <li><span class="case-content-list__number" aria-hidden="true"></span><span>Group screens by pattern rather than by product funnel</span></li>
+      </ol>
+        
+        
         <aside class="case-study-note">
           <p>The goal wasn't to replace everything. It was to strengthen what already existed and make the system easier to maintain and extend.</p>
         </aside>
@@ -243,8 +249,8 @@
         <h3>Focusing on high impact improvements</h3>
         <p> With UI engineers, QA, front-end infrastructure leads, and product owners, we prioritized improvements by component usage, product requirements, and technical feasibility.</p>
         <ol class="case-content-list case-content-list--numbered">
-          <li><span class="case-content-list__number" aria-hidden="true"></span><span>We focused on high-impact patterns such as forms, data tables, and navigation by refining existing components, expanding variants and interaction states, and introducing components where gaps existed.</span></li>
-          <li><span class="case-content-list__number" aria-hidden="true"></span><span>We included accessibility, localization, and cross-browser compatibility in the evaluation so each improvement supported a more consistent and inclusive experience.</span></li>
+          <li><span class="case-content-list__number" aria-hidden="true"></span><span>We focused on high-impact patterns such as forms, buttons, cards, navigation, alerts, tabs, badges, and data tables became system components with documented behaviour; product-specific layouts stayed with the teams. Colour, spacing, and type live as tokens in Figma variables change a token once and light and dark themes update together.</span></li>
+          <li><span class="case-content-list__number" aria-hidden="true"></span><span>Included accessibility, localization, and cross-browser compatibility in the evaluation so each improvement supported a more consistent and inclusive experience.</span></li>
         </ol>
 
         </div>
@@ -417,6 +423,17 @@
       </div>
     </div>
 
+
+    <section class="impact-metrics impact-metrics--leadership" aria-labelledby="leadership-title">
+      <div class="impact-metrics__inner impact-metrics__inner--leadership">
+        <div class="impact-metrics__heading">
+          <h2 id="leadership-title">What I'd Do Next</h2>
+        </div>
+        <div class="impact-metrics__leadership-copy">
+          <p class="impact-metrics__leadership-intro">Formalise the contribution model by how a component is proposed, reviewed, versioned, and deprecated. Publish adoption reporting, so the system's value is measured in usage, not opinion.</p>
+        </div>
+      </div>
+    </section>
 
     <!-- Bento Grid -->
     <div class="case-content-bento case-content-bento--three-two" aria-label="Bits foundations and components">
